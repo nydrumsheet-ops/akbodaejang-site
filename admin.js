@@ -427,7 +427,7 @@ function memberRowHTML(u, sum) {
 
 function renderAdminInquiries(body) {
   const all = Object.values(STATE.inquiries).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  const list = ADMIN_INQUIRY_FILTER ? all.filter(q => q.status === ADMIN_INQUIRY_FILTER) : all;\n
+  const list = ADMIN_INQUIRY_FILTER ? all.filter(q => q.status === ADMIN_INQUIRY_FILTER) : all;
   body.innerHTML = `
     <div style="${ADMIN_PANEL}">
       <h2 style="margin:0 0 4px;font-size:17px;">문의 관리</h2>
