@@ -3,7 +3,7 @@
    "구매자/" 모드(또는 총괄/)에서 작업합니다.
 
    페이지: 홈 / 악보 목록(검색·필터) / 악보 상세 / 아티스트 / 장바구니 /
-          마이페이지(내 악보함·포인트·찜·구독·최근 본) / 신청곡
+          마이페이지(내 악보함·포인트·찜·구독·최근 본) / 신청곡 / 고객센터(FAQ·1:1 문의)
    계정이 필요한 버튼은 requireLogin() 으로 감싸서, 로그인 후 하던 일을 이어간다.
    ============================================================ */
 
@@ -11,27 +11,51 @@ let BUYER_ROUTE = { page: "home", params: {} };
 let HOME_POP = { period: 7, instrument: "" };
 let HERO_TIMER = null;
 let REVIEW_DRAFT = { rating: 0 };
+let SUPPORT_TAB = "faq";
+let SUPPORT_FAQ_CAT = "";
+let SUPPORT_FAQ_OPEN = null;
+let SUPPORT_QNA_OPEN = null;
+let SUPPORT_FORM_OPEN = false;
 const PAGE_SIZE = 20;
 
+/* 자주 묻는 질문 — 고정 콘텐츠. 정책 수치는 직접 쓰지 않고 POLICY를 참조한다 */
+const FAQ_LIST = [
+  { id: "f1", cat: "결제·포인트", q: "포인트는 어떻게 충전하나요?",
+    a: () => `마이페이지 › 포인트 메뉴에서 ${POLICY.chargeTiers.map(t => formatWon(t.amount)).join(" / ")} 중 골라 충전해요. 1P는 ${POLICY.point.unit}원이고, 충전한 포인트는 ${POLICY.point.expiryYears}년 동안 쓸 수 있어요.` },
+  { id: "f2", cat: "결제·포인트", q: "충전하면 보너스가 붙나요?",
+    a: () => `충전 금액에 따라 ${POLICY.chargeTiers.filter(t => t.bonus > 0).map(t => `${formatWon(t.amount)} 이상 ${Math.round(t.bonus * 100)}%`).join(", ")} 보너스가 붙어요. 첫 충전은 ${Math.round(POLICY.firstChargeBonus * 100)}% 보너스와 티어 보너스 중 더 큰 쪽이 적용돼요.` },
+  { id: "f3", cat: "환불", q: "환불은 어떻게 하나요?",
+    a: () => `구매 후 ${POLICY.refund.windowDays}일 이내, 파일을 한 번도 받지 않았다면 마이페이지 › 내 악보함에서 환불 버튼으로 포인트 전액 환불돼요. 한 번이라도 다운로드했다면 환불이 안 돼요.` },
+  { id: "f4", cat: "악보·심사", q: "악보 등록하면 언제 노출되나요?",
+    a: () => `등록 즉시 관리자 심사로 넘어가고, 승인되면 바로 악보 목록에 노출돼요. 반려되면 사유와 함께 돌아오고, 고쳐서 다시 등록하면 돼요.` },
+  { id: "f5", cat: "악보·심사", q: "수수료는 얼마인가요?",
+    a: () => `일반 편곡은 ${Math.round(POLICY.commission.normal * 100)}%, 창작·오리지널 편곡은 ${Math.round(POLICY.commission.original * 100)}% 수수료가 붙어요. 나머지는 전부 판매자 몫이에요.` },
+  { id: "f6", cat: "정산", q: "정산은 언제 들어오나요?",
+    a: () => `출금 신청은 따로 안 해요. 적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이고 정산 계좌가 등록돼 있으면, 매달 ${POLICY.settlement.payoutDay}일에 자동으로 입금돼요.` },
+  { id: "f7", cat: "계정", q: "비밀번호는 어떻게 바꾸나요?",
+    a: () => `지금은 이름과 이메일만으로 로그인하는 시험 버전이라 비밀번호가 없어요. 정식 오픈 전에 추가될 예정이에요.` },
+  { id: "f8", cat: "기타", q: "신청곡은 어떻게 신청하나요?",
+    a: () => `스토어 › 신청곡에서 곡 제목·가수·악기를 적고 ${formatPoint(POLICY.request.pointCost)}를 내면 신청돼요. 신청 많은 순으로 채보하고, 완성되면 신청자 전원에게 무료로 드려요.` }
+];
+
 const INSTRUMENT_ICON = {
-  "드럼": "🥁", "기타": "🎸", "피아노": "🎹", "베이스": "🎸",
-  "우쿨렐레": "🪕", "칼림바": "🎶", "리코더": "🪈"
+  "드럼": "♪", "기타": "♪", "피아노": "♪", "베이스": "♪", "우쿨렐레": "♪", "칼림바": "♪", "리코더": "♪"
 };
 
 /* ---------- 일러스트 (직접 그린 SVG — 외부 이미지 없이 어디서든 보임) ---------- */
 
 const INST_THEME = {
-  "드럼":   { tint: "#fff1e9", ink: "#ff6b3d", soft: "#ffd9c7" },
-  "기타":   { tint: "#fff7dc", ink: "#f2a10c", soft: "#ffe7a3" },
-  "피아노": { tint: "#eef1ff", ink: "#4f6bed", soft: "#cfd8ff" },
-  "베이스": { tint: "#f4eeff", ink: "#8b5cf6", soft: "#ddd0ff" },
-  "우쿨렐레": { tint: "#e9f9f0", ink: "#14a35a", soft: "#bfeed3" },
-  "칼림바": { tint: "#e7f8fc", ink: "#0ea5c6", soft: "#b8ebf6" },
-  "리코더": { tint: "#fdeef6", ink: "#e0569a", soft: "#f9cbe2" }
+  "드럼": { tint: "#f4eee5", ink: "#ff9a5c", soft: "#fbcdb5" },
+  "기타": { tint: "#f4eee5", ink: "#c4860e", soft: "#efd9a6" },
+  "피아노": { tint: "#f4eee5", ink: "#3b302a", soft: "#d9cfc3" },
+  "베이스": { tint: "#f4eee5", ink: "#8a4b3c", soft: "#e6c8bf" },
+  "우쿨렐레": { tint: "#f4eee5", ink: "#6b7a2a", soft: "#d8dcb4" },
+  "칼림바": { tint: "#f4eee5", ink: "#2f736c", soft: "#bcd9d4" },
+  "리코더": { tint: "#f4eee5", ink: "#b14d66", soft: "#ecc4ce" }
 };
 
 function themeOf(inst) {
-  return INST_THEME[inst] || { tint: "#f1f5f3", ink: "#14a35a", soft: "#d5ece0" };
+  return INST_THEME[inst] || { tint: "#f4eee5", ink: "#ff9a5c", soft: "#fbcdb5" };
 }
 
 function hashStr(str) {
@@ -93,6 +117,15 @@ function instArt(inst) {
   }
 }
 
+/* 연주영상 바로가기용 재생 아이콘 (빨간 둥근 사각형 + 흰 삼각형). size를 주면 그 px로, 안 주면 부모(.q-icon) CSS 크기를 따른다 */
+function videoIconArt(size) {
+  const attr = size ? `width="${size}" height="${size}"` : "";
+  return `<svg ${attr} viewBox="0 0 64 64" aria-hidden="true" focusable="false" style="flex-shrink:0;">
+    <rect x="6" y="16" width="52" height="32" rx="11" fill="#ff2d2d"/>
+    <path d="M27 23 L44 32 L27 41 Z" fill="#fff"/>
+  </svg>`;
+}
+
 /* 악보 첫 페이지처럼 보이는 그림 (곡 제목마다 음표 위치가 달라짐) */
 function sheetArt(seedText, ink, rows) {
   const n = rows || 3;
@@ -124,7 +157,7 @@ function heroArt(kind) {
       <ellipse cx="80" cy="70" rx="44" ry="7" fill="#ffc94d"/><rect x="78" y="70" width="4" height="70" fill="#b8924a"/>
       <ellipse cx="250" cy="96" rx="40" ry="6" fill="#ffc94d"/><rect x="248" y="96" width="4" height="60" fill="#b8924a"/>
       <circle cx="165" cy="150" r="58" fill="#ff6b3d"/><circle cx="165" cy="150" r="46" fill="#fff"/><circle cx="165" cy="150" r="46" fill="none" stroke="#ffd9c7" stroke-width="6"/>
-      <text x="165" y="158" text-anchor="middle" font-size="22" font-weight="800" fill="#ff6b3d" font-family="sans-serif">MADI</text>
+      <text x="165" y="158" text-anchor="middle" font-size="22" font-weight="800" fill="#ff6b3d" font-family="sans-serif">악보</text>
       <rect x="92" y="104" width="44" height="26" rx="4" fill="#4f6bed"/><ellipse cx="114" cy="104" rx="22" ry="6" fill="#dfe5ff"/>
       <rect x="196" y="104" width="44" height="26" rx="4" fill="#4f6bed"/><ellipse cx="218" cy="104" rx="22" ry="6" fill="#dfe5ff"/>
       <path d="M40 40 L110 98" stroke="#8a5a3c" stroke-width="6" stroke-linecap="round"/>
@@ -220,8 +253,9 @@ function scoreCard(s, opts) {
       <div class="thumb" style="--tint:${themeOf(s.instrument).tint};--ink:${themeOf(s.instrument).ink};">
         ${o.rank ? `<span class="rank-num ${o.rank <= 3 ? "top" : ""}">${o.rank}</span>` : ""}
         <button type="button" class="wish-btn ${wished ? "on" : ""}" data-wish="${s.id}" aria-label="찜하기">${wished ? "♥" : "♡"}</button>
-        <div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div>
-        <div class="thumb-art">${instArt(s.instrument)}</div>
+        ${s.thumbnailUrl
+          ? `<img src="${esc(s.thumbnailUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
+          : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${instArt(s.instrument)}</div>`}
         ${s.hasVideo ? `<span class="video-flag">▶ 연주영상</span>` : ""}
       </div>
       <div class="card-body">
@@ -290,10 +324,12 @@ function renderBuyer() {
   else if (page === "cart") renderCartPage(el);
   else if (page === "mypage") renderMyPage(el, params);
   else if (page === "requests") renderRequestsPage(el);
+  else if (page === "support") renderSupportPage(el, params);
   else renderHomePage(el);
 
   updateMenuHighlight();
 }
+
 /* ============================================================
    홈
    ============================================================ */
@@ -306,10 +342,6 @@ function renderHomePage(el) {
     .sort((a, b) => (a.instrument === "드럼" ? -1 : 0) - (b.instrument === "드럼" ? -1 : 0) || b.salesCount - a.salesCount)
     .slice(0, 10);
   const latest = approvedScores().sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt)).slice(0, 10);
-  const artists = Object.values(STATE.users)
-    .filter(u => u.sellerInfo && getSellerStats(u.id).scoreCount > 0)
-    .sort((a, b) => getSellerStats(b.id).sales - getSellerStats(a.id).sales)
-    .slice(0, 4);
   const requests = Object.values(STATE.requests)
     .filter(r => r.status !== "완료")
     .sort((a, b) => b.buyerIds.length - a.buyerIds.length)
@@ -320,30 +352,30 @@ function renderHomePage(el) {
       <div class="hero-track" id="hero-track">
         <div class="hero-slide slide-1">
           <div class="hero-text">
-          <div class="eyebrow">드럼 악보는 영상과 함께</div>
-          <h2>연주 영상을 보고 바로 따라 치는<br>드럼 악보</h2>
-          <p>▶ 연주영상 표시가 있는 악보는 판매 아티스트가 직접 연주한 영상을 함께 볼 수 있어요.</p>
-          <button class="btn btn-primary" data-go="list:video:true">연주영상 악보 보기</button>
+          <div class="eyebrow">악보는 영상과 함께</div>
+          <h2>연주 영상과 함께 보는 악보</h2>
+          <p>연주영상 표시가 있는 악보는<br>판매 아티스트가 직접 연주한 영상을 함께 볼 수 있어요.</p>
+          <button class="btn btn-primary" data-go="list:video:true" style="background:#ffb83e;border-color:#ffb83e;color:var(--c-ink);">연주영상 악보 보기</button>
           </div>
-          <div class="hero-art">${heroArt(1)}</div>
+          <div class="hero-art hero-photo-empty" id="hero-photo-1"></div>
         </div>
         <div class="hero-slide slide-2">
           <div class="hero-text">
           <div class="eyebrow">찾는 악보가 없다면</div>
           <h2>신청곡을 올려주세요</h2>
-          <p>1건에 ${formatPoint(POLICY.request.pointCost)}. 신청이 많은 곡부터 채보하고, 완성되면 신청한 분은 무료로 받아요.</p>
+          <p>1건에 ${formatPoint(POLICY.request.pointCost)}.<br>신청이 많은 곡부터 채보하고,<br>완성되면 신청한 분은 무료로 받아요.</p>
           <button class="btn btn-accent" data-go="requests">신청곡 보러가기</button>
           </div>
-          <div class="hero-art">${heroArt(2)}</div>
+          <div class="hero-art hero-photo-empty" id="hero-photo-2"></div>
         </div>
         <div class="hero-slide slide-3">
           <div class="hero-text">
           <div class="eyebrow">아티스트 모집</div>
           <h2>내 악보를 올리고<br>판매 금액의 ${Math.round((1 - POLICY.commission.normal) * 100)}%를 정산받으세요</h2>
           <p>적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이면 매달 ${POLICY.settlement.payoutDay}일 신청 없이 자동으로 입금돼요.</p>
-          <button class="btn" id="hero-artist-btn" style="background:#2c5bd6;border-color:#2c5bd6;color:#fff;">아티스트로 시작하기</button>
+          <button class="btn" id="hero-artist-btn" style="background:#ffa110;border-color:#ffa110;color:var(--c-ink);">아티스트로 시작하기</button>
           </div>
-          <div class="hero-art">${heroArt(3)}</div>
+          <div class="hero-art hero-photo-empty" id="hero-photo-3"></div>
         </div>
       </div>
       <div class="hero-dots" id="hero-dots">
@@ -353,10 +385,18 @@ function renderHomePage(el) {
       </div>
     </div>
 
-    <div class="quick-row">
-      ${INSTRUMENTS.map(i => `<button class="quick-item" data-go="list:instrument:${esc(i)}"><span class="q-icon" style="background:${themeOf(i).tint};">${instArt(i)}</span>${esc(i)}</button>`).join("")}
-      <button class="quick-item" data-go="list:video:true"><span class="q-icon" style="background:#fff1e9;font-size:26px;">🎬</span>연주영상</button>
-      <button class="quick-item" data-go="requests"><span class="q-icon" style="background:#fdeef6;font-size:26px;">🙋</span>신청곡</button>
+    <div class="inst-band">
+      <div class="inst-head"><h2>어떤 악기와 함께하시나요?</h2></div>
+      <div class="inst-grid">
+        ${["피아노", "드럼", "기타", "베이스", "바이올린", "보컬"].map((i, n) => { const c = approvedScores().filter(s => s.instrument === i).length; return `<button class="inst-card ${n === 0 ? "is-featured" : ""}" data-go="list:instrument:${esc(i)}"><i class="ico" style="--i:url(https://unpkg.com/lucide-static@0.468.0/icons/${({"드럼":"drum","기타":"guitar","피아노":"piano","베이스":"audio-lines","우쿨렐레":"music-4","바이올린":"music","보컬":"mic-vocal"})[i] || "music"}.svg)"></i><span class="inst-txt"><b>${esc(i)}</b><small>${c.toLocaleString()}개의 악보</small></span></button>`; }).join("")}
+      </div>
+
+    <div class="lvl-band">
+      <div class="lvl-head"><h2>지금의 나에게, 알맞은 난이도</h2></div>
+      <div class="lvl-grid">
+        ${DIFFICULTIES.map((d, n) => { const info = ({"초급":["한 곡을 끝까지, 차근차근","쉬운 반주 · 편안한 조성"],"중급":["표현이 깊어지는 시간","다양한 리듬 · 풍부한 화성"],"고급":["나만의 해석을 더하다","원곡의 깊이 · 연주회 레퍼토리"]})[d] || ["",""]; const lv = 4 - DIFFICULTIES.length + n + 1; const c = approvedScores().filter(s => s.difficulty === d).length; return `<button class="lvl-card" data-go="list:difficulty:${esc(d)}"><span class="lvl-top"><b>${esc(d)}</b><span class="lvl-bars" aria-hidden="true">${[1,2,3,4].map(k => `<i class="${k <= lv ? "on" : ""}" style="height:${8 + k * 3}px"></i>`).join("")}</span></span><span class="lvl-tag">${info[0]}</span><span class="lvl-meta">${info[1]}</span><span class="lvl-foot"><span>${c.toLocaleString()}개의 악보</span><i class="ico" style="--i:url(https://unpkg.com/lucide-static@0.468.0/icons/arrow-right.svg)"></i></span></button>`; }).join("")}
+      </div>
+    </div>
     </div>
 
     ${recent.length ? `
@@ -367,7 +407,7 @@ function renderHomePage(el) {
 
     <div class="section">
       <div class="section-head">
-        <h2>🏆 인기 악보</h2>
+        <h2>인기 악보</h2>
         <button class="more-link" data-go="list:sort:popular">전체 보기 ›</button>
       </div>
       <div class="chip-row" style="margin-bottom:8px;">
@@ -380,25 +420,17 @@ function renderHomePage(el) {
 
     <div class="section">
       <div class="section-head">
-        <h2>🎬 연주 영상이 있는 악보</h2>
-        <button class="more-link" data-go="list:video:true">더 보기 ›</button>
-      </div>
-      ${videoScores.length ? `<div class="score-row">${videoScores.map(s => scoreCard(s)).join("")}</div>` : `<div class="empty">아직 연주 영상이 있는 악보가 없어요.</div>`}
-    </div>
-
-    <div class="section">
-      <div class="section-head">
         <h2>최신 악보</h2>
         <button class="more-link" data-go="list:sort:latest">더 보기 ›</button>
       </div>
       ${latest.length ? `
         <div class="table-wrap">
           <table class="list-table">
-            <thead><tr><th>곡 제목</th><th class="hide-m">가수</th><th>아티스트</th><th>악기</th><th class="hide-m">난이도</th><th style="text-align:right;">가격</th></tr></thead>
+            <thead><tr><th>노래 제목</th><th class="hide-m">가수</th><th>아티스트</th><th>악기</th><th class="hide-m">난이도</th><th style="text-align:right;">가격</th></tr></thead>
             <tbody>
               ${latest.map(s => `
                 <tr data-score-id="${s.id}">
-                  <td><b>${esc(s.title)}</b> ${s.hasVideo ? `<span class="tag" style="background:#fdeee4;color:var(--accent);">▶ 영상</span>` : ""}</td>
+                  <td><b>${esc(s.title)}</b> ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);">▶ 영상</span>` : ""}</td>
                   <td class="hide-m muted">${esc(s.artist)}</td>
                   <td><span data-artist-id="${s.sellerId}" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;">${esc(sellerName(s.sellerId))}</span></td>
                   <td>${esc(s.instrument)}</td>
@@ -411,19 +443,22 @@ function renderHomePage(el) {
     </div>
 
     <div class="section">
-      <div class="section-head"><h2>지금 뜨는 아티스트</h2></div>
-      ${artists.length ? `<div class="artist-grid">${artists.map(a => artistCard(a)).join("")}</div>` : `<div class="empty">아직 악보를 올린 아티스트가 없어요.</div>`}
+      <div class="section-head">
+        <h2 style="display:flex;align-items:center;gap:6px;">${videoIconArt(22)} 연주 영상이 있는 악보</h2>
+        <button class="more-link" data-go="list:video:true">더 보기 ›</button>
+      </div>
+      ${videoScores.length ? `<div class="score-row">${videoScores.map(s => scoreCard(s)).join("")}</div>` : `<div class="empty">아직 연주 영상이 있는 악보가 없어요.</div>`}
     </div>
 
     <div class="section">
       <div class="section-head">
-        <h2>🙋 신청곡 순위</h2>
+        <h2>신청곡 순위</h2>
         <button class="more-link" data-go="requests">신청하러 가기 ›</button>
       </div>
-      <div class="panel">
+      <div class="panel" style="background:#f4eee5;">
         ${requests.length ? requests.map((r, i) => `
           <div class="req-item">
-            <div class="req-count"><b>${r.buyerIds.length}</b><span>명 신청</span></div>
+            <div class="req-count"><b>${r.buyerIds.length}</b><span>신청자 수</span></div>
             <div class="row-main" style="flex:1;">
               <div class="row-title" style="cursor:default;">${i + 1}. ${esc(r.title)}</div>
               <div class="row-sub">${esc(r.artist)} · ${esc(r.instrument)}</div>
@@ -435,16 +470,16 @@ function renderHomePage(el) {
 
     <div class="section info-banners">
       <div class="info-banner ib-1" id="ib-guide">
-        <h3>처음이세요? 이용 방법</h3>
-        <p>포인트 충전 → 악보 구매 → 내 악보함에서 다운로드. 1P는 1원이고 ${POLICY.point.expiryYears}년 동안 쓸 수 있어요.</p>
+        <h3>이용 방법</h3>
+        <p>포인트 충전 → 악보 구매 → 내 악보함에서 다운로드.<br>1P는 1원이고 ${POLICY.point.expiryYears}년 동안 쓸 수 있어요.</p>
       </div>
       <div class="info-banner ib-2" data-go="mypage:tab:points">
         <h3>환불 안내</h3>
-        <p>구매 후 ${POLICY.refund.windowDays}일 이내, 파일을 한 번도 열지 않았다면 포인트로 전액 환불돼요.</p>
+        <p>구매 후 ${POLICY.refund.windowDays}일 이내,<br>파일을 한 번도 열지 않았다면<br>포인트로 전액 환불돼요.</p>
       </div>
       <div class="info-banner ib-3" id="ib-artist">
         <h3>아티스트 가입</h3>
-        <p>직접 채보·편곡한 악보를 판매하세요. 창작·오리지널 편곡은 수수료가 더 낮아요.</p>
+        <p>직접 채보·편곡한 악보를 판매하세요.</p>
       </div>
     </div>
   `;
@@ -521,6 +556,7 @@ function artistCard(u) {
     </div>
   `;
 }
+
 /* ============================================================
    악보 목록 (검색·필터)
    ============================================================ */
@@ -532,7 +568,8 @@ function filterScores(p) {
     list = list.filter(s =>
       s.title.toLowerCase().includes(q) ||
       s.artist.toLowerCase().includes(q) ||
-      sellerName(s.sellerId).toLowerCase().includes(q)
+      sellerName(s.sellerId).toLowerCase().includes(q) ||
+      (s.tags || []).some(t => t.toLowerCase().includes(q))
     );
   }
   if (p.instrument) list = list.filter(s => s.instrument === p.instrument);
@@ -638,6 +675,7 @@ function renderListPage(el, p) {
   const input = document.getElementById("header-search");
   if (input && document.activeElement !== input) input.value = p.q || "";
 }
+
 /* ============================================================
    악보 상세
    ============================================================ */
@@ -679,7 +717,7 @@ function renderDetailPage(el, p) {
 
   let buyArea;
   if (own) {
-    buyArea = `<div class="panel" style="margin-top:14px;background:#fbfcfb;">내가 등록한 악보예요. 판매 현황은 판매자 센터에서 볼 수 있어요.</div>`;
+    buyArea = `<div class="panel" style="margin-top:14px;background:var(--band);">내가 등록한 악보예요. 판매 현황은 판매자 센터에서 볼 수 있어요.</div>`;
   } else if (bought) {
     buyArea = `
       <div class="buy-row" style="grid-template-columns:1fr;">
@@ -690,7 +728,7 @@ function renderDetailPage(el, p) {
       <div class="buy-row">
         <button class="btn btn-primary" id="d-buy">바로 구매</button>
         <button class="btn" id="d-cart">${inCart ? "장바구니 보기" : "장바구니 담기"}</button>
-        <button class="btn wish-big" id="d-wish" style="color:${wished ? "var(--accent)" : "var(--text)"};">${wished ? "♥ 찜함" : "♡ 찜"}</button>
+        <button class="btn wish-big" id="d-wish" style="color:${wished ? "var(--hot)" : "var(--text)"};">${wished ? "♥ 찜함" : "♡ 찜"}</button>
       </div>
       ${user ? `<p class="buy-note">보유 포인트 <b>${formatPoint(user.points)}</b>${user.points < s.price ? ` · <span style="color:var(--danger);">${formatPoint(s.price - user.points)} 부족</span>` : ""}</p>` : ""}`;
   }
@@ -708,7 +746,7 @@ function renderDetailPage(el, p) {
             <div class="ps-sub">${esc(s.artist)} · ${esc(s.instrument)} · arr. ${esc(sellerName(s.sellerId))}</div>
             <div class="ps-svg">${sheetArt(s.title + s.id, themeOf(s.instrument).ink, 4)}</div>
             <div class="ps-fade"></div>
-            <div class="ps-lock">🔒 첫 ${POLICY.preview.bars}마디 이후는 구매 후 볼 수 있어요</div>
+            <div class="ps-lock"><i class="ico ico-lock"></i> 첫 ${POLICY.preview.bars}마디 이후는 구매 후 볼 수 있어요</div>
           </div>
           <p class="preview-note">미리보기는 악보 첫 ${POLICY.preview.bars}마디까지 보여요. 실제 악보 이미지는 파일 업로드가 연결되면 이 자리에 나옵니다.</p>
         </div>
@@ -724,7 +762,7 @@ function renderDetailPage(el, p) {
           <span class="tag">${esc(s.instrument)}</span>
           <span class="tag tag-diff">${esc(s.difficulty)}</span>
           ${s.isOriginal ? `<span class="tag tag-orig">창작·오리지널 편곡</span>` : ""}
-          ${s.hasVideo ? `<span class="tag" style="background:#fdeee4;color:var(--accent);">▶ 연주영상</span>` : ""}
+          ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);">▶ 연주영상</span>` : ""}
         </div>
         <h1 class="detail-title" style="margin-top:8px;">${esc(s.title)}</h1>
         <div class="detail-artist">${esc(s.artist)}</div>
@@ -862,6 +900,7 @@ function renderDetailPage(el, p) {
 
   if (p.focus === "review") document.getElementById("review-section")?.scrollIntoView({ block: "start" });
 }
+
 /* ============================================================
    아티스트 페이지
    ============================================================ */
@@ -992,6 +1031,7 @@ function renderCartPage(el) {
     goBuyer("mypage", { tab: "library" });
   });
 }
+
 /* ============================================================
    마이페이지
    ============================================================ */
@@ -1026,7 +1066,7 @@ function renderMyPage(el, p) {
         <div class="point-card">
           <div class="pc-label">${esc(user.name)}님의 보유 포인트</div>
           <div class="pc-value">${formatPoint(user.points)}</div>
-          <button class="btn btn-small" style="margin-top:10px;background:#fff;border-color:#fff;color:var(--primary);" data-tab="points">충전하기</button>
+          <button class="btn btn-small" style="margin-top:10px;background:var(--accent);border-color:var(--accent);color:var(--on-accent);" data-tab="points">충전하기</button>
         </div>
         <div class="panel side-menu" style="padding:8px;">
           ${tabs.map(([k, l]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${l}</button>`).join("")}
@@ -1115,8 +1155,8 @@ function myPointsHTML(user, p) {
   const history = [...user.pointHistory].reverse().slice(0, 30);
   const backScore = p.back && STATE.scores[p.back];
   return `
-    ${backScore ? `<div class="panel" style="margin-bottom:12px;background:#fff8f2;border-color:#f5d9c4;">"${esc(backScore.title)}" 구매에 ${formatPoint(backScore.price)}가 필요해요. 충전하면 바로 악보 화면으로 돌아갑니다.</div>` : ""}
-    ${p.backCart ? `<div class="panel" style="margin-bottom:12px;background:#fff8f2;border-color:#f5d9c4;">충전하면 장바구니로 돌아갑니다.</div>` : ""}
+    ${backScore ? `<div class="panel" style="margin-bottom:12px;background:var(--band);border-color:var(--border);">"${esc(backScore.title)}" 구매에 ${formatPoint(backScore.price)}가 필요해요. 충전하면 바로 악보 화면으로 돌아갑니다.</div>` : ""}
+    ${p.backCart ? `<div class="panel" style="margin-bottom:12px;background:var(--band);border-color:var(--border);">충전하면 장바구니로 돌아갑니다.</div>` : ""}
     <div class="panel">
       <h2 style="margin:0 0 4px;font-size:17px;">포인트 충전</h2>
       <p class="muted" style="margin:0 0 12px;font-size:12px;">1P = 1원, 유효기간 ${POLICY.point.expiryYears}년.${user.isFirstCharge ? ` 첫 충전에는 보너스 ${Math.round(POLICY.firstChargeBonus * 100)}%가 적용돼요.` : ""}</p>
@@ -1221,3 +1261,157 @@ function renderRequestsPage(el) {
     });
   }));
 }
+
+/* ============================================================
+   고객센터 (FAQ · 1:1 문의)
+   ============================================================ */
+
+function renderSupportPage(el, p) {
+  if (p && p.tab) { SUPPORT_TAB = p.tab; }
+  const user = getCurrentUser();
+
+  el.innerHTML = `
+    <div class="breadcrumb"><button data-go="home">홈</button> › 고객센터</div>
+    <h1 class="page-title">고객센터</h1>
+    <div class="chip-row" style="margin-bottom:16px;">
+      <button class="chip ${SUPPORT_TAB === "faq" ? "active" : ""}" data-support-tab="faq">자주 묻는 질문</button>
+      <button class="chip ${SUPPORT_TAB === "qna" ? "active" : ""}" data-support-tab="qna">1:1 문의</button>
+    </div>
+    <div id="support-body"></div>
+  `;
+
+  bindCards(el);
+  el.querySelectorAll("[data-support-tab]").forEach(b => b.addEventListener("click", () => {
+    SUPPORT_TAB = b.dataset.supportTab;
+    renderBuyer();
+  }));
+
+  const body = document.getElementById("support-body");
+  if (SUPPORT_TAB === "qna") renderSupportQna(body, user);
+  else renderSupportFaq(body);
+}
+
+function renderSupportFaq(body) {
+  const cats = ["", ...[...new Set(FAQ_LIST.map(f => f.cat))]];
+  const list = SUPPORT_FAQ_CAT ? FAQ_LIST.filter(f => f.cat === SUPPORT_FAQ_CAT) : FAQ_LIST;
+
+  body.innerHTML = `
+    <div class="chip-row" style="margin-bottom:12px;">
+      ${cats.map(c => `<button class="chip ${SUPPORT_FAQ_CAT === c ? "active" : ""}" data-faq-cat="${esc(c)}">${c ? esc(c) : "전체"}</button>`).join("")}
+    </div>
+    <div class="panel">
+      ${list.map(f => {
+        const open = SUPPORT_FAQ_OPEN === f.id;
+        return `
+          <div style="border-top:1px solid var(--border);">
+            <button type="button" data-faq-toggle="${f.id}" style="all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;width:100%;padding:14px 0;">
+              <span style="font-weight:600;font-size:14px;">Q. ${esc(f.q)}</span>
+              <span class="muted" style="flex-shrink:0;">${open ? "▲" : "▼"}</span>
+            </button>
+            ${open ? `<div class="muted" style="padding:0 0 14px;font-size:13px;line-height:1.6;">A. ${esc(f.a())}</div>` : ""}
+          </div>`;
+      }).join("")}
+    </div>
+  `;
+
+  body.querySelectorAll("[data-faq-cat]").forEach(b => b.addEventListener("click", () => {
+    SUPPORT_FAQ_CAT = b.dataset.faqCat;
+    SUPPORT_FAQ_OPEN = null;
+    renderBuyer();
+  }));
+  body.querySelectorAll("[data-faq-toggle]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.faqToggle;
+    SUPPORT_FAQ_OPEN = SUPPORT_FAQ_OPEN === id ? null : id;
+    renderBuyer();
+  }));
+}
+
+function renderSupportQna(body, user) {
+  if (!user) {
+    body.innerHTML = `
+      <div class="panel">\n        <p class="muted" style="margin:0;">로그인하면 1:1 문의를 쓰고, 내 문의 내역과 답변을 볼 수 있어요.</p>
+        <button class="btn btn-primary" id="qna-login-btn" style="margin-top:10px;">로그인</button>
+      </div>`;
+    document.getElementById("qna-login-btn")?.addEventListener("click", () => requireLogin(() => renderBuyer()));
+    return;
+  }
+
+  const uniqScores = [...new Map(
+    Object.values(STATE.purchases)
+      .filter(p => p.buyerId === user.id)
+      .map(p => STATE.scores[p.scoreId])
+      .filter(Boolean)
+      .map(s => [s.id, s])
+  ).values()];
+
+  const mine = getMyInquiries(user.id);
+
+  body.innerHTML = `
+    <div class="panel" style="margin-bottom:12px;">
+      <button class="btn btn-primary" id="qna-new-btn">${SUPPORT_FORM_OPEN ? "접기" : "문의하기"}</button>
+      ${SUPPORT_FORM_OPEN ? `
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
+          <select class="field" id="qna-category">${INQUIRY_CATEGORIES.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select>
+          <select class="field" id="qna-score">
+            <option value="">관련 악보 선택 안 함</option>
+            ${uniqScores.map(s => `<option value="${s.id}">${esc(s.title)}</option>`).join("")}
+          </select>
+          <input class="field" id="qna-title" placeholder="제목">
+          <textarea class="field" id="qna-content" rows="4" placeholder="문의 내용을 적어주세요" style="font-family:inherit;resize:vertical;"></textarea>
+          <p class="muted" style="margin:0;font-size:11px;">이 문의는 본인과 관리자만 볼 수 있고, 악보를 골랐다면 그 악보의 판매자도 볼 수 있어요.</p>
+          <button class="btn btn-primary" id="qna-submit">보내기</button>
+        </div>` : ""}
+    </div>
+    <div class="panel">
+      <h3 style="margin:0 0 10px;font-size:14px;">내 문의 내역</h3>
+      ${mine.length ? mine.map(q => {
+        const open = SUPPORT_QNA_OPEN === q.id;
+        const score = q.scoreId && STATE.scores[q.scoreId];
+        return `
+          <div style="border-top:1px solid var(--border);padding:12px 0;">
+            <button type="button" data-qna-toggle="${q.id}" style="all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;width:100%;">
+              <span style="min-width:0;">
+                <span class="status-pill st-${q.status === "답변완료" ? "완료" : "접수"}">${esc(q.status)}</span>
+                <b style="margin-left:6px;font-size:14px;">${esc(q.title)}</b>
+                <span class="muted" style="font-size:12px;display:block;margin-top:2px;">${esc(q.category)}${score ? ` · ${esc(score.title)}` : ""} · ${formatDate(q.createdAt)}</span>
+              </span>
+              <span class="muted" style="flex-shrink:0;">${open ? "▲" : "▼"}</span>
+            </button>
+            ${open ? `
+              <div style="margin-top:10px;font-size:13px;line-height:1.6;">
+                <div style="white-space:pre-wrap;">${esc(q.content)}</div>
+                ${q.answer ? `
+                  <div style="margin-top:10px;padding:10px;border-radius:8px;background:var(--bg);">
+                    <b style="font-size:12px;color:var(--primary);">${q.answer.by === "seller" ? "판매자 답변" : "관리자 답변"} · ${formatDate(q.answer.answeredAt)}</b>
+                    <div style="margin-top:4px;white-space:pre-wrap;">${esc(q.answer.text)}</div>
+                  </div>` : `<p class="muted" style="margin:10px 0 0;">아직 답변 대기 중이에요.</p>`}
+              </div>` : ""}
+          </div>`;
+      }).join("") : `<p class="muted" style="margin:0;">아직 문의한 내역이 없어요.</p>`}
+    </div>
+  `;
+
+  document.getElementById("qna-new-btn")?.addEventListener("click", () => {
+    SUPPORT_FORM_OPEN = !SUPPORT_FORM_OPEN;
+    renderBuyer();
+  });
+  document.getElementById("qna-submit")?.addEventListener("click", () => {
+    const data = {
+      category: document.getElementById("qna-category").value,
+      scoreId: document.getElementById("qna-score").value || null,
+      title: document.getElementById("qna-title").value,
+      content: document.getElementById("qna-content").value
+    };
+    const res = submitInquiry(user.id, data);
+    if (!res.ok) { toast(res.message, true); return; }
+    toast("문의를 보냈어요. 답변이 오면 여기서 확인할 수 있어요.");
+    SUPPORT_FORM_OPEN = false;
+    renderBuyer();
+  });
+  body.querySelectorAll("[data-qna-toggle]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.qnaToggle;
+    SUPPORT_QNA_OPEN = SUPPORT_QNA_OPEN === id ? null : id;
+    renderBuyer();
+  }));
+}
+

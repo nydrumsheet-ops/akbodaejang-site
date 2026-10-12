@@ -1,5 +1,5 @@
 /* ============================================================
-   common.js — 악보대장 뼈대 · 로그인 · 결제 · 정산 · 통합
+   common.js — 악보대장(가칭) 뼈대 · 로그인 · 결제 · 정산 · 통합
    총괄/ 모드 전용 파일. 다른 모드(구매자/판매자/관리자)는
    이 파일의 함수를 호출만 하고 직접 수정하지 않습니다.
    ============================================================ */
@@ -39,11 +39,13 @@ const POLICY = {
   }
 };
 
-const INSTRUMENTS = ["드럼", "기타", "피아노", "베이스", "우쿨렐레", "칼림바", "리코더"];
-const DIFFICULTIES = ["입문", "초급", "중급", "상급"];
+const INSTRUMENTS = ["드럼", "기타", "피아노", "베이스", "바이올린", "보컬"];
+const DIFFICULTIES = ["초급", "중급", "고급"];
 const SCORE_STATUS = ["등록", "심사중", "승인", "반려"];
 const WITHDRAW_STATUS = ["요청", "지급완료"];
 const REQUEST_STATUS = ["접수", "채보중", "완료"];
+const INQUIRY_STATUS = ["답변대기", "답변완료"];
+const INQUIRY_CATEGORIES = ["결제·포인트", "환불", "악보·심사", "정산", "계정", "기타"];
 
 let STATE = null;
 let CURRENT_USER_ID = null;
@@ -88,7 +90,7 @@ function formatDate(iso) {
 
 /* ---------- 저장 / 불러오기 (서비스 데이터) ---------- */
 
-const COLLECTIONS = ["users", "scores", "purchases", "requests", "charges", "withdrawals", "reviews"];
+const COLLECTIONS = ["users", "scores", "purchases", "requests", "charges", "withdrawals", "reviews", "inquiries"];
 
 function emptyState() {
   const s = {};
@@ -115,7 +117,22 @@ function load() {
     if (!Array.isArray(u.following)) u.following = [];
   }
   for (const s of Object.values(STATE.scores)) {
+    if (s.difficulty === "상급") s.difficulty = "고급";
+    if (s.difficulty === "입문") s.difficulty = "초급";
+    if (s.instrument === "리코더" || s.instrument === "칼림바" || s.instrument === "우쿨렐레") { delete STATE.scores[s.id]; continue; }
     if (typeof s.description !== "string") s.description = "";
+    if (!Array.isArray(s.tags)) s.tags = [];
+    if (typeof s.thumbnailUrl !== "string" || !s.thumbnailUrl.trim()) s.thumbnailUrl = null;
+  }
+  // 삭제된 카테고리(리코더·칼림바·우쿨렐레) 악보를 가리키는 기록 정리
+  for (const key of COLLECTIONS) {
+    for (const [id, r] of Object.entries(STATE[key])) {
+      if (r && r.scoreId && !STATE.scores[r.scoreId]) delete STATE[key][id];
+    }
+  }
+  for (const u of Object.values(STATE.users)) {
+    u.wishlist = u.wishlist.filter(id => STATE.scores[id]);
+    u.cart = u.cart.filter(id => STATE.scores[id]);
   }
 }
 
@@ -202,22 +219,19 @@ function seedDemoData() {
 
   const list = [
     // [판매자index, 제목, 악기, 난이도, 가격, 오리지널, 영상, 며칠전]
-    [0, "8비트 기본 그루브 연습곡", "드럼", "입문", 1500, true, true, 1],
+    [0, "8비트 기본 그루브 연습곡", "드럼", "초급", 1500, true, true, 1],
     [0, "16비트 하이햇 연습곡", "드럼", "초급", 2000, true, true, 2],
     [1, "펑크 고스트노트 그루브", "드럼", "중급", 3000, true, true, 3],
     [1, "셔플 블루스 리듬 연습곡", "드럼", "중급", 2500, true, false, 4],
-    [0, "더블킥 빌드업 연습곡", "드럼", "상급", 4000, true, true, 5],
+    [0, "더블킥 빌드업 연습곡", "드럼", "고급", 4000, true, true, 5],
     [1, "보사노바 리듬 패턴", "드럼", "중급", 2500, true, true, 6],
     [0, "필인 모음집 Vol.1", "드럼", "초급", 3500, true, true, 8],
-    [1, "메탈 블라스트비트 연습곡", "드럼", "상급", 4500, true, false, 9],
-    [0, "발라드 6/8 그루브 연습곡", "드럼", "입문", 1500, true, true, 11],
-    [2, "통기타 스트로크 입문 연습곡", "기타", "입문", 1500, true, true, 2],
+    [1, "메탈 블라스트비트 연습곡", "드럼", "고급", 4500, true, false, 9],
+    [0, "발라드 6/8 그루브 연습곡", "드럼", "초급", 1500, true, true, 11],
+    [2, "통기타 스트로크 입문 연습곡", "기타", "초급", 1500, true, true, 2],
     [2, "핑거스타일 아르페지오 연습곡", "기타", "중급", 3000, true, false, 7],
     [2, "베이스 루트음 워킹 연습곡", "베이스", "초급", 2000, true, true, 10],
-    [3, "피아노 왼손 반주 패턴 연습곡", "피아노", "초급", 2000, true, false, 3],
-    [3, "칼림바 첫걸음 연습곡", "칼림바", "입문", 1000, true, false, 12],
-    [3, "우쿨렐레 코드 스트로크 연습곡", "우쿨렐레", "입문", 1000, true, true, 13],
-    [3, "리코더 운지 연습곡", "리코더", "입문", 1000, true, false, 14]
+    [3, "피아노 왼손 반주 패턴 연습곡", "피아노", "초급", 2000, true, false, 3]
   ];
 
   const scoreIds = [];
@@ -253,9 +267,10 @@ function seedDemoData() {
   }
   sellers.forEach((u, i) => { u.createdAt = daysAgoISO(45 - i * 3); });
   buyer.createdAt = daysAgoISO(2);
-  const salesPlan = [6, 5, 5, 3, 4, 2, 4, 1, 3, 4, 2, 2, 1, 1, 2, 0];
+  const salesPlan = [6, 5, 5, 3, 4, 2, 4, 1, 3, 4, 2, 2, 1, 1];
   salesPlan.forEach((n, idx) => {
     const score = STATE.scores[scoreIds[idx]];
+    if (!score) return;
     for (let k = 0; k < n; k++) {
       const b = demoBuyers[k % demoBuyers.length];
       const rate = calcCommission(score);
@@ -727,6 +742,9 @@ function payoutWithdrawal(withdrawalId) {
 
 function submitScore(sellerId, data) {
   const scoreId = uid("score");
+  const tags = Array.isArray(data.tags)
+    ? [...new Set(data.tags.map(t => String(t).trim()).filter(Boolean))].slice(0, 5)
+    : [];
   STATE.scores[scoreId] = {
     id: scoreId, sellerId,
     title: data.title, artist: data.artist, instrument: data.instrument, difficulty: data.difficulty,
@@ -735,7 +753,9 @@ function submitScore(sellerId, data) {
     previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`,
     status: "등록", rejectReason: null, createdAt: nowISO(), approvedAt: null,
     salesCount: 0, viewCount: 0,
-    description: (data.description || "").trim()
+    description: (data.description || "").trim(),
+    tags,
+    thumbnailUrl: (data.thumbnailUrl || "").trim() || null
   };
   save();
   return { ok: true, scoreId };
@@ -758,6 +778,57 @@ function rejectScore(scoreId, reason) {
   score.rejectReason = reason || "";
   save();
   return { ok: true };
+}
+
+/* ---------- 1:1 문의 (고객센터 QnA) ---------- */
+
+function submitInquiry(buyerId, data) {
+  const buyer = STATE.users[buyerId];
+  if (!buyer) return { ok: false, message: "사용자를 찾을 수 없습니다." };
+  const title = (data.title || "").trim();
+  const content = (data.content || "").trim();
+  if (!title || !content) return { ok: false, message: "제목과 내용을 입력해주세요." };
+  const category = INQUIRY_CATEGORIES.includes(data.category) ? data.category : INQUIRY_CATEGORIES[INQUIRY_CATEGORIES.length - 1];
+
+  let scoreId = null, sellerId = null;
+  if (data.scoreId && STATE.scores[data.scoreId]) {
+    scoreId = data.scoreId;
+    sellerId = STATE.scores[scoreId].sellerId;
+  }
+
+  const id = uid("inquiry");
+  STATE.inquiries[id] = {
+    id, buyerId, scoreId, sellerId, category, title, content,
+    status: "답변대기", answer: null, createdAt: nowISO()
+  };
+  save();
+  return { ok: true, inquiryId: id };
+}
+
+function answerInquiry(inquiryId, by, answererId, text) {
+  const inquiry = STATE.inquiries[inquiryId];
+  if (!inquiry) return { ok: false, message: "문의를 찾을 수 없습니다." };
+  const content = (text || "").trim();
+  if (!content) return { ok: false, message: "답변 내용을 입력해주세요." };
+  if (by === "seller" && inquiry.sellerId !== answererId) {
+    return { ok: false, message: "본인 악보와 관련된 문의만 답변할 수 있습니다." };
+  }
+  inquiry.answer = { by, text: content, answeredAt: nowISO() };
+  inquiry.status = "답변완료";
+  save();
+  return { ok: true };
+}
+
+function getMyInquiries(buyerId) {
+  return Object.values(STATE.inquiries)
+    .filter(q => q.buyerId === buyerId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function getSellerInquiries(sellerId) {
+  return Object.values(STATE.inquiries)
+    .filter(q => q.sellerId === sellerId)
+    .sort((a, b) => (a.status === "답변완료") - (b.status === "답변완료") || new Date(b.createdAt) - new Date(a.createdAt));
 }
 
 function submitSongRequest(buyerId, data) {
@@ -1015,7 +1086,7 @@ function renderHeaderAuth() {
   const cartCount = user ? user.cart.length : 0;
   const cartBtn = `
     <button id="header-cart-btn" class="icon-btn" aria-label="장바구니">
-      <span class="icon-btn-glyph">🛒</span><span class="icon-btn-label">장바구니</span>
+      <span class="icon-btn-glyph"><i class="ico ico-cart"></i></span><span class="icon-btn-label">장바구니</span>
       ${cartCount ? `<span class="badge">${cartCount}</span>` : ""}
     </button>`;
 
@@ -1037,7 +1108,7 @@ function renderHeaderAuth() {
     bar.innerHTML = `
       ${cartBtn}
       <button id="header-my-btn" class="icon-btn" aria-label="마이페이지">
-        <span class="icon-btn-glyph">👤</span><span class="icon-btn-label">${esc(user.name)}님 · ${formatPoint(user.points)}</span>
+        <span class="icon-btn-glyph"><i class="ico ico-user"></i></span><span class="icon-btn-label">${esc(user.name)}님 · ${formatPoint(user.points)}</span>
       </button>
       <button id="logout-btn" class="auth-btn">로그아웃</button>
       <button id="header-admin-btn" class="auth-btn" title="테스트 기간에만 보이는 버튼">관리자</button>
@@ -1074,7 +1145,11 @@ function initHeaderSearch() {
     const q = input.value.trim().toLowerCase();
     if (!q) { hideSuggest(); return; }
     const scores = Object.values(STATE.scores)
-      .filter(s => s.status === "승인" && (s.title.toLowerCase().includes(q) || s.artist.toLowerCase().includes(q)))
+      .filter(s => s.status === "승인" && (
+        s.title.toLowerCase().includes(q) ||
+        s.artist.toLowerCase().includes(q) ||
+        (s.tags || []).some(t => t.toLowerCase().includes(q))
+      ))
       .slice(0, 5);
     const sellers = Object.values(STATE.users)
       .filter(u => u.sellerInfo && u.name.toLowerCase().includes(q))
@@ -1083,8 +1158,8 @@ function initHeaderSearch() {
       suggest.innerHTML = `<div class="suggest-empty">"${esc(input.value.trim())}" 검색 결과로 이동하려면 Enter</div>`;
     } else {
       suggest.innerHTML = [
-        ...scores.map(s => `<button type="button" class="suggest-item" data-score="${s.id}"><span>${INSTRUMENT_ICON_COMMON[s.instrument] || "🎵"}</span><span class="suggest-main">${esc(s.title)}</span><span class="suggest-sub">${esc(s.instrument)} · ${esc(s.difficulty)}</span></button>`),
-        ...sellers.map(u => `<button type="button" class="suggest-item" data-seller="${u.id}"><span>🎤</span><span class="suggest-main">${esc(u.name)}</span><span class="suggest-sub">아티스트</span></button>`)
+        ...scores.map(s => `<button type="button" class="suggest-item" data-score="${s.id}"><span><i class="ico ico-music"></i></span><span class="suggest-main">${esc(s.title)}</span><span class="suggest-sub">${esc(s.instrument)} · ${esc(s.difficulty)}</span></button>`),
+        ...sellers.map(u => `<button type="button" class="suggest-item" data-seller="${u.id}"><span><i class="ico ico-mic"></i></span><span class="suggest-main">${esc(u.name)}</span><span class="suggest-sub">아티스트</span></button>`)
       ].join("");
     }
     suggest.classList.add("open");
@@ -1119,7 +1194,8 @@ function initHeaderSearch() {
       if (m === "home") goBuyer("home");
       else if (m === "video") goBuyer("list", { video: true });
       else if (m === "requests") goBuyer("requests");
-      else if (m === "new") goBuyer("list", { sort: "latest" });
+      else if (m === "new") goBuyer("list",
+ { sort: "latest" });
       else goBuyer("list", { instrument: m });
     });
   });
@@ -1131,8 +1207,7 @@ function initHeaderSearch() {
 }
 
 const INSTRUMENT_ICON_COMMON = {
-  "드럼": "🥁", "기타": "🎸", "피아노": "🎹", "베이스": "🎸",
-  "우쿨렐레": "🪕", "칼림바": "🎶", "리코더": "🪈"
+  "드럼": "♪", "기타": "♪", "피아노": "♪", "베이스": "♪", "우쿨렐레": "♪", "칼림바": "♪", "리코더": "♪"
 };
 
 /* 헤더 메뉴의 '현재 위치' 표시 */
@@ -1172,6 +1247,9 @@ function initCommon() {
     e.preventDefault();
     enterAdminPreview();
   });
+  document.getElementById("footer-support-link")?.addEventListener("click", () => {
+    if (typeof goBuyer === "function") { showView("buyer"); goBuyer("support"); }
+  });
 
   initHeaderSearch();
 
@@ -1183,3 +1261,4 @@ function initCommon() {
 }
 
 document.addEventListener("DOMContentLoaded", initCommon);
+

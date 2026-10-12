@@ -2,9 +2,13 @@
    seller.js — 판매자 화면
    이 파일은 "판매자/" 모드에서만 작업합니다.
 
-   화면 4개 완성: 악보등록 / 내 악보·심사상태 / 판매현황·적립금 / 정산·자동지급
+   화면 5개 완성: 악보등록 / 내 악보·심사상태 / 판매현황·적립금 / 정산·자동지급 / 고객 문의
    (2026-10-01 결정: 출금 신청 없음. 적립금이 기준 이상이면 매달 지급일에 자동 입금)
    ============================================================ */
+
+let SF_TAGS = []; // 악보 등록 폼에서 지금 입력 중인 태그 (제출 성공해야 비움, 최대 5개)
+let SF_THUMBNAIL_DATA = null; // 선택한 썸네일 이미지를 읽어둔 데이터 (제출 성공해야 비움)
+let SELLER_INQUIRY_OPEN = null; // 펼쳐서 보고 있는 문의 id
 
 function renderSeller() {
   const el = document.getElementById("view-seller");
@@ -14,7 +18,7 @@ function renderSeller() {
 
   if (!user || (user.role !== "seller" && user.role !== "both")) {
     el.innerHTML = `
-      <div style="padding:32px 16px;text-align:center;color:#999;">
+      <div style="padding:32px 16px;text-align:center;color:var(--muted);">
         <p style="font-size:14px;margin:0;">판매자 권한이 있는 계정으로 로그인해야 볼 수 있는 화면입니다.</p>
       </div>
     `;
@@ -45,7 +49,7 @@ function renderSeller() {
         <label style="font-size:13px;">
           악기
           <select id="sf-instrument"
-            style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;">
+            style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--card);">
             <option value="">선택하세요</option>
             ${INSTRUMENTS.map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("")}
           </select>
@@ -54,7 +58,7 @@ function renderSeller() {
         <label style="font-size:13px;">
           난이도
           <select id="sf-difficulty"
-            style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:#fff;">
+            style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--card);">
             <option value="">선택하세요</option>
             ${DIFFICULTIES.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")}
           </select>
@@ -70,6 +74,14 @@ function renderSeller() {
           악보 소개 <span style="color:var(--muted);">(선택 — 상세 페이지에 그대로 보여요)</span>
           <textarea id="sf-description" rows="4" placeholder="예: 사용된 테크닉, 연습 팁, 원곡과 다른 점"
             style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;font-family:inherit;resize:vertical;"></textarea>
+        </label>
+
+        <label style="font-size:13px;">
+          태그 <span style="color:var(--muted);">(선택 — 영문이름·한글이름·제목 일부 등, 검색에 쓰여요. 최대 5개)</span>
+          <div id="sf-tags-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
+          <input type="text" id="sf-tag-input" placeholder="태그 입력 후 Enter (예: IU, 아이유, 좋은날)"
+            style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+          <span id="sf-tag-hint" style="display:block;margin-top:4px;font-size:11px;color:var(--muted);"></span>
         </label>
 
         <label style="font-size:13px;display:flex;align-items:center;gap:8px;">
@@ -99,8 +111,15 @@ function renderSeller() {
           </span>
         </label>
 
+        <label style="font-size:13px;">
+          썸네일 이미지 <span style="color:var(--muted);">(선택 — 비워두면 자동 생성된 그림으로 보여요, 2MB 이하)</span>
+          <input type="file" id="sf-thumbnail" accept="image/*"
+            style="width:100%;margin-top:4px;padding:8px 0;font-size:13px;">
+          <div id="sf-thumbnail-preview" style="margin-top:8px;"></div>
+        </label>
+
         <button id="sf-submit"
-          style="margin-top:6px;padding:13px;font-size:15px;border:none;border-radius:10px;background:var(--primary);color:#fff;cursor:pointer;">
+          style="margin-top:6px;padding:13px;font-size:15px;border:none;border-radius:10px;background:var(--primary);color:var(--on-accent);cursor:pointer;">
           등록하기
         </button>
 
@@ -147,6 +166,13 @@ function renderSeller() {
       <h3 style="margin:0 0 8px;font-size:14px;">지급 내역</h3>
       <div id="seller-withdraw-history"></div>
     </div>
+
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-top:16px;">
+      <h2 style="margin:0 0 4px;font-size:17px;">고객 문의</h2>
+      <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">구매자가 내 악보를 골라서 보낸 1:1 문의입니다. 다른 판매자 악보에 대한 문의는 보이지 않아요.</p>
+      <div id="seller-inquiry-msg" style="font-size:13px;margin:0 0 10px;"></div>
+      <div id="seller-inquiry-list"></div>
+    </div>
   `;
 
   const videoCheck = document.getElementById("sf-hasvideo");
@@ -154,6 +180,36 @@ function renderSeller() {
   videoCheck.addEventListener("change", () => {
     videoWrap.style.display = videoCheck.checked ? "block" : "none";
   });
+
+  const thumbInput = document.getElementById("sf-thumbnail");
+  const thumbPreview = document.getElementById("sf-thumbnail-preview");
+  renderThumbnailPreview(SF_THUMBNAIL_DATA, thumbPreview);
+  thumbInput.addEventListener("change", () => {
+    const file = thumbInput.files && thumbInput.files[0];
+    const msgEl = document.getElementById("seller-form-msg");
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      showSellerMsg(msgEl, "이미지가 너무 커요. 2MB 이하 파일로 올려주세요.", true);
+      thumbInput.value = "";
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      SF_THUMBNAIL_DATA = reader.result;
+      renderThumbnailPreview(SF_THUMBNAIL_DATA, thumbPreview);
+    };
+    reader.readAsDataURL(file);
+  });
+
+  renderTagChips();
+  const tagInput = document.getElementById("sf-tag-input");
+  tagInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === ",") {
+      e.preventDefault();
+      addTagFromInput();
+    }
+  });
+  tagInput.addEventListener("blur", addTagFromInput);
 
   document.getElementById("sf-submit").addEventListener("click", () => {
     handleSubmitScore(user.id);
@@ -170,9 +226,49 @@ function renderSeller() {
   renderMyScores(user.id);
   renderSalesStatus(user.id);
   renderWithdrawSection(user.id);
+  renderSellerInquiries(user.id);
 }
 
 /* ---------- 악보 등록 ---------- */
+
+function renderTagChips() {
+  const wrap = document.getElementById("sf-tags-chips");
+  const hint = document.getElementById("sf-tag-hint");
+  if (!wrap) return;
+  wrap.innerHTML = SF_TAGS.map((t, i) => `
+    <span style="display:inline-flex;align-items:center;gap:4px;padding:4px 10px;border-radius:999px;background:var(--bg);border:1px solid var(--border);font-size:12px;">
+      ${esc(t)}
+      <button type="button" data-tag-remove="${i}" style="all:unset;cursor:pointer;color:var(--muted);font-size:14px;line-height:1;">×</button>
+    </span>`).join("");
+  wrap.querySelectorAll("[data-tag-remove]").forEach(b => b.addEventListener("click", () => {
+    SF_TAGS.splice(Number(b.dataset.tagRemove), 1);
+    renderTagChips();
+  }));
+  if (hint) hint.textContent = `${SF_TAGS.length}/5개 추가됨`;
+}
+
+function renderThumbnailPreview(dataUrl, el) {
+  if (!el) return;
+  if (!dataUrl) { el.innerHTML = ""; return; }
+  el.innerHTML = `<img src="${esc(dataUrl)}" alt="썸네일 미리보기"
+    style="width:96px;height:96px;object-fit:cover;border-radius:10px;border:1px solid var(--border);display:block;">`;
+}
+
+function addTagFromInput() {
+  const input = document.getElementById("sf-tag-input");
+  if (!input) return;
+  const raw = input.value.trim().replace(/,+$/, "").trim();
+  input.value = "";
+  if (!raw) return;
+  const msgEl = document.getElementById("seller-form-msg");
+  if (SF_TAGS.length >= 5) {
+    showSellerMsg(msgEl, "태그는 최대 5개까지 입력할 수 있어요.", true);
+    return;
+  }
+  if (SF_TAGS.some(t => t.toLowerCase() === raw.toLowerCase())) return; // 이미 있는 태그는 무시
+  SF_TAGS.push(raw.slice(0, 20));
+  renderTagChips();
+}
 
 function handleSubmitScore(sellerId) {
   const msgEl = document.getElementById("seller-form-msg");
@@ -188,6 +284,8 @@ function handleSubmitScore(sellerId) {
   const description = document.getElementById("sf-description").value.trim();
   const fileInput = document.getElementById("sf-file");
   const fileName = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : "";
+  const thumbnailUrl = SF_THUMBNAIL_DATA;
+  addTagFromInput(); // 입력창에 남아있는데 Enter를 안 누른 태그도 제출 전에 챙겨준다
 
   if (!title || !artist || !instrument || !difficulty || !priceRaw) {
     showSellerMsg(msgEl, "모든 항목을 입력해주세요.", true);
@@ -212,7 +310,9 @@ function handleSubmitScore(sellerId) {
     isOriginal, hasVideo,
     videoUrl: hasVideo ? videoUrl : null,
     fileUrl: fileName,
-    description
+    description,
+    tags: SF_TAGS,
+    thumbnailUrl
   });
 
   if (!result.ok) {
@@ -220,6 +320,8 @@ function handleSubmitScore(sellerId) {
     return;
   }
 
+  SF_TAGS = [];
+  SF_THUMBNAIL_DATA = null;
   renderSeller();
   const newMsgEl = document.getElementById("seller-form-msg");
   showSellerMsg(newMsgEl, `"${esc(title)}" 등록되었습니다. 관리자 심사 후 승인되면 노출됩니다.`, false);
@@ -234,9 +336,9 @@ function showSellerMsg(el, text, isError) {
 /* ---------- 내 악보 · 심사상태 ---------- */
 
 const SCORE_STATUS_COLOR = {
-  "등록": "#888",
-  "심사중": "#a3792f",
-  "승인": "var(--primary)",
+  "등록": "#625950",
+  "심사중": "#8a6420",
+  "승인": "var(--primary-dark)",
   "반려": "var(--danger)"
 };
 
@@ -254,12 +356,12 @@ function renderMyScores(sellerId) {
   }
 
   wrap.innerHTML = myScores.map(s => {
-    const color = SCORE_STATUS_COLOR[s.status] || "#888";
+    const color = SCORE_STATUS_COLOR[s.status] || "#625950";
     const videoBadge = s.hasVideo
-      ? `<span style="display:inline-block;margin-left:6px;padding:2px 6px;border-radius:5px;background:#eef4f0;color:var(--primary);font-size:11px;">🎬 영상</span>`
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:var(--primary-dark);font-size:11px;">${videoIconArt(12)} 영상</span>`
       : "";
     const rejectBlock = s.status === "반려"
-      ? `<div style="margin-top:8px;padding:10px;background:#fdf1ee;border-radius:8px;font-size:12px;color:var(--danger);">
+      ? `<div style="margin-top:8px;padding:10px;background:color-mix(in oklch,var(--danger) 10%,var(--card));border-radius:8px;font-size:12px;color:var(--danger);">
            반려 사유: ${esc(s.rejectReason || "사유 없음")}<br>
            <span style="color:var(--muted);">위 내용을 고쳐서 폼에서 다시 등록해주세요.</span>
          </div>`
@@ -275,7 +377,7 @@ function renderMyScores(sellerId) {
               ${s.isOriginal ? " · 오리지널" : ""}
             </div>
           </div>
-          <span style="flex-shrink:0;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:#fff;background:${color};">
+          <span style="flex-shrink:0;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:${color};background:color-mix(in oklch,${color} 14%,var(--card));">
             ${esc(s.status)}
           </span>
         </div>
@@ -372,8 +474,8 @@ function renderSalesStatus(sellerId) {
 /* ---------- 정산 · 자동 지급 ---------- */
 
 const WITHDRAW_STATUS_COLOR = {
-  "요청": "#a3792f",
-  "지급완료": "var(--primary)"
+  "요청": "#8a6420",
+  "지급완료": "var(--primary-dark)"
 };
 
 function renderWithdrawSection(sellerId) {
@@ -400,7 +502,7 @@ function renderWithdrawSection(sellerId) {
   }
 
   historyEl.innerHTML = myWithdrawals.map(w => {
-    const color = WITHDRAW_STATUS_COLOR[w.status] || "#888";
+    const color = WITHDRAW_STATUS_COLOR[w.status] || "#625950";
     return `
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border);font-size:13px;">
         <div>
@@ -409,7 +511,7 @@ function renderWithdrawSection(sellerId) {
             ${w.paidAt ? `지급일 ${formatDate(w.paidAt)}` : "다음 지급일에 함께 입금 예정"}
           </div>
         </div>
-        <span style="padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:#fff;background:${color};">
+        <span style="padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:${color};background:color-mix(in oklch,${color} 14%,var(--card));">
           ${esc(w.status)}
         </span>
       </div>
@@ -467,3 +569,65 @@ function renderPayoutStatus(seller) {
   }
   el.innerHTML = `<div style="padding:14px;border-radius:10px;background:${tone};font-size:13px;line-height:1.6;">${text}</div>`;
 }
+
+/* ---------- 고객 문의 ---------- */
+
+function renderSellerInquiries(sellerId) {
+  const listEl = document.getElementById("seller-inquiry-list");
+  if (!listEl) return;
+
+  const list = getSellerInquiries(sellerId);
+  if (list.length === 0) {
+    listEl.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:0;">아직 들어온 문의가 없습니다.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = list.map(q => {
+    const open = SELLER_INQUIRY_OPEN === q.id;
+    const buyer = STATE.users[q.buyerId];
+    const score = q.scoreId && STATE.scores[q.scoreId];
+    const color = q.status === "답변완료" ? "var(--primary-dark)" : "#8a6420";
+    return `
+      <div style="padding:12px 0;border-top:1px solid var(--border);">
+        <button type="button" data-inq-toggle="${q.id}" style="all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;width:100%;">
+          <span style="min-width:0;">
+            <b style="font-size:14px;">${esc(q.title)}</b>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">
+              ${esc(buyer ? buyer.name : "탈퇴 회원")} · ${esc(q.category)}${score ? ` · ${esc(score.title)}` : ""} · ${formatDate(q.createdAt)}
+            </div>
+          </span>
+          <span style="flex-shrink:0;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:${color};background:color-mix(in oklch,${color} 14%,var(--card));">${esc(q.status)}</span>
+        </button>
+        ${open ? `
+          <div style="margin-top:10px;font-size:13px;line-height:1.6;">
+            <div style="white-space:pre-wrap;">${esc(q.content)}</div>
+            ${q.answer ? `
+              <div style="margin-top:10px;padding:10px;border-radius:8px;background:var(--bg);">
+                <b style="font-size:12px;color:var(--primary);">${q.answer.by === "seller" ? "내 답변" : "관리자 답변"} · ${formatDate(q.answer.answeredAt)}</b>
+                <div style="margin-top:4px;white-space:pre-wrap;">${esc(q.answer.text)}</div>
+              </div>` : `
+              <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+                <textarea id="inq-answer-${q.id}" rows="3" placeholder="답변을 입력하세요"
+                  style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
+                <button data-inq-answer="${q.id}" class="btn btn-primary btn-small" style="align-self:flex-start;">답변 등록</button>
+              </div>`}
+          </div>` : ""}
+      </div>`;
+  }).join("");
+
+  listEl.querySelectorAll("[data-inq-toggle]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.inqToggle;
+    SELLER_INQUIRY_OPEN = SELLER_INQUIRY_OPEN === id ? null : id;
+    renderSellerInquiries(sellerId);
+  }));
+  listEl.querySelectorAll("[data-inq-answer]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.inqAnswer;
+    const text = document.getElementById(`inq-answer-${id}`).value;
+    const res = answerInquiry(id, "seller", sellerId, text);
+    const msgEl = document.getElementById("seller-inquiry-msg");
+    if (!res.ok) { showSellerMsg(msgEl, res.message, true); return; }
+    renderAll();
+    showSellerMsg(document.getElementById("seller-inquiry-msg"), "답변을 등록했습니다.", false);
+  }));
+}
+

@@ -3,7 +3,7 @@
    "관리자" 요청일 때 이 파일을 고칩니다 (총괄은 모든 파일 가능).
 
    위쪽 탭으로 나뉜다:
-   운영지표 / 악보 심사 / 정산 지급 / 신청곡 / 회원관리 / 데모 데이터
+   운영지표 / 악보 심사 / 정산 지급 / 신청곡 / 문의 관리 / 회원관리 / 데모 데이터
    ============================================================ */
 
 let ADMIN_REJECT_TARGET_ID = null;
@@ -13,6 +13,8 @@ let ADMIN_MEMBER_QUERY = "";
 let ADMIN_MEMBER_ROLE = "";
 let ADMIN_MEMBER_SORT = "recent";
 let ADMIN_MEMBER_OPEN = null;        // 펼쳐서 보고 있는 회원 id
+let ADMIN_INQUIRY_FILTER = "";       // 문의 관리 상태 필터
+let ADMIN_INQUIRY_OPEN = null;       // 펼쳐서 보고 있는 문의 id
 
 const ADMIN_PANEL = "background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow);";
 
@@ -22,12 +24,14 @@ function renderAdmin() {
 
   const pendingReview = Object.values(STATE.scores).filter(s => s.status === "등록" || s.status === "심사중").length;
   const openRequests = Object.values(STATE.requests).filter(r => r.status !== "완료").length;
+  const openInquiries = Object.values(STATE.inquiries).filter(q => q.status !== "답변완료").length;
   const payout = getPayoutBatch();
   const tabs = [
     ["metrics", "운영지표", ""],
     ["review", "악보 심사", pendingReview],
     ["payout", "정산 지급", payout.items.length],
     ["requests", "신청곡", openRequests],
+    ["inquiries", "문의 관리", openInquiries],
     ["members", "회원관리", ""],
     ["demo", "데모 데이터", ""]
   ];
@@ -38,8 +42,7 @@ function renderAdmin() {
         <button class="chip ${ADMIN_TAB === k ? "active" : ""}" data-admin-tab="${k}" style="padding:9px 14px;font-size:13px;">
           ${label}${n ? ` <b style="margin-left:4px;">${n}</b>` : ""}
         </button>`).join("")}
-    </div>
-    <div id="admin-tab-body"></div>
+    </div>\n    <div id="admin-tab-body"></div>
   `;
   el.querySelectorAll("[data-admin-tab]").forEach(b => b.addEventListener("click", () => {
     ADMIN_TAB = b.dataset.adminTab;
@@ -77,9 +80,9 @@ function renderAdmin() {
         <h2 style="margin:0 0 4px;font-size:17px;">신청곡 관리</h2>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0 16px;">
           ${[
-            ["1", "구매자가 신청", `구매자가 스토어 › 신청곡에서 곡 제목·가수·악기를 적고 ${formatPoint(POLICY.request.pointCost)}를 냅니다. 같은 곡이면 기존 신청에 이름이 더해져 "신청 n명"이 늘어나요.`],
-            ["2", "채보 진행", `신청 많은 순으로 위에 보여요. 신청곡을 눌러 열고 "채보중"을 누르세요. 구매자 신청곡 화면에도 상태가 바로 바뀌어 보여요.`],
-            ["3", "완성 · 무료 지급", `판매자가 그 곡을 등록하고 심사에서 승인되면, 신청곡을 열어 그 악보를 고르고 "완료 · 무료 지급"을 누르세요. 신청자 전원의 내 악보함에 0P로 들어가요.`]
+            ["1", "구매자가 신청", `구매자가 스토어 › 신청곡에서<br>곡 제목·가수·악기를 적고 ${formatPoint(POLICY.request.pointCost)}를 냅니다.<br>같은 곡이면 기존 신청에 이름이 더해져<br>"신청 n명"이 늘어나요.`],
+            ["2", "채보 진행", `신청 많은 순으로 위에 보여요.<br>신청곡을 눌러 열고 "채보중"을 누르세요.<br>구매자 신청곡 화면에도 상태가 바로 바뀌어 보여요.`],
+            ["3", "작업 완료", `판매자가 그 곡을 등록하고 심사에서 승인되면,<br>신청곡을 열어 그 악보를 고르고 "작업 완료"를 누르세요.<br>신청자 전원의 내 악보함에 0P로 들어가요.`]
           ].map(([n, t, d]) => `
             <div style="padding:14px;border-radius:12px;background:var(--band);">
               <div style="font-size:12px;font-weight:800;color:var(--primary);">STEP ${n}</div>
@@ -94,13 +97,15 @@ function renderAdmin() {
     renderAdminRequests();
   } else if (ADMIN_TAB === "members") {
     renderAdminMembers(body);
+  } else if (ADMIN_TAB === "inquiries") {
+    renderAdminInquiries(body);
   } else if (ADMIN_TAB === "demo") {
     body.innerHTML = `
       <div style="${ADMIN_PANEL}">
         <h2 style="margin:0 0 4px;font-size:17px;">데모 데이터</h2>
         <p style="margin:0 0 12px;font-size:13px;color:var(--muted);">화면 확인용 예시 악보·구매·충전·후기·신청곡으로 전부 다시 채웁니다. 지금 이 브라우저에 저장된 모든 데이터(가입자, 구매 내역 등)가 지워집니다.</p>
         <button id="admin-reset-demo"
-          style="padding:10px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:#fff;color:var(--danger);cursor:pointer;">
+          style="padding:10px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">
           데모 데이터로 다시 채우기
         </button>
       </div>`;
@@ -165,6 +170,7 @@ function statTile(label, value, sub) {
       ${sub ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${sub}</div>` : ""}
     </div>`;
 }
+
 function renderAdminMetrics(body) {
   const days = ADMIN_METRIC_DAYS;
   const m = adminMetrics(days);
@@ -273,8 +279,7 @@ function renderAdminMetrics(body) {
           <div style="margin:8px 0;" title="${esc(inst)} ${formatPoint(total)}">
             <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>${esc(inst)}</span><span style="color:var(--muted);">${formatPoint(total)} · ${Math.round(total / Math.max(1, m.revenue) * 100)}%</span></div>
             <div style="height:8px;border-radius:4px;background:var(--band);"><div style="height:8px;border-radius:4px;background:var(--primary);width:${(total / maxInst * 100).toFixed(1)}%;"></div></div>
-          </div>`).join("") : `<p style="margin:0;font-size:13px;color:var(--muted);">이 기간에 판매가 없어요.</p>`}
-      </div>
+          </div>`).join("") : `<p style="margin:0;font-size:13px;color:var(--muted);">이 기간에 판매가 없어요.</p>`}\n      </div>
     </div>
     <p style="font-size:11px;color:var(--muted);margin:0;">지금 숫자는 이 브라우저에 저장된 데이터 기준이에요. 공용 서버를 연결하면 전체 회원 기준으로 바뀝니다.</p>
   `;
@@ -362,9 +367,10 @@ function renderAdminMembers(body) {
     showAdminMsg("admin-member-msg", `${STATE.users[id].name}님 포인트를 ${amount > 0 ? "+" : ""}${formatPoint(amount)} 조정했어요.`, false);
   }));
 }
+
 function memberRowHTML(u, sum) {
   const open = ADMIN_MEMBER_OPEN === u.id;
-  const roleColor = u.sellerInfo ? "background:#eef1ff;color:#3d56d6;" : "background:var(--primary-soft);color:var(--primary);";
+  const roleColor = u.sellerInfo ? "background:var(--band);color:var(--text);" : "background:var(--primary-soft);color:var(--primary);";
   let detail = "";
   if (open) {
     const history = [...u.pointHistory].reverse().slice(0, 8);
@@ -414,6 +420,75 @@ function memberRowHTML(u, sum) {
         <span style="font-size:12px;color:var(--muted);">${open ? "접기 ▲" : "자세히 ▼"}</span>
       </button>
       ${detail}
+    </div>`;
+}
+
+/* ---------- 문의 관리 ---------- */
+
+function renderAdminInquiries(body) {
+  const all = Object.values(STATE.inquiries).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const list = ADMIN_INQUIRY_FILTER ? all.filter(q => q.status === ADMIN_INQUIRY_FILTER) : all;\n
+  body.innerHTML = `
+    <div style="${ADMIN_PANEL}">
+      <h2 style="margin:0 0 4px;font-size:17px;">문의 관리</h2>
+      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);">구매자가 고객센터에서 보낸 1:1 문의입니다. 특정 악보에 대한 문의면 그 악보의 판매자도 볼 수 있고 직접 답할 수 있어요.</p>
+      <div class="chip-row" style="margin-bottom:12px;">
+        ${[["", "전체"], ...INQUIRY_STATUS.map(s => [s, s])].map(([v, l]) => `<button class="chip ${ADMIN_INQUIRY_FILTER === v ? "active" : ""}" data-inq-filter="${v}">${l}</button>`).join("")}
+      </div>
+      <div id="admin-inquiry-msg" style="font-size:13px;margin:0 0 8px;"></div>
+      ${list.length ? list.map(q => adminInquiryRowHTML(q)).join("") : `<p style="font-size:13px;color:var(--muted);margin:0;">조건에 맞는 문의가 없습니다.</p>`}
+    </div>`;
+
+  body.querySelectorAll("[data-inq-filter]").forEach(b => b.addEventListener("click", () => {
+    ADMIN_INQUIRY_FILTER = b.dataset.inqFilter;
+    renderAdminInquiries(body);
+  }));
+  body.querySelectorAll("[data-inq-toggle]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.inqToggle;
+    ADMIN_INQUIRY_OPEN = ADMIN_INQUIRY_OPEN === id ? null : id;
+    renderAdminInquiries(body);
+  }));
+  body.querySelectorAll("[data-inq-answer]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.inqAnswer;
+    const text = document.getElementById(`admin-inq-answer-${id}`).value;
+    const res = answerInquiry(id, "admin", null, text);
+    if (!res.ok) { showAdminMsg("admin-inquiry-msg", res.message, true); return; }
+    renderAll();
+    showAdminMsg("admin-inquiry-msg", "답변을 등록했습니다.", false);
+  }));
+}
+
+function adminInquiryRowHTML(q) {
+  const open = ADMIN_INQUIRY_OPEN === q.id;
+  const buyer = STATE.users[q.buyerId];
+  const score = q.scoreId && STATE.scores[q.scoreId];
+  const seller = q.sellerId && STATE.users[q.sellerId];
+  const color = q.status === "답변완료" ? "var(--primary-dark)" : "#8a6420";
+  return `
+    <div style="padding:12px 0;border-top:1px solid var(--border);">
+      <button type="button" data-inq-toggle="${q.id}" style="all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;width:100%;">
+        <span style="min-width:0;">
+          <b style="font-size:14px;">${esc(q.title)}</b>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">
+            ${esc(buyer ? buyer.name : "탈퇴 회원")} · ${esc(q.category)}${score ? ` · ${esc(score.title)} (판매자: ${esc(seller ? seller.name : "-")})` : ""} · ${formatDate(q.createdAt)}
+          </div>
+        </span>
+        <span style="flex-shrink:0;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:${color};background:color-mix(in oklch,${color} 14%,var(--card));">${esc(q.status)}</span>
+      </button>
+      ${open ? `
+        <div style="margin-top:10px;font-size:13px;line-height:1.6;">
+          <div style="white-space:pre-wrap;">${esc(q.content)}</div>
+          ${q.answer ? `
+            <div style="margin-top:10px;padding:10px;border-radius:8px;background:var(--bg);">
+              <b style="font-size:12px;color:var(--primary);">${q.answer.by === "seller" ? "판매자 답변" : "관리자 답변"} · ${formatDate(q.answer.answeredAt)}</b>
+              <div style="margin-top:4px;white-space:pre-wrap;">${esc(q.answer.text)}</div>
+            </div>` : `
+            <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
+              <textarea id="admin-inq-answer-${q.id}" rows="3" placeholder="답변을 입력하세요"
+                style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:inherit;resize:vertical;"></textarea>
+              <button data-inq-answer="${q.id}" style="align-self:flex-start;padding:7px 12px;font-size:12px;border:none;border-radius:8px;background:var(--primary);color:var(--on-accent);cursor:pointer;">답변 등록</button>
+            </div>`}
+        </div>` : ""}
     </div>`;
 }
 
@@ -525,6 +600,7 @@ function renderAdminRequests() {
     if (typeof goBuyer === "function") goBuyer("detail", { id: b.dataset.reqView });
   }));
 }
+
 function requestDetailHTML(r) {
   const requesters = r.buyerIds.map(id => STATE.users[id]).filter(Boolean);
   const box = "padding:14px;border-radius:12px;background:var(--band);";
@@ -590,7 +666,7 @@ function requestDetailHTML(r) {
           }).join("") : `<div style="padding:14px;font-size:12px;color:var(--muted);">${q ? "검색 결과가 없어요." : `승인된 ${esc(r.instrument)} 악보가 아직 없어요.`}</div>`}
         </div>
         <button id="req-fulfill" class="btn btn-primary" style="width:100%;margin-top:10px;" ${ADMIN_REQ_PICK ? "" : "disabled"}>
-          ${ADMIN_REQ_PICK ? `선택한 악보로 완료 · 신청자 ${r.buyerIds.length}명에게 무료 지급` : "위에서 악보를 먼저 골라주세요"}
+          ${ADMIN_REQ_PICK ? `선택한 악보로 작업 완료 (신청자 ${r.buyerIds.length}명)` : "위에서 악보를 먼저 골라주세요"}
         </button>
       </div>
     </div>`;
@@ -626,10 +702,10 @@ function renderAdminReviewList() {
   listEl.innerHTML = pending.map(s => {
     const seller = STATE.users[s.sellerId];
     const videoBadge = s.hasVideo
-      ? `<span style="display:inline-block;margin-left:6px;padding:2px 6px;border-radius:5px;background:#eef4f0;color:var(--primary);font-size:11px;">🎬 영상</span>`
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:var(--primary-dark);font-size:11px;">${videoIconArt(12)} 영상</span>`
       : "";
     const originalBadge = s.isOriginal
-      ? `<span style="display:inline-block;margin-left:6px;padding:2px 6px;border-radius:5px;background:#f3f0e8;color:#a3792f;font-size:11px;">오리지널</span>`
+      ? `<span style="display:inline-block;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--band);color:#8a6420;font-size:11px;">오리지널</span>`
       : "";
     const isRejecting = ADMIN_REJECT_TARGET_ID === s.id;
 
@@ -642,11 +718,11 @@ function renderAdminReviewList() {
         </div>
         <div style="display:flex;gap:8px;margin-top:8px;">
           <button data-approve-id="${s.id}"
-            style="flex:1;padding:9px;font-size:13px;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;">
+            style="flex:1;padding:9px;font-size:13px;border:none;border-radius:8px;background:var(--primary);color:var(--on-accent);cursor:pointer;">
             승인
           </button>
           <button data-reject-id="${s.id}"
-            style="flex:1;padding:9px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:#fff;color:var(--danger);cursor:pointer;">
+            style="flex:1;padding:9px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">
             반려
           </button>
         </div>
@@ -717,6 +793,7 @@ function renderAdminReviewList() {
     });
   }
 }
+
 /* ---------- 이번 달 정산 지급 ---------- */
 
 function renderAdminPayoutBatch() {
@@ -732,12 +809,12 @@ function renderAdminPayoutBatch() {
     wrap.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:0 0 8px;">다음 지급일(${dateText})에 지급할 판매자가 아직 없어요.</p>`;
   } else {
     wrap.innerHTML = `
-      <div style="padding:12px;border-radius:10px;background:#eef4f0;margin-bottom:10px;font-size:13px;">
+      <div style="padding:12px;border-radius:10px;background:var(--band);margin-bottom:10px;font-size:13px;">
         다음 지급일 <b>${dateText}</b> · 대상 <b>${batch.items.length}명</b> · 합계 <b>${formatWon(batch.total)}</b>
       </div>
       <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr style="background:#fafbfa;color:var(--muted);text-align:left;">
+          <thead><tr style="background:var(--band);color:var(--muted);text-align:left;">
             <th style="padding:8px 10px;font-weight:600;">판매자</th>
             <th style="padding:8px 10px;font-weight:600;">은행 · 계좌</th>
             <th style="padding:8px 10px;font-weight:600;">예금주</th>
@@ -755,9 +832,9 @@ function renderAdminPayoutBatch() {
         </table>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-        <button id="payout-csv" style="padding:10px 14px;font-size:13px;font-weight:600;border:1px solid #bfe6cf;border-radius:8px;background:var(--primary-soft);color:var(--primary-dark);cursor:pointer;">⬇ ① 엑셀 파일 받기</button>
-        <button id="payout-copy" style="padding:10px 14px;font-size:13px;font-weight:600;border:1px solid #bfe6cf;border-radius:8px;background:var(--primary-soft);color:var(--primary-dark);cursor:pointer;">📋 표 복사 (엑셀에 붙여넣기)</button>
-        <button id="payout-done" style="padding:10px 14px;font-size:13px;font-weight:600;border:none;border-radius:8px;background:var(--primary);color:#fff;cursor:pointer;">✓ ③ 송금했어요 · 전체 지급 완료</button>
+        <button id="payout-csv" style="padding:10px 14px;font-size:13px;font-weight:600;border:1px solid var(--border);border-radius:8px;background:var(--primary-soft);color:var(--primary-dark);cursor:pointer;"><i class="ico ico-download"></i> ① 엑셀 파일 받기</button>
+        <button id="payout-copy" style="padding:10px 14px;font-size:13px;font-weight:600;border:1px solid var(--border);border-radius:8px;background:var(--primary-soft);color:var(--primary-dark);cursor:pointer;"><i class="ico ico-copy"></i> 표 복사 (엑셀에 붙여넣기)</button>
+        <button id="payout-done" style="padding:10px 14px;font-size:13px;font-weight:600;border:none;border-radius:8px;background:var(--primary);color:var(--on-accent);cursor:pointer;">✓ ③ 송금했어요 · 전체 지급 완료</button>
       </div>
     `;
   }
@@ -796,7 +873,7 @@ function renderAdminPayoutBatch() {
     if (doneBtn.dataset.confirm !== "1") {
       doneBtn.dataset.confirm = "1";
       doneBtn.textContent = `은행 송금을 마쳤나요? 한 번 더 누르면 ${batch.items.length}명 지급 완료 처리`;
-      doneBtn.style.background = "var(--accent)";
+      doneBtn.style.background = "var(--hot)";
       return;
     }
     const res = completePayoutBatch();
@@ -818,3 +895,4 @@ function renderAdminPayoutBatch() {
       </div>`;
   }).join("") : `<p style="font-size:13px;color:var(--muted);margin:0;">지급 완료 내역이 없습니다.</p>`;
 }
+
