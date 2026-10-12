@@ -8,6 +8,10 @@ const STORAGE_KEY = "madi.store.v1";
 const SESSION_KEY = "madi.session.v1";
 const RECENT_KEY = "madi.recent.v1"; // 최근 본 악보 (브라우저별 편의 기능, 서비스 데이터 아님)
 
+/* 공유 서버(Supabase) 연결 정보. publishable key 는 공개되어도 되는 키다. */
+const SUPABASE_URL = "https://qvnprznzritqopwqmqlq.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_Gf-vX_Cm_8sFZ_oGep5Azg_DtU0_yFK";
+
 const POLICY = {
   commission: {
     normal: 0.25,   // 일반 편곡 25% (아티스트 정산 75%)
@@ -89,6 +93,47 @@ function formatDate(iso) {
   return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`;
 }
 
+/* ---------- 공유 서버(Supabase) 읽기/쓰기 ----------
+   STATE 전체를 하나의 JSON 덩어리로 store_state 테이블의 1번 행에 저장한다.
+   읽기가 실패하면(오프라인 등) null 을 돌려주고, 이 경우 이 브라우저에 저장된
+   localStorage 데이터로 대신 시작한다. 쓰기는 화면을 기다리게 하지 않도록
+   완료를 기다리지 않고 백그라운드로 보낸다(실패해도 localStorage 에는 남아있다). */
+
+async function loadFromSupabase() {
+  try {
+    const res = await fetch(`${SUPABASE_URL}/rest/v1/store_state?id=eq.1&select=data`, {
+      headers: {
+        apikey: SUPABASE_ANON_KEY,
+        Authorization: `Bearer ${SUPABASE_ANON_KEY}`
+      }
+    });
+    if (!res.ok) throw new Error(`공유 서버 응답 오류 (status ${res.status})`);
+    const rows = await res.json();
+    if (Array.isArray(rows) && rows[0] && rows[0].data && Object.keys(rows[0].data).length > 0) {
+      return rows[0].data;
+    }
+    return null; // 아직 비어있는 경우(최초 1회) — localStorage 쪽 데이터로 시작한다
+  } catch (e) {
+    console.error("[common] 공유 서버에서 데이터를 불러오지 못했습니다. 이 브라우저의 데이터로 시작합니다.", e);
+    return null;
+  }
+}
+
+function saveToSupabase() {
+  fetch(`${SUPABASE_URL}/rest/v1/store_state?id=eq.1`, {
+    method: "PATCH",
+    headers: {
+      apikey: SUPABASE_ANON_KEY,
+      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      "Content-Type": "application/json",
+      Prefer: "return=minimal"
+    },
+    body: JSON.stringify({ data: STATE, updated_at: nowISO() })
+  }).catch(e => {
+    console.error("[common] 공유 서버에 저장하지 못했습니다. (이 브라우저에는 저장되어 있습니다)", e);
+  });
+}
+
 /* ---------- 저장 / 불러오기 (서비스 데이터) ---------- */
 
 const COLLECTIONS = ["users", "scores", "purchases", "requests", "charges", "withdrawals", "reviews", "inquiries"];
@@ -99,13 +144,18 @@ function emptyState() {
   return s;
 }
 
-function load() {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    STATE = raw ? JSON.parse(raw) : null;
-  } catch (e) {
-    console.error("[common] 저장된 데이터를 읽지 못했습니다.", e);
-    STATE = null;
+async function load() {
+  const remote = await loadFromSupabase();
+  if (remote) {
+    STATE = remote;
+  } else {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      STATE = raw ? JSON.parse(raw) : null;
+    } catch (e) {
+      console.error("[common] 저장된 데이터를 읽지 못했습니다.", e);
+      STATE = null;
+    }
   }
   if (!STATE) STATE = emptyState();
   for (const key of COLLECTIONS) {
@@ -139,6 +189,7 @@ function load() {
 
 function save() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(STATE));
+  saveToSupabase();
 }
 
 /* ---------- 로그인 세션 (누가 지금 로그인해 있는지만 별도 저장) ---------- */
@@ -1238,8 +1289,8 @@ function toast(message, isError) {
 
 /* ---------- 시작 ---------- */
 
-function initCommon() {
-  load();
+async function initCommon() {
+  await load();
   seedIfEmpty();
 
   updateLoginRoleUI();
@@ -1270,4 +1321,4 @@ function initCommon() {
   showView("buyer");
 }
 
-document.addEventListener("DOMContentLoaded", initCommon);
+document.addEventListener("DOMContentLoaded", () => { initCommon(); });
