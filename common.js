@@ -36,7 +36,8 @@ const POLICY = {
   },
   preview: {
     bars: 8
-  }
+  },
+  adminPassword: "akbo2026" // 관리자 화면 입장 비밀번호. 나중에 원하는 값으로 바꿔도 된다.
 };
 
 const INSTRUMENTS = ["드럼", "기타", "피아노", "베이스", "바이올린", "보컬"];
@@ -1022,6 +1023,21 @@ function enterAdminPreview() {
   showView("admin");
 }
 
+/* 관리자 화면 입장 전에 비밀번호를 확인한다.
+   취소를 누르면 아무 일도 일어나지 않고, 틀리면 안내만 뜨고 그대로 남는다. */
+function tryEnterAdminPreview() {
+  const pw = prompt("관리자 비밀번호를 입력하세요.");
+  if (pw === null) return; // 취소
+  if (pw !== POLICY.adminPassword) {
+    alert("비밀번호가 올바르지 않습니다.");
+    return;
+  }
+  clearSession();
+  CURRENT_USER_ID = null;
+  enterAdminPreview();
+  window.scrollTo({ top: 0 });
+}
+
 function getCurrentUser() {
   return STATE.users[CURRENT_USER_ID] || null;
 }
@@ -1123,12 +1139,7 @@ function renderHeaderAuth() {
   });
   document.getElementById("logout-btn")?.addEventListener("click", logout);
   // 테스트 기간용: 정식 오픈 전에는 관리자 계정 로그인으로 바꿔야 한다
-  document.getElementById("header-admin-btn")?.addEventListener("click", () => {
-    clearSession();
-    CURRENT_USER_ID = null;
-    enterAdminPreview();
-    window.scrollTo({ top: 0 });
-  });
+  document.getElementById("header-admin-btn")?.addEventListener("click", tryEnterAdminPreview);
 }
 
 /* ---------- 헤더 검색창 · 악기 메뉴 (index.html 의 고정 영역) ---------- */
@@ -1194,8 +1205,7 @@ function initHeaderSearch() {
       if (m === "home") goBuyer("home");
       else if (m === "video") goBuyer("list", { video: true });
       else if (m === "requests") goBuyer("requests");
-      else if (m === "new") goBuyer("list",
- { sort: "latest" });
+      else if (m === "new") goBuyer("list", { sort: "latest" });
       else goBuyer("list", { instrument: m });
     });
   });
@@ -1245,7 +1255,7 @@ function initCommon() {
   });
   document.getElementById("admin-preview-link")?.addEventListener("click", (e) => {
     e.preventDefault();
-    enterAdminPreview();
+    tryEnterAdminPreview();
   });
   document.getElementById("footer-support-link")?.addEventListener("click", () => {
     if (typeof goBuyer === "function") { showView("buyer"); goBuyer("support"); }
@@ -1261,4 +1271,3 @@ function initCommon() {
 }
 
 document.addEventListener("DOMContentLoaded", initCommon);
-
