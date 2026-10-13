@@ -194,17 +194,21 @@ function avatarStyle(name) {
   return `background:${bg};color:${fg};`;
 }
 
-/* ---------- 이동 ---------- */
+/* ---------- 이동 ----------
+   화면 이동은 전부 이 함수를 거친다. fromHistory(뒤로/앞으로가기로 호출됨)가 아니면
+   매번 브라우저 기록에 한 칸씩 쌓아서(pushNavState), 뒤로가기를 누르면 방금 전 화면으로,
+   계속 누르면 결국 메인(홈)까지 돌아가도록 한다. (2026-10-13 추가) */
 
 function goBuyer(page, params, opts) {
   BUYER_ROUTE = { page, params: params || {} };
   if (page === "detail" && params && params.id) recordView(params.id);
   if (page === "detail") REVIEW_DRAFT = { rating: 0 };
   if (CURRENT_VIEW !== "buyer") {
-    showView("buyer");
+    showView("buyer", opts && opts.fromHistory ? { fromHistory: true } : undefined);
   } else {
     renderBuyer();
     renderHeaderAuth();
+    if (!(opts && opts.fromHistory)) pushNavState();
   }
   if (!(opts && opts.keepScroll)) window.scrollTo({ top: 0 });
 }
@@ -1329,7 +1333,8 @@ function renderSupportFaq(body) {
 function renderSupportQna(body, user) {
   if (!user) {
     body.innerHTML = `
-      <div class="panel">\n        <p class="muted" style="margin:0;">로그인하면 1:1 문의를 쓰고, 내 문의 내역과 답변을 볼 수 있어요.</p>
+      <div class="panel">
+        <p class="muted" style="margin:0;">로그인하면 1:1 문의를 쓰고, 내 문의 내역과 답변을 볼 수 있어요.</p>
         <button class="btn btn-primary" id="qna-login-btn" style="margin-top:10px;">로그인</button>
       </div>`;
     document.getElementById("qna-login-btn")?.addEventListener("click", () => requireLogin(() => renderBuyer()));
@@ -1414,4 +1419,3 @@ function renderSupportQna(body, user) {
     renderBuyer();
   }));
 }
-

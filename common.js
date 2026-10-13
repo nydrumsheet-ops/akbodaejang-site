@@ -1313,7 +1313,7 @@ function logout() {
   clearSession();
   CURRENT_USER_ID = null;
   if (typeof goBuyer === "function") goBuyer("home");
-  showView("buyer");
+  else showView("buyer");
 }
 
 /* 관리자 화면으로 들어간다. tryEnterAdmin() 이 로그인·권한 확인을 끝낸 뒤에만 호출된다. */
@@ -1361,7 +1361,7 @@ function visibleViewsForCurrentUser() {
   return views;
 }
 
-function showView(viewName) {
+function showView(viewName, opts) {
   CURRENT_VIEW = viewName;
   for (const name of ["buyer", "seller", "admin"]) {
     const el = document.getElementById(`view-${name}`);
@@ -1369,7 +1369,42 @@ function showView(viewName) {
   }
   renderNav();
   renderAll();
+  if (!(opts && opts.fromHistory)) pushNavState();
 }
+
+/* ---------- 브라우저 뒤로가기 지원 ----------
+   화면이 바뀔 때마다(showView, goBuyer) 브라우저 기록에 한 칸씩 쌓아서,
+   뒤로가기를 누르면 바로 전 화면으로, 계속 누르면 결국 처음 열었던 메인(홈)
+   화면까지 돌아가도록 한다. opts.fromHistory 가 true 면(뒤로/앞으로가기로
+   이미 호출된 경우) 다시 기록을 쌓지 않는다 — 그래야 무한히 쌓이지 않는다.
+   (2026-10-13 추가) */
+
+function currentNavState() {
+  const state = { view: CURRENT_VIEW };
+  if (CURRENT_VIEW === "buyer" && typeof BUYER_ROUTE !== "undefined") {
+    state.buyerPage = BUYER_ROUTE.page;
+    state.buyerParams = BUYER_ROUTE.params;
+  }
+  return state;
+}
+
+function pushNavState() {
+  try { history.pushState(currentNavState(), ""); } catch (e) { /* 일부 환경(파일로 직접 열었을 때 등)에서는 history API가 막힐 수 있다 */ }
+}
+
+function applyNavState(state) {
+  if (!state) {
+    showView("buyer", { fromHistory: true });
+    if (typeof goBuyer === "function") goBuyer("home", {}, { fromHistory: true, keepScroll: true });
+    return;
+  }
+  showView(state.view || "buyer", { fromHistory: true });
+  if (state.view === "buyer" && typeof goBuyer === "function") {
+    goBuyer(state.buyerPage || "home", state.buyerParams || {}, { fromHistory: true, keepScroll: true });
+  }
+}
+
+window.addEventListener("popstate", (e) => { applyNavState(e.state); });
 
 function renderNav() {
   const navBarWrap = document.querySelector(".nav-bar");
@@ -1582,7 +1617,10 @@ async function initCommon() {
   if (session && STATE.users[session.userId]) {
     CURRENT_USER_ID = session.userId;
   }
-  showView("buyer");
+  // 첫 화면은 기록을 "쌓지" 않고 지금 자리를 바꿔치기한다(replaceState).
+  // 그래야 처음 열자마자 뒤로가기를 눌러도 빈 화면으로 가지 않는다.
+  showView("buyer", { fromHistory: true });
+  try { history.replaceState(currentNavState(), ""); } catch (e) {}
 }
 
 document.addEventListener("DOMContentLoaded", () => { initCommon(); });
