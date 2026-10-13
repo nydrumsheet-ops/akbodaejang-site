@@ -1,4 +1,4 @@
-<!DOCTYPE html> 
+<!DOCTYPE html>
 <html lang="ko" data-direction="studio">
 <head>
 <meta charset="UTF-8">
@@ -577,13 +577,17 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .modal-box{width:100%;max-width:400px;background:var(--surface-page);border-radius:var(--radius-lg);padding:32px 28px 28px;position:relative;box-shadow:var(--shadow-lg);animation:mds-rise var(--dur-base) var(--ease)}
 .modal-close{position:absolute;top:14px;right:14px;width:36px;height:36px;border-radius:var(--radius-control);border:none;background:none;font-size:16px;color:var(--text-body);cursor:pointer}
 .modal-close:hover{background:var(--surface-inset)}
+.login-pane{display:none}
 .login-lead{font:var(--type-display-sm);letter-spacing:var(--display-tracking);margin:0 0 6px}
 .login-sub{font-size:14px;color:var(--muted);margin:0 0 20px}
 #login-modal input{width:100%;height:48px;padding:0 14px;margin-bottom:10px;border:1px solid var(--border-field);border-radius:var(--radius-field);font-size:15px;outline:none}
 #login-modal input:focus{border-color:var(--accent);box-shadow:var(--focus-ring)}
 .login-error{color:var(--danger);font-size:13px;min-height:16px;margin:0 0 8px}
-#login-submit{width:100%;height:48px;border-radius:var(--radius-control);border:none;font:var(--type-button);cursor:pointer;background:var(--accent);color:var(--on-accent)}
-#login-submit:hover{background:var(--accent-hover)}
+.login-btn-primary{width:100%;height:48px;border-radius:var(--radius-control);border:none;font:var(--type-button);cursor:pointer;background:var(--accent);color:var(--on-accent)}
+.login-btn-primary:hover{background:var(--accent-hover)}
+.login-btn-primary:disabled{opacity:.6;cursor:default}
+.login-links{margin:14px 0 0;text-align:center}
+.login-links a{font-size:14px;color:var(--muted);text-decoration:none}
 .role-switch{margin:20px 0 0;padding-top:16px;border-top:1px solid var(--border);text-align:center}
 .role-switch a{font-size:14px;color:var(--muted);text-decoration:none}
 .role-switch a b{color:var(--accent-ink)}
@@ -668,18 +672,54 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 <div id="login-modal" class="modal-overlay">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="login-form-title">
     <button id="login-modal-close" class="modal-close" aria-label="닫기">✕</button>
-    <p id="login-form-title" class="login-lead">구매자로 시작하기</p>
-    <p class="login-sub">이름과 이메일만 있으면 바로 시작할 수 있어요.</p>
-    <input type="text" id="login-name" placeholder="이름">
-    <input type="email" id="login-email" placeholder="이메일">
-    <p id="login-error" class="login-error"></p>
-    <button id="login-submit">시작하기</button>
-    <p class="role-switch"><a href="#" id="role-switch-link">아티스트이신가요? <b>아티스트로 시작하기</b></a></p>
+
+    <div id="login-pane-login" class="login-pane" style="display:block">
+      <p id="login-form-title" class="login-lead">로그인</p>
+      <p class="login-sub">이메일과 비밀번호를 입력해주세요.</p>
+      <input type="email" id="login-email" placeholder="이메일" autocomplete="username">
+      <input type="password" id="login-password" placeholder="비밀번호" autocomplete="current-password">
+      <p id="login-error" class="login-error"></p>
+      <button id="login-submit" class="login-btn-primary">로그인</button>
+      <p class="login-links"><a href="#" id="go-forgot-link">비밀번호를 잊으셨나요?</a></p>
+      <p class="role-switch">계정이 없으신가요? <a href="#" id="go-signup-link"><b>회원가입</b></a></p>
+    </div>
+
+    <div id="login-pane-signup" class="login-pane">
+      <p class="login-lead">회원가입</p>
+      <p id="signup-role-sub" class="login-sub">구매자로 가입합니다.</p>
+      <input type="text" id="signup-name" placeholder="이름">
+      <input type="email" id="signup-email" placeholder="이메일" autocomplete="username">
+      <input type="password" id="signup-password" placeholder="비밀번호 (6자 이상)" autocomplete="new-password">
+      <input type="password" id="signup-password2" placeholder="비밀번호 확인" autocomplete="new-password">
+      <p id="signup-error" class="login-error"></p>
+      <button id="signup-submit" class="login-btn-primary">회원가입</button>
+      <p class="role-switch"><a href="#" id="role-switch-link">아티스트이신가요? <b>아티스트로 가입하기</b></a></p>
+      <p class="login-links"><a href="#" id="go-login-link">이미 계정이 있으신가요? <b>로그인</b></a></p>
+    </div>
+
+    <div id="login-pane-forgot" class="login-pane">
+      <p class="login-lead">비밀번호 재설정</p>
+      <p class="login-sub">가입하신 이메일로 재설정 링크를 보내드려요.</p>
+      <input type="email" id="forgot-email" placeholder="이메일" autocomplete="username">
+      <p id="forgot-error" class="login-error"></p>
+      <button id="forgot-submit" class="login-btn-primary">재설정 메일 보내기</button>
+      <p class="login-links"><a href="#" id="forgot-back-link">로그인으로 돌아가기</a></p>
+    </div>
+
+    <div id="login-pane-setpassword" class="login-pane">
+      <p class="login-lead">새 비밀번호 설정</p>
+      <p class="login-sub">사용하실 새 비밀번호를 입력해주세요.</p>
+      <input type="password" id="setpassword-new" placeholder="새 비밀번호 (6자 이상)" autocomplete="new-password">
+      <input type="password" id="setpassword-new2" placeholder="새 비밀번호 확인" autocomplete="new-password">
+      <p id="setpassword-error" class="login-error"></p>
+      <button id="setpassword-submit" class="login-btn-primary">비밀번호 설정</button>
+    </div>
   </div>
 </div>
 
 <div id="toast" role="status" aria-live="polite"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
 <script src="common.js"></script>
 <script src="buyer.js"></script>
 <script src="seller.js"></script>

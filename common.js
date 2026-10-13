@@ -7,10 +7,12 @@
 const STORAGE_KEY = "madi.store.v1";
 const SESSION_KEY = "madi.session.v1";
 const RECENT_KEY = "madi.recent.v1"; // 최근 본 악보 (브라우저별 편의 기능, 서비스 데이터 아님)
+const PENDING_SIGNUP_KEY = "madi.pendingSignup.v1"; // 회원가입 중 입력한 이름·역할 (이메일 인증 전까지 임시 보관)
 
 /* 공유 서버(Supabase) 연결 정보. publishable key 는 공개되어도 되는 키다. */
 const SUPABASE_URL = "https://qvnprznzritqopwqmqlq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Gf-vX_Cm_8sFZ_oGep5Azg_DtU0_yFK";
+const SITE_URL = "https://akbodaejang-site.vercel.app"; // 로그인 이메일(인증·재설정)이 돌아올 주소
 
 const POLICY = {
   commission: {
@@ -55,9 +57,10 @@ const INQUIRY_CATEGORIES = ["결제·포인트", "환불", "악보·심사", "�
 let STATE = null;
 let CURRENT_USER_ID = null;
 let CURRENT_VIEW = "buyer";
-let PENDING_ROLE = "buyer"; // 로그인 폼이 지금 어떤 역할로 맞춰져 있는지. 기본값은 구매자
+let PENDING_ROLE = "buyer"; // 회원가입 폼이 지금 어떤 역할로 맞춰져 있는지. 기본값은 구매자
 let ADMIN_PREVIEW = false;  // 로그인 없이 관리자 화면만 미리보는 모드
 let AFTER_LOGIN = null;     // 로그인 모달을 띄운 동작 (로그인 끝나면 이어서 실행)
+let SB_CLIENT = null;       // Supabase Auth 클라이언트 (지연 생성)
 
 /* ---------- 기본 유틸 ---------- */
 
@@ -134,6 +137,17 @@ function saveToSupabase() {
   });
 }
 
+/* ---------- Supabase Auth 클라이언트 ----------
+   index.html 에서 불러온 supabase-js 라이브러리(window.supabase)로 클라이언트를 한 번만 만든다.
+   라이브러리가 아직(또는 끝내) 로드되지 않았으면 null 을 돌려주고, 호출한 쪽에서 안내 문구를 보여준다. */
+
+function getSb() {
+  if (!SB_CLIENT && window.supabase && typeof window.supabase.createClient === "function") {
+    SB_CLIENT = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  }
+  return SB_CLIENT;
+}
+
 /* ---------- 저장 / 불러오기 (서비스 데이터) ---------- */
 
 const COLLECTIONS = ["users", "scores", "purchases", "requests", "charges", "withdrawals", "reviews", "inquiries"];
@@ -166,6 +180,7 @@ async function load() {
     if (!Array.isArray(u.wishlist)) u.wishlist = [];
     if (!Array.isArray(u.cart)) u.cart = [];
     if (!Array.isArray(u.following)) u.following = [];
+    if (typeof u.supabaseUserId === "undefined") u.supabaseUserId = null; // 실제 로그인(비밀번호) 전환 전 회원은 비어있다
   }
   for (const s of Object.values(STATE.scores)) {
     if (s.difficulty === "상급") s.difficulty = "고급";
@@ -240,7 +255,8 @@ function makeUser(name, email, role, extra) {
   const user = {
     id, name, email, role,
     points: 0, pointHistory: [], isFirstCharge: true, createdAt: nowISO(),
-    wishlist: [], cart: [], following: []
+    wishlist: [], cart: [], following: [],
+    supabaseUserId: null
   };
   if (role === "seller" || role === "both") {
     user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: name, settleBalance: 0 };
@@ -722,7 +738,7 @@ function hasBankInfo(user) {
   return !!(i && i.bankName && i.bankAccount && i.accountHolder);
 }
 
-/* 예전 방식으로 신청만 해둔(아직 "요청" 상태) 출금도 함께 지급한다 */
+/* 예전 방식으로 신청만 해둔("요청" 상태) 출금도 함께 지급한다 */
 function getPayoutBatch() {
   const items = [];
   const excluded = [];
@@ -954,8 +970,10 @@ function fulfillRequest(requestId, scoreId) {
 }
 
 /* ============================================================
-   로그인 / 회원가입 — 이름 + 이메일만 사용 (비밀번호 없음)
-   같은 이메일로 반대 역할을 또 선택하면 role 을 "both" 로 승격한다.
+   로그인 / 회원가입 / 비밀번호 재설정 — Supabase Auth 사용
+   기존(이름+이메일만 쓰던) 회원은 처음 로그인을 시도하면 자동으로
+   "비밀번호 설정" 절차로 안내되고, 메일 인증을 마치면 기존 데이터
+   (포인트·구매내역 등)를 그대로 이어서 쓰게 된다.
    ============================================================ */
 
 function findUserByEmail(email) {
@@ -963,46 +981,59 @@ function findUserByEmail(email) {
 }
 
 function updateLoginRoleUI() {
-  const title = document.getElementById("login-form-title");
+  const sub = document.getElementById("signup-role-sub");
   const switchLink = document.getElementById("role-switch-link");
   if (PENDING_ROLE === "seller") {
-    if (title) title.textContent = "아티스트로 시작하기";
-    if (switchLink) switchLink.innerHTML = `구매자이신가요? <b>구매자로 시작하기</b>`;
+    if (sub) sub.textContent = "아티스트로 가입합니다.";
+    if (switchLink) switchLink.innerHTML = `구매자이신가요? <b>구매자로 가입하기</b>`;
   } else {
-    if (title) title.textContent = "구매자로 시작하기";
-    if (switchLink) switchLink.innerHTML = `아티스트이신가요? <b>아티스트로 시작하기</b>`;
+    if (sub) sub.textContent = "구매자로 가입합니다.";
+    if (switchLink) switchLink.innerHTML = `아티스트이신가요? <b>아티스트로 가입하기</b>`;
   }
 }
 
 function switchLoginRole() {
   PENDING_ROLE = PENDING_ROLE === "seller" ? "buyer" : "seller";
   updateLoginRoleUI();
-  const errorEl = document.getElementById("login-error");
+  const errorEl = document.getElementById("signup-error");
   if (errorEl) errorEl.textContent = "";
+}
+
+function showLoginPane(pane) {
+  for (const p of ["login", "signup", "forgot", "setpassword"]) {
+    const el = document.getElementById(`login-pane-${p}`);
+    if (el) el.style.display = p === pane ? "block" : "none";
+  }
 }
 
 function resetLoginForm() {
   PENDING_ROLE = "buyer";
   updateLoginRoleUI();
-  const nameInput = document.getElementById("login-name");
-  const emailInput = document.getElementById("login-email");
-  const errorEl = document.getElementById("login-error");
-  if (nameInput) nameInput.value = "";
-  if (emailInput) emailInput.value = "";
-  if (errorEl) errorEl.textContent = "";
+  showLoginPane("login");
+  for (const id of ["login-email", "login-password", "signup-name", "signup-email", "signup-password", "signup-password2", "forgot-email", "setpassword-new", "setpassword-new2"]) {
+    const el = document.getElementById(id);
+    if (el) el.value = "";
+  }
+  for (const id of ["login-error", "signup-error", "forgot-error", "setpassword-error"]) {
+    const el = document.getElementById(id);
+    if (el) el.textContent = "";
+  }
 }
 
 /* 로그인은 화면을 막지 않는다. 계정이 필요한 버튼을 누르는 순간에만
    이 모달이 뜨고, afterLogin 으로 넘긴 동작은 로그인 직후 이어서 실행된다. */
 
 function openLoginModal(role, afterLogin) {
+  resetLoginForm();
   PENDING_ROLE = role === "seller" ? "seller" : "buyer";
-  AFTER_LOGIN = typeof afterLogin === "function" ? afterLogin : null;
   updateLoginRoleUI();
-  const errorEl = document.getElementById("login-error");
-  if (errorEl) errorEl.textContent = "";
+  AFTER_LOGIN = typeof afterLogin === "function" ? afterLogin : null;
+  if (role === "seller") showLoginPane("signup");
   document.getElementById("login-modal")?.classList.add("open");
-  setTimeout(() => document.getElementById("login-name")?.focus(), 30);
+  setTimeout(() => {
+    const target = role === "seller" ? "signup-name" : "login-email";
+    document.getElementById(target)?.focus();
+  }, 30);
 }
 
 function closeLoginModal() {
@@ -1010,40 +1041,213 @@ function closeLoginModal() {
   resetLoginForm();
 }
 
-function submitLogin() {
-  const nameInput = document.getElementById("login-name");
+/* 기존(비밀번호 없이 쓰던) 회원이 로그인에 실패했을 때, 지금 입력한 비밀번호로
+   새 계정을 만들어서 이어붙인다. 이메일 인증 메일을 보내고, 인증을 마치면
+   handleSupabaseSignedIn 이 같은 이메일의 기존 회원 데이터를 찾아 연결한다. */
+async function migrateExistingUser(email, password, errorEl) {
+  const sb = getSb();
+  if (!sb) {
+    if (errorEl) errorEl.textContent = "로그인 기능을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
+    return;
+  }
+  const { error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: SITE_URL } });
+  if (error) {
+    if (errorEl) errorEl.textContent = "비밀번호 설정 중 문제가 발생했습니다: " + error.message;
+    return;
+  }
+  if (errorEl) errorEl.textContent = "";
+  closeLoginModal();
+  toast("기존 계정이시네요! 입력하신 이메일로 인증 메일을 보냈어요. 메일의 링크를 눌러 로그인을 완료해주세요.");
+}
+
+async function submitLogin() {
   const emailInput = document.getElementById("login-email");
+  const passwordInput = document.getElementById("login-password");
   const errorEl = document.getElementById("login-error");
+  const email = emailInput ? emailInput.value.trim() : "";
+  const password = passwordInput ? passwordInput.value : "";
+  if (errorEl) errorEl.textContent = "";
+
+  if (!email || !password) {
+    if (errorEl) errorEl.textContent = "이메일과 비밀번호를 모두 입력해주세요.";
+    return;
+  }
+
+  const sb = getSb();
+  if (!sb) {
+    if (errorEl) errorEl.textContent = "로그인 기능을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
+    return;
+  }
+
+  const submitBtn = document.getElementById("login-submit");
+  if (submitBtn) submitBtn.disabled = true;
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  if (submitBtn) submitBtn.disabled = false;
+
+  if (!error && data && data.session) {
+    // 로그인 성공 처리는 onAuthStateChange 의 SIGNED_IN 이벤트(handleSupabaseSignedIn)에서 한다
+    return;
+  }
+
+  // 로그인 실패 — 비밀번호 없이 쓰던 기존 회원인지 확인한다
+  const existing = findUserByEmail(email);
+  if (existing && !existing.supabaseUserId) {
+    await migrateExistingUser(email, password, errorEl);
+    return;
+  }
+
+  if (errorEl) errorEl.textContent = "이메일 또는 비밀번호가 올바르지 않습니다.";
+}
+
+async function submitSignup() {
+  const nameInput = document.getElementById("signup-name");
+  const emailInput = document.getElementById("signup-email");
+  const pwInput = document.getElementById("signup-password");
+  const pw2Input = document.getElementById("signup-password2");
+  const errorEl = document.getElementById("signup-error");
   const name = nameInput ? nameInput.value.trim() : "";
   const email = emailInput ? emailInput.value.trim() : "";
+  const password = pwInput ? pwInput.value : "";
+  const password2 = pw2Input ? pw2Input.value : "";
+  if (errorEl) errorEl.textContent = "";
 
-  if (!name || !email) {
-    if (errorEl) errorEl.textContent = "이름과 이메일을 모두 입력해주세요.";
+  if (!name || !email || !password) {
+    if (errorEl) errorEl.textContent = "이름, 이메일, 비밀번호를 모두 입력해주세요.";
     return;
   }
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     if (errorEl) errorEl.textContent = "이메일 형식을 확인해주세요.";
     return;
   }
+  if (password.length < 6) {
+    if (errorEl) errorEl.textContent = "비밀번호는 6자 이상이어야 합니다.";
+    return;
+  }
+  if (password !== password2) {
+    if (errorEl) errorEl.textContent = "비밀번호가 서로 다릅니다.";
+    return;
+  }
+  if (findUserByEmail(email)) {
+    if (errorEl) errorEl.textContent = "이미 가입된 이메일입니다. 로그인해주세요.";
+    return;
+  }
 
+  const sb = getSb();
+  if (!sb) {
+    if (errorEl) errorEl.textContent = "회원가입 기능을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
+    return;
+  }
+
+  const submitBtn = document.getElementById("signup-submit");
+  if (submitBtn) submitBtn.disabled = true;
+  const { error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: SITE_URL } });
+  if (submitBtn) submitBtn.disabled = false;
+
+  if (error) {
+    if (errorEl) {
+      errorEl.textContent = /already|registered|exists/i.test(error.message)
+        ? "이미 가입된 이메일입니다. 로그인해주세요."
+        : "회원가입 중 문제가 발생했습니다: " + error.message;
+    }
+    return;
+  }
+
+  try {
+    localStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify({ email, name, role: PENDING_ROLE }));
+  } catch (e) { /* 저장이 막힌 브라우저에서는 그냥 넘어간다 (기본값 buyer 로 가입된다) */ }
+
+  closeLoginModal();
+  toast("인증 메일을 보냈어요! 메일의 링크를 눌러 가입을 완료해주세요.");
+}
+
+async function submitForgotPassword() {
+  const emailInput = document.getElementById("forgot-email");
+  const errorEl = document.getElementById("forgot-error");
+  const email = emailInput ? emailInput.value.trim() : "";
+  if (errorEl) errorEl.textContent = "";
+  if (!email) {
+    if (errorEl) errorEl.textContent = "이메일을 입력해주세요.";
+    return;
+  }
+  const sb = getSb();
+  if (!sb) {
+    if (errorEl) errorEl.textContent = "기능을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
+    return;
+  }
+  const submitBtn = document.getElementById("forgot-submit");
+  if (submitBtn) submitBtn.disabled = true;
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL });
+  if (submitBtn) submitBtn.disabled = false;
+  if (error) {
+    if (errorEl) errorEl.textContent = "요청 중 문제가 발생했습니다: " + error.message;
+    return;
+  }
+  closeLoginModal();
+  toast("재설정 메일을 보냈어요. 메일함을 확인해주세요.");
+}
+
+async function submitSetPassword() {
+  const pwInput = document.getElementById("setpassword-new");
+  const pw2Input = document.getElementById("setpassword-new2");
+  const errorEl = document.getElementById("setpassword-error");
+  const password = pwInput ? pwInput.value : "";
+  const password2 = pw2Input ? pw2Input.value : "";
+  if (errorEl) errorEl.textContent = "";
+  if (!password || password.length < 6) {
+    if (errorEl) errorEl.textContent = "비밀번호는 6자 이상이어야 합니다.";
+    return;
+  }
+  if (password !== password2) {
+    if (errorEl) errorEl.textContent = "비밀번호가 서로 다릅니다.";
+    return;
+  }
+  const sb = getSb();
+  if (!sb) {
+    if (errorEl) errorEl.textContent = "기능을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
+    return;
+  }
+  const submitBtn = document.getElementById("setpassword-submit");
+  if (submitBtn) submitBtn.disabled = true;
+  const { error } = await sb.auth.updateUser({ password });
+  if (submitBtn) submitBtn.disabled = false;
+  if (error) {
+    if (errorEl) errorEl.textContent = "비밀번호 설정 중 문제가 발생했습니다: " + error.message;
+    return;
+  }
+  closeLoginModal();
+  toast("비밀번호가 설정되었습니다.");
+}
+
+/* Supabase 로그인이 실제로 확정되는 순간(이메일 인증 완료 포함) 호출된다.
+   같은 이메일의 기존 회원 데이터가 있으면 그대로 이어서 쓰고, 없으면
+   (회원가입 때 임시로 남겨둔 이름·역할을 참고해) 새 회원으로 만든다. */
+async function handleSupabaseSignedIn(session) {
+  const email = session.user.email;
+  const authId = session.user.id;
   let user = findUserByEmail(email);
 
   if (user) {
-    if (PENDING_ROLE === "seller" && user.role === "buyer") {
-      user.role = "both";
-      user.sellerInfo = user.sellerInfo || { bankName: "", bankAccount: "", accountHolder: name, settleBalance: 0 };
-    }
-    if (PENDING_ROLE === "buyer" && user.role === "seller") {
-      user.role = "both";
-    }
+    if (!user.supabaseUserId) user.supabaseUserId = authId;
   } else {
-    user = makeUser(name, email, PENDING_ROLE);
+    let name = email.split("@")[0];
+    let role = "buyer";
+    try {
+      const raw = localStorage.getItem(PENDING_SIGNUP_KEY);
+      const pending = raw ? JSON.parse(raw) : null;
+      if (pending && pending.email && pending.email.toLowerCase() === email.toLowerCase()) {
+        name = pending.name || name;
+        role = pending.role || role;
+      }
+    } catch (e) { /* 무시 */ }
+    user = makeUser(name, email, role);
+    user.supabaseUserId = authId;
   }
+  try { localStorage.removeItem(PENDING_SIGNUP_KEY); } catch (e) { /* 무시 */ }
 
   save();
   saveSession(user.id);
   CURRENT_USER_ID = user.id;
-  const enteringRole = PENDING_ROLE;
+
   const after = AFTER_LOGIN;
   AFTER_LOGIN = null;
   closeLoginModal();
@@ -1051,8 +1255,29 @@ function submitLogin() {
     showView("buyer");
     after();
   } else {
-    showView(enteringRole === "seller" ? "seller" : "buyer");
+    showView(user.role === "seller" ? "seller" : "buyer");
   }
+  toast(`${user.name}님 환영합니다!`);
+}
+
+/* Supabase Auth 상태 변화를 듣는다.
+   - SIGNED_IN: 로그인(또는 회원가입 인증) 완료 → 위 handleSupabaseSignedIn 실행
+   - PASSWORD_RECOVERY: "비밀번호를 잊으셨나요?" 메일의 링크를 눌렀을 때 → 새 비밀번호 입력창을 띄운다 */
+function initSupabaseAuth() {
+  const sb = getSb();
+  if (!sb) {
+    console.error("[common] Supabase 로그인 라이브러리를 불러오지 못했습니다. index.html 의 스크립트 태그를 확인해주세요.");
+    return;
+  }
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY") {
+      resetLoginForm();
+      showLoginPane("setpassword");
+      document.getElementById("login-modal")?.classList.add("open");
+    } else if (event === "SIGNED_IN" && session) {
+      handleSupabaseSignedIn(session);
+    }
+  });
 }
 
 /* 계정이 필요한 동작 앞에 붙인다. 로그인 안 했으면 모달을 띄우고, 로그인 후 이어서 실행 */
@@ -1062,6 +1287,8 @@ function requireLogin(action) {
 }
 
 function logout() {
+  const sb = getSb();
+  if (sb) sb.auth.signOut().catch(() => {});
   clearSession();
   CURRENT_USER_ID = null;
   ADMIN_PREVIEW = false;
@@ -1293,13 +1520,27 @@ async function initCommon() {
   await load();
   seedIfEmpty();
 
+  initSupabaseAuth();
+
   updateLoginRoleUI();
   document.getElementById("role-switch-link")?.addEventListener("click", (e) => {
     e.preventDefault();
     switchLoginRole();
   });
   document.getElementById("login-submit")?.addEventListener("click", submitLogin);
-  document.getElementById("login-email")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitLogin(); });
+  document.getElementById("login-password")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitLogin(); });
+  document.getElementById("signup-submit")?.addEventListener("click", submitSignup);
+  document.getElementById("signup-password2")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitSignup(); });
+  document.getElementById("forgot-submit")?.addEventListener("click", submitForgotPassword);
+  document.getElementById("forgot-email")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitForgotPassword(); });
+  document.getElementById("setpassword-submit")?.addEventListener("click", submitSetPassword);
+  document.getElementById("setpassword-new2")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitSetPassword(); });
+
+  document.getElementById("go-signup-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("signup"); });
+  document.getElementById("go-login-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("login"); });
+  document.getElementById("go-forgot-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("forgot"); });
+  document.getElementById("forgot-back-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("login"); });
+
   document.getElementById("login-modal-close")?.addEventListener("click", closeLoginModal);
   document.getElementById("login-modal")?.addEventListener("click", (e) => {
     if (e.target.id === "login-modal") closeLoginModal();
