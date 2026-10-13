@@ -124,12 +124,25 @@ async function loadFromSupabase() {
   }
 }
 
-function saveToSupabase() {
+/* 저장(쓰기)은 로그인한 사람만 되도록, anon key 대신 그 사람의 로그인 토큰을 보낸다. (2026-10-13 추가)
+   로그인 안 한 사람(게스트)은 토큰이 없어서 서버 쪽 보안 규칙(RLS)에 막혀 저장이 실패하는데,
+   그래도 이 브라우저의 localStorage 에는 그대로 남으니 화면은 멈추지 않는다 — 다만 그 변경은
+   다른 사람 화면에는 안 보이게 된다(예: 로그인 안 한 사람이 악보를 본 조회수는 이제 이 브라우저에만 남는다). */
+async function saveToSupabase() {
+  let token = SUPABASE_ANON_KEY;
+  try {
+    const sb = getSb();
+    if (sb) {
+      const { data } = await sb.auth.getSession();
+      if (data && data.session && data.session.access_token) token = data.session.access_token;
+    }
+  } catch (e) { /* 토큰을 못 가져오면 anon key 로 시도한다 (로그인 전이면 서버 쪽에서 막힐 수 있다) */ }
+
   fetch(`${SUPABASE_URL}/rest/v1/store_state?id=eq.1`, {
     method: "PATCH",
     headers: {
       apikey: SUPABASE_ANON_KEY,
-      Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+      Authorization: `Bearer ${token}`,
       "Content-Type": "application/json",
       Prefer: "return=minimal"
     },
