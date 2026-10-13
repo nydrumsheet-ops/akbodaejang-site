@@ -14,6 +14,10 @@ const SUPABASE_URL = "https://qvnprznzritqopwqmqlq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Gf-vX_Cm_8sFZ_oGep5Azg_DtU0_yFK";
 const SITE_URL = "https://akbodaejang-site.vercel.app"; // 로그인 이메일(인증·재설정)이 돌아올 주소
 
+/* 이 이메일로 가입(또는 이미 가입)하면 관리자 권한이 자동으로 붙는다. (2026-10-13 추가)
+   관리자를 더 추가/제거하려면 이 배열만 고치면 된다 — 다른 코드는 손댈 필요 없음. */
+const ADMIN_EMAILS = ["nydrumsheet@gmail.com"];
+
 const POLICY = {
   commission: {
     normal: 0.25,   // 일반 편곡 25% (아티스트 정산 75%)
@@ -42,8 +46,7 @@ const POLICY = {
   },
   preview: {
     bars: 8
-  },
-  adminPassword: "akbo2026" // 관리자 화면 입장 비밀번호. 나중에 원하는 값으로 바꿔도 된다.
+  }
 };
 
 const INSTRUMENTS = ["드럼", "기타", "피아노", "베이스", "바이올린", "보컬"];
@@ -58,7 +61,6 @@ let STATE = null;
 let CURRENT_USER_ID = null;
 let CURRENT_VIEW = "buyer";
 let PENDING_ROLE = "buyer"; // 회원가입 폼이 지금 어떤 역할로 맞춰져 있는지. 기본값은 구매자
-let ADMIN_PREVIEW = false;  // 로그인 없이 관리자 화면만 미리보는 모드
 let AFTER_LOGIN = null;     // 로그인 모달을 띄운 동작 (로그인 끝나면 이어서 실행)
 let SB_CLIENT = null;       // Supabase Auth 클라이언트 (지연 생성)
 
@@ -181,6 +183,9 @@ async function load() {
     if (!Array.isArray(u.cart)) u.cart = [];
     if (!Array.isArray(u.following)) u.following = [];
     if (typeof u.supabaseUserId === "undefined") u.supabaseUserId = null; // 실제 로그인(비밀번호) 전환 전 회원은 비어있다
+    // 관리자 지정 이메일(ADMIN_EMAILS)과 일치하면 관리자 권한을 자동으로 붙인다 (2026-10-13 추가)
+    if (typeof u.isAdmin !== "boolean") u.isAdmin = ADMIN_EMAILS.includes((u.email || "").toLowerCase());
+    else if (ADMIN_EMAILS.includes((u.email || "").toLowerCase())) u.isAdmin = true;
   }
   for (const s of Object.values(STATE.scores)) {
     if (s.difficulty === "상급") s.difficulty = "고급";
@@ -256,7 +261,8 @@ function makeUser(name, email, role, extra) {
     id, name, email, role,
     points: 0, pointHistory: [], isFirstCharge: true, createdAt: nowISO(),
     wishlist: [], cart: [], following: [],
-    supabaseUserId: null
+    supabaseUserId: null,
+    isAdmin: ADMIN_EMAILS.includes((email || "").toLowerCase())
   };
   if (role === "seller" || role === "both") {
     user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: name, settleBalance: 0 };
@@ -1228,6 +1234,8 @@ async function handleSupabaseSignedIn(session) {
 
   if (user) {
     if (!user.supabaseUserId) user.supabaseUserId = authId;
+    // 관리자 지정 이메일(ADMIN_EMAILS)로 로그인하면 기존 회원이어도 관리자 권한을 붙여준다
+    if (ADMIN_EMAILS.includes(email.toLowerCase())) user.isAdmin = true;
   } else {
     let name = email.split("@")[0];
     let role = "buyer";
@@ -1291,29 +1299,36 @@ function logout() {
   if (sb) sb.auth.signOut().catch(() => {});
   clearSession();
   CURRENT_USER_ID = null;
-  ADMIN_PREVIEW = false;
   if (typeof goBuyer === "function") goBuyer("home");
   showView("buyer");
 }
 
+/* 관리자 화면으로 들어간다. tryEnterAdmin() 이 로그인·권한 확인을 끝낸 뒤에만 호출된다. */
 function enterAdminPreview() {
-  ADMIN_PREVIEW = true;
   showView("admin");
+  window.scrollTo({ top: 0 });
 }
 
-/* 관리자 화면 입장 전에 비밀번호를 확인한다.
-   취소를 누르면 아무 일도 일어나지 않고, 틀리면 안내만 뜨고 그대로 남는다. */
-function tryEnterAdminPreview() {
-  const pw = prompt("관리자 비밀번호를 입력하세요.");
-  if (pw === null) return; // 취소
-  if (pw !== POLICY.adminPassword) {
-    alert("비밀번호가 올바르지 않습니다.");
+/* 관리자 화면 입장 버튼을 누르면 호출된다. (2026-10-13 변경: 비밀번호 대신 실제 로그인 계정으로 확인)
+   - 로그인 안 되어 있으면 로그인 모달을 띄우고, 로그인 후 자동으로 다시 이 함수를 확인한다.
+   - 로그인은 되어 있지만 관리자 계정(ADMIN_EMAILS)이 아니면 안내만 뜨고 들어가지지 않는다. */
+function tryEnterAdmin() {
+  const user = getCurrentUser();
+  if (!user) {
+    openLoginModal("buyer", () => {
+      if (getCurrentUser() && getCurrentUser().isAdmin) {
+        enterAdminPreview();
+      } else {
+        toast("관리자 권한이 없는 계정입니다.", true);
+      }
+    });
     return;
   }
-  clearSession();
-  CURRENT_USER_ID = null;
+  if (!user.isAdmin) {
+    toast("관리자 권한이 없는 계정입니다.", true);
+    return;
+  }
   enterAdminPreview();
-  window.scrollTo({ top: 0 });
 }
 
 function getCurrentUser() {
@@ -1325,11 +1340,12 @@ function getCurrentUser() {
    탭(nav)은 2개 이상일 때만 보인다. */
 
 function visibleViewsForCurrentUser() {
-  if (ADMIN_PREVIEW) return ["buyer", "admin"];
   const user = getCurrentUser();
   if (!user) return ["buyer"];
-  if (user.role === "both" || user.role === "seller") return ["buyer", "seller"];
-  return ["buyer"];
+  const views = ["buyer"];
+  if (user.role === "both" || user.role === "seller") views.push("seller");
+  if (user.isAdmin) views.push("admin");
+  return views;
 }
 
 function showView(viewName) {
@@ -1384,17 +1400,12 @@ function renderHeaderAuth() {
       ${cartCount ? `<span class="badge">${cartCount}</span>` : ""}
     </button>`;
 
-  if (ADMIN_PREVIEW) {
-    bar.innerHTML = `
-      <span class="auth-link">관리자 미리보기 중</span>
-      <button id="logout-btn" class="auth-btn">나가기</button>
-    `;
-  } else if (!user) {
+  if (!user) {
     bar.innerHTML = `
       ${cartBtn}
       <button id="header-login-btn" class="auth-btn">로그인</button>
       <button id="header-artist-btn" class="auth-btn auth-btn-primary">아티스트 되기</button>
-      <button id="header-admin-btn" class="auth-btn" title="테스트 기간에만 보이는 버튼">관리자</button>
+      <button id="header-admin-btn" class="auth-btn">관리자</button>
     `;
     document.getElementById("header-login-btn")?.addEventListener("click", () => openLoginModal("buyer"));
     document.getElementById("header-artist-btn")?.addEventListener("click", () => openLoginModal("seller"));
@@ -1405,7 +1416,7 @@ function renderHeaderAuth() {
         <span class="icon-btn-glyph"><i class="ico ico-user"></i></span><span class="icon-btn-label">${esc(user.name)}님 · ${formatPoint(user.points)}</span>
       </button>
       <button id="logout-btn" class="auth-btn">로그아웃</button>
-      <button id="header-admin-btn" class="auth-btn" title="테스트 기간에만 보이는 버튼">관리자</button>
+      ${user.isAdmin ? `<button id="header-admin-btn" class="auth-btn">관리자</button>` : ""}
     `;
     document.getElementById("header-my-btn")?.addEventListener("click", () => {
       if (typeof goBuyer === "function") goBuyer("mypage");
@@ -1416,8 +1427,7 @@ function renderHeaderAuth() {
     requireLogin(() => { if (typeof goBuyer === "function") goBuyer("cart"); });
   });
   document.getElementById("logout-btn")?.addEventListener("click", logout);
-  // 테스트 기간용: 정식 오픈 전에는 관리자 계정 로그인으로 바꿔야 한다
-  document.getElementById("header-admin-btn")?.addEventListener("click", tryEnterAdminPreview);
+  document.getElementById("header-admin-btn")?.addEventListener("click", tryEnterAdmin);
 }
 
 /* ---------- 헤더 검색창 · 악기 메뉴 (index.html 의 고정 영역) ---------- */
@@ -1547,7 +1557,7 @@ async function initCommon() {
   });
   document.getElementById("admin-preview-link")?.addEventListener("click", (e) => {
     e.preventDefault();
-    tryEnterAdminPreview();
+    tryEnterAdmin();
   });
   document.getElementById("footer-support-link")?.addEventListener("click", () => {
     if (typeof goBuyer === "function") { showView("buyer"); goBuyer("support"); }
