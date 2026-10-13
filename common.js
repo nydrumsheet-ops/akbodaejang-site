@@ -199,6 +199,10 @@ async function load() {
     // 관리자 지정 이메일(ADMIN_EMAILS)과 일치하면 관리자 권한을 자동으로 붙인다 (2026-10-13 추가)
     if (typeof u.isAdmin !== "boolean") u.isAdmin = ADMIN_EMAILS.includes((u.email || "").toLowerCase());
     else if (ADMIN_EMAILS.includes((u.email || "").toLowerCase())) u.isAdmin = true;
+    // 활동명(displayName)이 없는 예전 판매자는 가입할 때 적은 이름을 기본값으로 채운다 (2026-10-13 추가)
+    if (u.sellerInfo && (typeof u.sellerInfo.displayName !== "string" || !u.sellerInfo.displayName.trim())) {
+      u.sellerInfo.displayName = u.name;
+    }
   }
   for (const s of Object.values(STATE.scores)) {
     if (s.difficulty === "상급") s.difficulty = "고급";
@@ -278,7 +282,7 @@ function makeUser(name, email, role, extra) {
     isAdmin: ADMIN_EMAILS.includes((email || "").toLowerCase())
   };
   if (role === "seller" || role === "both") {
-    user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: name, settleBalance: 0 };
+    user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: name, settleBalance: 0, displayName: name };
   }
   Object.assign(user, extra || {});
   STATE.users[id] = user;
@@ -1312,12 +1316,31 @@ function requireLogin(action) {
 function becomeSeller(user) {
   if (user.role !== "seller" && user.role !== "both") user.role = "both";
   if (!user.sellerInfo) {
-    user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: user.name, settleBalance: 0 };
+    user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: user.name, settleBalance: 0, displayName: user.name };
+  } else if (typeof user.sellerInfo.displayName !== "string" || !user.sellerInfo.displayName.trim()) {
+    user.sellerInfo.displayName = user.name;
   }
   save();
   showView("seller");
   window.scrollTo({ top: 0 });
   toast("아티스트 등록이 완료됐어요! 이제 이 계정으로 악보를 등록할 수 있어요.");
+}
+
+/* 구매자에게 보이는 판매자 활동명을 바꾼다. 가입할 때 적은 실명과 달라도 되고,
+   판매자 센터에서 언제든 바꿀 수 있다. 정산 계좌의 예금주명(accountHolder)과는 별개다. */
+function setSellerDisplayName(userId, name) {
+  const user = STATE.users[userId];
+  if (!user) return { ok: false, message: "회원을 찾을 수 없습니다." };
+  const trimmed = (name || "").trim();
+  if (!trimmed) return { ok: false, message: "활동명을 입력해주세요." };
+  if (trimmed.length > 30) return { ok: false, message: "활동명은 30자 이내로 입력해주세요." };
+  if (!user.sellerInfo) {
+    user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: user.name, settleBalance: 0, displayName: trimmed };
+  } else {
+    user.sellerInfo.displayName = trimmed;
+  }
+  save();
+  return { ok: true };
 }
 
 function logout() {

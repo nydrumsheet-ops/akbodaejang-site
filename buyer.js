@@ -230,7 +230,8 @@ function updateMenuHighlight() {
 
 function sellerName(id) {
   const u = STATE.users[id];
-  return u ? u.name : "알 수 없음";
+  if (!u) return "알 수 없음";
+  return (u.sellerInfo && u.sellerInfo.displayName) || u.name;
 }
 
 function initialOf(name) {
@@ -551,9 +552,9 @@ function artistCard(u) {
   return `
     <div class="artist-card" data-artist-id="${u.id}">
       <div class="artist-top">
-        <span class="avatar" style="${avatarStyle(u.name)}">${initialOf(u.name)}</span>
+        <span class="avatar" style="${avatarStyle(sellerName(u.id))}">${initialOf(sellerName(u.id))}</span>
         <div>
-          <div class="artist-name">${esc(u.name)}</div>
+          <div class="artist-name">${esc(sellerName(u.id))}</div>
           <div class="artist-meta">악보 ${st.scoreCount} · 구독자 ${st.followers}</div>
         </div>
       </div>
@@ -776,7 +777,7 @@ function renderDetailPage(el, p) {
         </div>
 
         <div class="seller-box">
-          <span class="avatar" style="width:40px;height:40px;font-size:15px;${avatarStyle(seller ? seller.name : "")}">${initialOf(seller ? seller.name : "")}</span>
+          <span class="avatar" style="width:40px;height:40px;font-size:15px;${avatarStyle(seller ? sellerName(seller.id) : "")}">${initialOf(seller ? sellerName(seller.id) : "")}</span>
           <div style="flex:1;min-width:0;">
             <div class="sb-name" data-artist-id="${s.sellerId}">${esc(sellerName(s.sellerId))} ›</div>
             <div class="sb-meta">악보 ${st.scoreCount} · 누적 판매 ${st.sales} · 구독자 ${st.followers}</div>
@@ -931,11 +932,11 @@ function renderArtistPage(el, p) {
   const videoCount = approvedScores().filter(s => s.sellerId === u.id && s.hasVideo).length;
 
   el.innerHTML = `
-    <div class="breadcrumb"><button data-go="home">홈</button> › 아티스트 › ${esc(u.name)}</div>
+    <div class="breadcrumb"><button data-go="home">홈</button> › 아티스트 › ${esc(sellerName(u.id))}</div>
     <div class="artist-hero">
-      <span class="avatar lg" style="${avatarStyle(u.name)}">${initialOf(u.name)}</span>
+      <span class="avatar lg" style="${avatarStyle(sellerName(u.id))}">${initialOf(sellerName(u.id))}</span>
       <div style="flex:1;min-width:200px;">
-        <h1>${esc(u.name)}</h1>
+        <h1>${esc(sellerName(u.id))}</h1>
         <div class="stat-row">
           <span>악보 <b>${st.scoreCount}</b></span>
           <span>누적 판매 <b>${st.sales}</b></span>
@@ -962,7 +963,7 @@ function renderArtistPage(el, p) {
   document.getElementById("a-follow")?.addEventListener("click", () => requireLogin(() => {
     const res = toggleFollow(getCurrentUser().id, u.id);
     if (!res.ok) { toast(res.message, true); return; }
-    toast(res.added ? `${u.name}님을 구독했어요` : "구독을 취소했어요");
+    toast(res.added ? `${sellerName(u.id)}님을 구독했어요` : "구독을 취소했어요");
     renderBuyer();
   }));
   el.querySelectorAll("[data-a-inst]").forEach(b => b.addEventListener("click", () => goBuyer("artist", { id: u.id, sort, instrument: b.dataset.aInst }, { keepScroll: true })));

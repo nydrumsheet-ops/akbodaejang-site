@@ -2,8 +2,9 @@
    seller.js — 판매자 화면
    이 파일은 "판매자/" 모드에서만 작업합니다.
 
-   화면 5개 완성: 악보등록 / 내 악보·심사상태 / 판매현황·적립금 / 정산·자동지급 / 고객 문의
+   화면 6개 완성: 아티스트 프로필 / 악보등록 / 내 악보·심사상태 / 판매현황·적립금 / 정산·자동지급 / 고객 문의
    (2026-10-01 결정: 출금 신청 없음. 적립금이 기준 이상이면 매달 지급일에 자동 입금)
+   (2026-10-13 추가: 구매자에게 보이는 활동명을 실명과 따로 둘 수 있는 "아티스트 프로필" 패널)
    ============================================================ */
 
 let SF_TAGS = []; // 악보 등록 폼에서 지금 입력 중인 태그 (제출 성공해야 비움, 최대 5개)
@@ -26,6 +27,20 @@ function renderSeller() {
   }
 
   el.innerHTML = `
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
+      <h2 style="margin:0 0 4px;font-size:17px;">아티스트 프로필</h2>
+      <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">악보 목록·상세페이지·아티스트 페이지에 구매자가 보는 이름이에요. 가입할 때 적은 이름과 달라도 괜찮아요.</p>
+      <div id="seller-profile-msg" style="font-size:13px;margin:0 0 8px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <input type="text" id="sp-displayname" placeholder="예: 그루브랩" maxlength="30"
+          style="flex:1;min-width:160px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
+        <button id="sp-save"
+          style="padding:10px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);font-size:13px;cursor:pointer;">
+          활동명 저장
+        </button>
+      </div>
+    </div>
+
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">악보 등록</h2>
       <p style="margin:0 0 18px;font-size:13px;color:var(--muted);">등록한 악보는 관리자 심사 후 승인되면 목록에 노출됩니다.</p>
@@ -175,6 +190,12 @@ function renderSeller() {
     </div>
   `;
 
+  const dnInput = document.getElementById("sp-displayname");
+  if (dnInput) dnInput.value = (user.sellerInfo && user.sellerInfo.displayName) || user.name;
+  document.getElementById("sp-save")?.addEventListener("click", () => {
+    handleSaveDisplayName(user.id);
+  });
+
   const videoCheck = document.getElementById("sf-hasvideo");
   const videoWrap = document.getElementById("sf-video-wrap");
   videoCheck.addEventListener("change", () => {
@@ -227,6 +248,23 @@ function renderSeller() {
   renderSalesStatus(user.id);
   renderWithdrawSection(user.id);
   renderSellerInquiries(user.id);
+}
+
+/* ---------- 아티스트 프로필 ---------- */
+
+function handleSaveDisplayName(sellerId) {
+  const msgEl = document.getElementById("seller-profile-msg");
+  const input = document.getElementById("sp-displayname");
+  const name = input ? input.value : "";
+
+  const result = setSellerDisplayName(sellerId, name);
+  if (!result.ok) {
+    showSellerMsg(msgEl, result.message || "저장에 실패했습니다.", true);
+    return;
+  }
+
+  renderAll();
+  showSellerMsg(document.getElementById("seller-profile-msg"), "활동명이 저장되었습니다.", false);
 }
 
 /* ---------- 악보 등록 ---------- */
@@ -532,7 +570,7 @@ function handleSaveBankInfo(sellerId) {
 
   const seller = STATE.users[sellerId];
   if (!seller.sellerInfo) {
-    seller.sellerInfo = { bankName: "", bankAccount: "", accountHolder: "", settleBalance: 0 };
+    seller.sellerInfo = { bankName: "", bankAccount: "", accountHolder: "", settleBalance: 0, displayName: seller.name };
   }
   seller.sellerInfo.bankName = bankName;
   seller.sellerInfo.bankAccount = bankAccount;
@@ -630,4 +668,3 @@ function renderSellerInquiries(sellerId) {
     showSellerMsg(document.getElementById("seller-inquiry-msg"), "답변을 등록했습니다.", false);
   }));
 }
-
