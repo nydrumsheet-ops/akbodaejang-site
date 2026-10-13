@@ -1307,6 +1307,19 @@ function requireLogin(action) {
   openLoginModal("buyer", action);
 }
 
+/* 이미 로그인한 회원(구매자)이 "아티스트로 시작하기"를 눌렀을 때,
+   새로 회원가입을 받지 않고 지금 쓰던 계정 그대로 판매자 권한을 더해준다. */
+function becomeSeller(user) {
+  if (user.role !== "seller" && user.role !== "both") user.role = "both";
+  if (!user.sellerInfo) {
+    user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: user.name, settleBalance: 0 };
+  }
+  save();
+  showView("seller");
+  window.scrollTo({ top: 0 });
+  toast("아티스트 등록이 완료됐어요! 이제 이 계정으로 악보를 등록할 수 있어요.");
+}
+
 function logout() {
   const sb = getSb();
   if (sb) sb.auth.signOut().catch(() => {});

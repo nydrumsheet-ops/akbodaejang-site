@@ -512,6 +512,7 @@ function renderHomePage(el) {
 function startArtist() {
   const user = getCurrentUser();
   if (user && (user.role === "seller" || user.role === "both")) { showView("seller"); window.scrollTo({ top: 0 }); return; }
+  if (user) { becomeSeller(user); return; }
   openLoginModal("seller");
 }
 
