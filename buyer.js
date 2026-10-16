@@ -402,7 +402,7 @@ function renderHomePage(el) {
     <div class="inst-band">
       <div class="inst-head"><h2>어떤 악기와 함께하시나요?</h2></div>
       <div class="inst-grid">
-        ${["피아노", "드럼", "기타", "베이스", "바이올린", "보컬"].map((i, n) => { const c = approvedScores().filter(s => s.instrument === i).length; return `<button class="inst-card ${n === 0 ? "is-featured" : ""}" data-go="list:instrument:${esc(i)}"><i class="ico" style="--i:url(https://unpkg.com/lucide-static@0.468.0/icons/${({"드럼":"drum","기타":"guitar","피아노":"piano","베이스":"audio-lines","우쿨렐레":"music-4","바이올린":"music","보컬":"mic-vocal"})[i] || "music"}.svg)"></i><span class="inst-txt"><b>${esc(i)}</b><small>${c.toLocaleString()}개의 악보</small></span></button>`; }).join("")}
+        ${["피아노", "드럼", "기타", "베이스", "바이올린", "보컬"].map((i, n) => { const c = approvedScores().filter(s => s.instrument === i).length; return `<button class="inst-card" data-go="list:instrument:${esc(i)}"><i class="ico" style="--i:url(https://unpkg.com/lucide-static@0.468.0/icons/${({"드럼":"drum","기타":"guitar","피아노":"piano","베이스":"audio-lines","우쿨렐레":"music-4","바이올린":"music","보컬":"mic-vocal"})[i] || "music"}.svg)"></i><span class="inst-txt"><b>${esc(i)}</b><small>${c.toLocaleString()}개의 악보</small></span></button>`; }).join("")}
       </div>
 
     <div class="lvl-band">

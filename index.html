@@ -391,15 +391,12 @@ main.container{padding-block:32px 64px}
 .inst-sub{font-size:13px;color:var(--text-muted)}
 .inst-grid{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px}
 .inst-card{display:flex;align-items:center;gap:10px;min-height:76px;padding:14px;min-width:0;border:1px solid var(--border);border-radius:var(--radius-field);background:var(--surface-page);color:var(--text);cursor:pointer;text-align:left;transition:border-color var(--dur-fast) var(--ease),background-color var(--dur-fast) var(--ease)}
-.inst-card:hover{border-color:var(--text)}
 .inst-card .ico{font-size:24px;color:var(--text)}
 .inst-txt{display:flex;flex-direction:column;gap:4px;min-width:0}
 .inst-txt b{font:var(--type-title-sm);font-size:15px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .inst-txt small{font-size:11px;color:var(--text-muted);white-space:nowrap}
-.inst-card.is-featured{background:#ff8105;border-color:#ff8105;color:var(--c-ink)}
-.inst-card.is-featured .ico{color:var(--c-ink)}.inst-card.is-featured small{color:var(--c-ink-2)}
-.inst-card.is-featured:hover{background:#fa520f;border-color:#fa520f;color:var(--c-ink)}
-.inst-card.is-featured:hover .ico,.inst-card.is-featured:hover small{color:var(--c-ink)}
+.inst-card:hover{background:#fa520f;border-color:#fa520f;color:var(--c-ink)}
+.inst-card:hover .ico,.inst-card:hover small{color:var(--c-ink)}
 .inst-chips{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:24px}
 .inst-chips-label{font:var(--type-label);font-size:13px;margin-right:4px}
 .inst-chips .chip{background:transparent;box-shadow:inset 0 0 0 1px var(--border);color:var(--text-body)}
