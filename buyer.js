@@ -369,7 +369,7 @@ function renderHomePage(el) {
           <div class="eyebrow">악보는 영상과 함께</div>
           <h2>연주 영상과 함께 보는 악보</h2>
           <p>연주영상 표시가 있는 악보는<br>판매 아티스트가 직접 연주한 영상을 함께 볼 수 있어요.</p>
-          <button class="btn btn-primary" data-go="list:video:true" style="background:#ffb83e;border-color:#ffb83e;color:var(--c-ink);">연주영상 악보 보기</button>
+          <button class="btn btn-primary" id="hero-video-btn" data-go="list:video:true" style="background:linear-gradient(90deg,#ffb36b 0%,#f07845 100%);border-color:transparent;color:var(--c-ink);">연주영상 악보 보기</button>
           </div>
           <div class="hero-art hero-photo-empty" id="hero-photo-1"></div>
         </div>
@@ -387,7 +387,7 @@ function renderHomePage(el) {
           <div class="eyebrow">아티스트 모집</div>
           <h2>내 악보를 올리고<br>판매 금액의 ${Math.round((1 - POLICY.commission.rate) * 100)}%를 정산받으세요</h2>
           <p>적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이면 매달 ${POLICY.settlement.payoutDay}일 신청 없이 자동으로 입금돼요.</p>
-          <button class="btn" id="hero-artist-btn" style="background:#ff8a50;border-color:#ff8a50;color:var(--c-ink);">아티스트로 시작하기</button>
+          <button class="btn" id="hero-artist-btn" style="background:linear-gradient(90deg,#ffb36b 0%,#f07845 100%);border-color:transparent;color:var(--c-ink);border-radius:16px;">아티스트로 시작하기</button>
           </div>
           <div class="hero-art hero-photo-empty" id="hero-photo-3"></div>
         </div>

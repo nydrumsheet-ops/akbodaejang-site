@@ -134,7 +134,7 @@ function renderSeller() {
 
         <label style="font-size:13px;">
           악보 파일
-          <input type="file" id="sf-file"
+          <input type="file" id="sf-file" class="file-input"
             style="width:100%;margin-top:4px;padding:8px 0;font-size:13px;">
           <span style="display:block;margin-top:4px;font-size:11px;color:var(--muted);">
             지금은 파일 이름만 임시로 저장됩니다. 실제 파일 업로드·다운로드는 서버가 준비되면 연결됩니다.
@@ -143,7 +143,7 @@ function renderSeller() {
 
         <label style="font-size:13px;">
           썸네일 이미지 <span style="color:var(--muted);">(선택 — 비워두면 자동 생성된 그림으로 보여요, 2MB 이하)</span>
-          <input type="file" id="sf-thumbnail" accept="image/*"
+          <input type="file" id="sf-thumbnail" accept="image/*" class="file-input"
             style="width:100%;margin-top:4px;padding:8px 0;font-size:13px;">
           <div id="sf-thumbnail-preview" style="margin-top:8px;"></div>
         </label>
