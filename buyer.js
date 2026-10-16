@@ -1246,7 +1246,7 @@ function renderRequestsPage(el) {
                 <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
                   <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
                   <div style="display:flex;gap:6px;align-items:center;">
-                    <button type="button" class="btn btn-small" data-rq-like="${r.id}" style="color:${liked ? "var(--hot)" : "var(--text)"};">${liked ? "♥" : "♡"} 추천 ${likedBy.length}</button>
+                    <button type="button" class="btn btn-small" data-rq-like="${r.id}" style="color:${liked ? "var(--hot)" : "var(--text)"};">추천 ${likedBy.length}</button>
                     ${r.status === "완료" && r.fulfilledScoreId
                       ? `<button class="btn btn-small" data-score-id="${r.fulfilledScoreId}">악보 보기</button>`
                       : joined ? "" : `<button class="btn btn-small" data-join="${r.id}">저도 신청</button>`}
