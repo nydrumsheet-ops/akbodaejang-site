@@ -378,7 +378,7 @@ function renderHomePage(el) {
           <div class="eyebrow">찾는 악보가 없다면</div>
           <h2>신청곡을 올려주세요</h2>
           <p>누구나 무료로 올릴 수 있어요.<br>신청이 많은 곡부터 채보해서<br>악보로 만들어 드려요.</p>
-          <button class="btn btn-accent" data-go="requests">신청곡 보러가기</button>
+          <button class="btn btn-accent" id="hero-request-btn" data-go="requests">신청곡 보러가기</button>
           </div>
           <div class="hero-art hero-photo-empty" id="hero-photo-2"></div>
         </div>
