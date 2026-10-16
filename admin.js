@@ -81,9 +81,9 @@ function renderAdmin() {
         <h2 style="margin:0 0 4px;font-size:17px;">신청곡 관리</h2>
         <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin:12px 0 16px;">
           ${[
-            ["1", "구매자가 신청", `구매자가 스토어 › 신청곡에서<br>곡 제목·가수·악기를 적고 ${formatPoint(POLICY.request.pointCost)}를 냅니다.<br>같은 곡이면 기존 신청에 이름이 더해져<br>"신청 n명"이 늘어나요.`],
+            ["1", "구매자가 신청", `구매자가 스토어 › 신청곡에서<br>곡 제목·작곡가·가수·악기를 적어 무료로 올립니다.<br>같은 곡이면 기존 신청에 이름이 더해져<br>"신청 n명"이 늘어나요.`],
             ["2", "채보 진행", `신청 많은 순으로 위에 보여요.<br>신청곡을 눌러 열고 "채보중"을 누르세요.<br>구매자 신청곡 화면에도 상태가 바로 바뀌어 보여요.`],
-            ["3", "작업 완료", `판매자가 그 곡을 등록하고 심사에서 승인되면,<br>신청곡을 열어 그 악보를 고르고 "작업 완료"를 누르세요.<br>신청자 전원의 내 악보함에 0P로 들어가요.`]
+            ["3", "작업 완료", `판매자가 그 곡을 등록하고 심사에서 승인되면,<br>신청곡을 열어 그 악보를 고르고 "작업 완료"를 누르세요.<br>구매자 신청곡 화면에 완료로 표시되고, 신청자도<br>다른 구매자와 동일하게 정가로 구매할 수 있어요.`]
           ].map(([n, t, d]) => `
             <div style="padding:14px;border-radius:12px;background:var(--band);">
               <div style="font-size:12px;font-weight:800;color:var(--primary);">STEP ${n}</div>
@@ -547,7 +547,7 @@ function renderAdminRequests() {
             </span>
             <span style="flex:1;min-width:0;">
               <b style="display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.title)}</b>
-              <span style="display:block;font-size:12px;color:var(--muted);margin-top:2px;">${esc(r.artist)} · ${esc(r.instrument)}${linked ? ` · 연결: ${esc(linked.title)}` : ""}</span>
+              <span style="display:block;font-size:12px;color:var(--muted);margin-top:2px;">${esc(r.composer)} 작곡 · ${esc(r.singer)} · ${esc(r.instrument)}${linked ? ` · 연결: ${esc(linked.title)}` : ""}</span>
               <span style="display:flex;align-items:center;gap:8px;margin-top:6px;">
                 ${stepper(r.status)}
                 <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
@@ -593,11 +593,10 @@ function renderAdminRequests() {
     if (!ADMIN_REQ_PICK) { showAdminMsg("admin-request-msg", "완성된 악보를 먼저 골라주세요.", true); return; }
     const res = fulfillRequest(ADMIN_REQ_OPEN, ADMIN_REQ_PICK);
     if (!res.ok) { showAdminMsg("admin-request-msg", res.message, true); return; }
-    const skipped = res.total - res.given;
     ADMIN_REQ_PICK = null;
     renderAll();
     showAdminMsg("admin-request-msg",
-      `완료 처리했어요. 신청자 ${res.given}명의 내 악보함에 무료로 넣었어요.${skipped > 0 ? ` (이미 그 악보를 가진 ${skipped}명은 제외)` : ""}`, false);
+      `완료 처리했어요. 신청자 ${res.total}명에게 악보가 나왔다는 안내가 보여요. (무료 지급은 하지 않아요 — 정가로 구매해야 해요)`, false);
   });
   listEl.querySelectorAll("[data-req-view]").forEach(b => b.addEventListener("click", () => {
     if (typeof goBuyer === "function") goBuyer("detail", { id: b.dataset.reqView });
@@ -609,12 +608,13 @@ function requestDetailHTML(r) {
   const box = "padding:14px;border-radius:12px;background:var(--band);";
   const requesterList = `
     <div style="${box}">
-      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">신청한 사람 ${requesters.length}명 <span style="font-weight:400;color:var(--muted);">· 받은 신청금 ${formatPoint(requesters.length * POLICY.request.pointCost)}</span></div>
+      <div style="font-weight:700;font-size:13px;margin-bottom:8px;">신청한 사람 ${requesters.length}명</div>
+      ${r.note ? `<div style="font-size:12px;color:var(--muted);white-space:pre-wrap;margin:-4px 0 8px;">${esc(r.note)}</div>` : ""}
       ${requesters.length ? requesters.map(u => {
-        const got = r.fulfilledScoreId && Object.values(STATE.purchases).some(p => p.buyerId === u.id && p.scoreId === r.fulfilledScoreId && !p.refunded);
+        const bought = r.fulfilledScoreId && Object.values(STATE.purchases).some(p => p.buyerId === u.id && p.scoreId === r.fulfilledScoreId && !p.refunded);
         return `<div style="display:flex;justify-content:space-between;gap:8px;padding:5px 0;font-size:12px;border-top:1px solid var(--border);">
           <span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;"><b>${esc(u.name)}</b> <span style="color:var(--muted);">${esc(u.email)}</span></span>
-          ${r.status === "완료" ? `<span style="white-space:nowrap;color:${got ? "var(--primary)" : "var(--muted)"};">${got ? "✓ 악보 받음" : "-"}</span>` : ""}
+          ${r.status === "완료" ? `<span style="white-space:nowrap;color:${bought ? "var(--primary)" : "var(--muted)"};">${bought ? "✓ 구매함" : "-"}</span>` : ""}
         </div>`;
       }).join("") : `<span style="font-size:12px;color:var(--muted);">신청자 정보가 없어요.</span>`}
     </div>`;

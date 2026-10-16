@@ -35,7 +35,7 @@ const FAQ_LIST = [
   { id: "f7", cat: "계정", q: "비밀번호는 어떻게 바꾸나요?",
     a: () => `지금은 이름과 이메일만으로 로그인하는 시험 버전이라 비밀번호가 없어요. 정식 오픈 전에 추가될 예정이에요.` },
   { id: "f8", cat: "기타", q: "신청곡은 어떻게 신청하나요?",
-    a: () => `스토어 › 신청곡에서 곡 제목·가수·악기를 적고 ${formatPoint(POLICY.request.pointCost)}를 내면 신청돼요. 신청 많은 순으로 채보하고, 완성되면 신청자 전원에게 무료로 드려요.` }
+    a: () => `스토어 › 신청곡에서 곡 제목·작곡가·가수·악기를 적으면 무료로 올라가요. 신청이 많은 곡부터 채보해서 악보로 만들어요. 완성되면 신청하신 분께도 따로 드리지 않고, 다른 구매자와 똑같이 구매하실 수 있어요.` }
 ];
 
 const INSTRUMENT_ICON = {
@@ -377,7 +377,7 @@ function renderHomePage(el) {
           <div class="hero-text">
           <div class="eyebrow">찾는 악보가 없다면</div>
           <h2>신청곡을 올려주세요</h2>
-          <p>1건에 ${formatPoint(POLICY.request.pointCost)}.<br>신청이 많은 곡부터 채보하고,<br>완성되면 신청한 분은 무료로 받아요.</p>
+          <p>누구나 무료로 올릴 수 있어요.<br>신청이 많은 곡부터 채보해서<br>악보로 만들어 드려요.</p>
           <button class="btn btn-accent" data-go="requests">신청곡 보러가기</button>
           </div>
           <div class="hero-art hero-photo-empty" id="hero-photo-2"></div>
@@ -475,7 +475,7 @@ function renderHomePage(el) {
             <div class="req-count"><b>${r.buyerIds.length}</b><span>신청자 수</span></div>
             <div class="row-main" style="flex:1;">
               <div class="row-title" style="cursor:default;">${i + 1}. ${esc(r.title)}</div>
-              <div class="row-sub">${esc(r.artist)} · ${esc(r.instrument)}</div>
+              <div class="row-sub">${esc(r.composer)} 작곡 · ${esc(r.singer)} · ${esc(r.instrument)}</div>
             </div>
             <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
           </div>`).join("") : `<p class="muted" style="margin:0;">아직 신청곡이 없어요. 첫 번째로 신청해보세요.</p>`}
@@ -1195,11 +1195,13 @@ function myPointsHTML(user, p) {
    ============================================================ */
 
 let REQ_FILTER = "";
+let REQ_INST_FILTER = ""; // 2026-10-16 추가: 게시판 악기 분류 필터
 
 function renderRequestsPage(el) {
   const user = getCurrentUser();
   const prefill = BUYER_ROUTE.params.prefill || "";
   let list = Object.values(STATE.requests);
+  if (REQ_INST_FILTER) list = list.filter(r => r.instrument === REQ_INST_FILTER);
   if (REQ_FILTER === "mine") list = list.filter(r => user && r.buyerIds.includes(user.id));
   else if (REQ_FILTER) list = list.filter(r => r.status === REQ_FILTER);
   list.sort((a, b) => (a.status === "완료") - (b.status === "완료") || b.buyerIds.length - a.buyerIds.length);
@@ -1207,35 +1209,49 @@ function renderRequestsPage(el) {
   el.innerHTML = `
     <div class="breadcrumb"><button data-go="home">홈</button> › 신청곡</div>
     <h1 class="page-title">신청곡</h1>
-    <p class="muted" style="margin:0 0 16px;line-height:1.6;">찾는 악보가 없으면 신청해주세요. 1건 ${formatPoint(POLICY.request.pointCost)}이고, 신청이 많은 곡부터 채보해요. 악보가 완성되면 신청한 분 모두에게 무료로 드려요.</p>
+    <p class="muted" style="margin:0 0 16px;line-height:1.6;">찾는 악보가 없으면 누구나 무료로 자유롭게 올릴 수 있는 게시판이에요. 신청이 많은 곡부터 채보해서 악보로 만들어요.</p>
 
     <div class="two-col req-layout">
       <div class="panel" style="display:flex;flex-direction:column;gap:8px;">
         <h2 style="margin:0 0 4px;font-size:16px;">새 곡 신청하기</h2>
         <input class="field" id="rq-title" placeholder="곡 제목" value="${esc(prefill)}">
-        <input class="field" id="rq-artist" placeholder="가수 / 원곡자">
+        <input class="field" id="rq-composer" placeholder="작곡가">
+        <input class="field" id="rq-singer" placeholder="가수 / 원곡자">
         <select class="field" id="rq-inst">${INSTRUMENTS.map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("")}</select>
-        <button class="btn btn-primary" id="rq-submit">${formatPoint(POLICY.request.pointCost)}로 신청하기</button>
-        <p class="muted" style="margin:0;font-size:11px;">같은 곡·같은 악기를 이미 누가 신청했다면 그 신청에 함께 이름이 올라가요.</p>
+        <textarea class="field" id="rq-note" rows="3" placeholder="요청 메모 (선택 — 편곡 스타일, 참고 영상 등)"></textarea>
+        <button class="btn btn-primary" id="rq-submit">신청하기</button>
+        <p class="muted" style="margin:0;font-size:11px;">같은 곡·작곡가·가수·악기를 이미 누가 신청했다면 그 신청에 함께 이름이 올라가요.</p>
       </div>
       <div>
+        <div class="chip-row" style="margin-bottom:8px;">
+          <button class="chip ${REQ_INST_FILTER ? "" : "active"}" data-rq-inst="">전체 악기</button>
+          ${INSTRUMENTS.map(i => `<button class="chip ${REQ_INST_FILTER === i ? "active" : ""}" data-rq-inst="${esc(i)}">${esc(i)}</button>`).join("")}
+        </div>
         <div class="chip-row" style="margin-bottom:10px;">
           ${[["", "전체"], ...REQUEST_STATUS.map(s => [s, s]), ...(user ? [["mine", "내 신청"]] : [])].map(([v, l]) => `<button class="chip ${REQ_FILTER === v ? "active" : ""}" data-rq-filter="${v}">${l}</button>`).join("")}
         </div>
         <div class="panel">
           ${list.length ? list.map((r, i) => {
             const joined = user && r.buyerIds.includes(user.id);
+            const likedBy = r.likedBy || [];
+            const liked = user && likedBy.includes(user.id);
             return `
               <div class="req-item">
                 <div class="req-count"><b>${r.buyerIds.length}</b><span>명</span></div>
                 <div class="row-main" style="flex:1;">
                   <div class="row-title" style="cursor:default;">${esc(r.title)}</div>
-                  <div class="row-sub">${esc(r.artist)} · ${esc(r.instrument)}${joined ? " · 내가 신청함" : ""}</div>
+                  <div class="row-sub">${esc(r.composer)} 작곡 · ${esc(r.singer)} · ${esc(r.instrument)}${joined ? " · 내가 신청함" : ""}</div>
+                  ${r.note ? `<div class="row-sub" style="margin-top:2px;white-space:pre-wrap;">${esc(r.note)}</div>` : ""}
                 </div>
-                <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
-                ${r.status === "완료" && r.fulfilledScoreId
-                  ? `<button class="btn btn-small" data-score-id="${r.fulfilledScoreId}">악보 보기</button>`
-                  : joined ? "" : `<button class="btn btn-small" data-join="${r.id}">나도 신청</button>`}
+                <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
+                  <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
+                  <div style="display:flex;gap:6px;align-items:center;">
+                    <button type="button" class="btn btn-small" data-rq-like="${r.id}" style="color:${liked ? "var(--hot)" : "var(--text)"};">${liked ? "♥" : "♡"} 추천 ${likedBy.length}</button>
+                    ${r.status === "완료" && r.fulfilledScoreId
+                      ? `<button class="btn btn-small" data-score-id="${r.fulfilledScoreId}">악보 보기</button>`
+                      : joined ? "" : `<button class="btn btn-small" data-join="${r.id}">저도 신청</button>`}
+                  </div>
+                </div>
               </div>`;
           }).join("") : `<p class="muted" style="margin:0;">해당하는 신청곡이 없어요.</p>`}
         </div>
@@ -1245,11 +1261,14 @@ function renderRequestsPage(el) {
 
   bindCards(el);
   el.querySelectorAll("[data-rq-filter]").forEach(b => b.addEventListener("click", () => { REQ_FILTER = b.dataset.rqFilter; renderBuyer(); }));
+  el.querySelectorAll("[data-rq-inst]").forEach(b => b.addEventListener("click", () => { REQ_INST_FILTER = b.dataset.rqInst; renderBuyer(); }));
   document.getElementById("rq-submit")?.addEventListener("click", () => {
     const data = {
       title: document.getElementById("rq-title").value,
-      artist: document.getElementById("rq-artist").value,
-      instrument: document.getElementById("rq-inst").value
+      composer: document.getElementById("rq-composer").value,
+      singer: document.getElementById("rq-singer").value,
+      instrument: document.getElementById("rq-inst").value,
+      note: document.getElementById("rq-note").value
     };
     requireLogin(() => {
       const res = submitSongRequest(getCurrentUser().id, data);
@@ -1263,11 +1282,18 @@ function renderRequestsPage(el) {
   el.querySelectorAll("[data-join]").forEach(b => b.addEventListener("click", () => {
     const r = STATE.requests[b.dataset.join];
     requireLogin(() => {
-      const res = submitSongRequest(getCurrentUser().id, { title: r.title, artist: r.artist, instrument: r.instrument });
+      const res = submitSongRequest(getCurrentUser().id, { title: r.title, composer: r.composer, singer: r.singer, instrument: r.instrument });
       if (!res.ok) { toast(res.message, true); return; }
-      toast(`"${r.title}" 신청에 함께했어요 (-${formatPoint(POLICY.request.pointCost)})`);
+      toast(`"${r.title}" 신청에 함께했어요`);
       renderBuyer();
       renderHeaderAuth();
+    });
+  }));
+  el.querySelectorAll("[data-rq-like]").forEach(b => b.addEventListener("click", () => {
+    requireLogin(() => {
+      const res = toggleRequestLike(getCurrentUser().id, b.dataset.rqLike);
+      if (!res.ok) { toast(res.message, true); return; }
+      renderBuyer();
     });
   }));
 }

@@ -11,6 +11,9 @@ let SF_TAGS = []; // 악보 등록 폼에서 지금 입력 중인 태그 (제출
 let SF_THUMBNAIL_DATA = null; // 선택한 썸네일 이미지를 읽어둔 데이터 (제출 성공해야 비움)
 let SELLER_INQUIRY_OPEN = null; // 펼쳐서 보고 있는 문의 id
 let SELLER_DISCOUNT_OPEN = null; // 펼쳐서 할인 설정 중인 악보 id (2026-10-16 추가)
+let SELLER_TREND_INST = "";      // 신청곡 트렌드 악기 필터, "" = 전체 (2026-10-16 추가)
+let SELLER_TREND_SORT = "requests"; // "requests"(신청 많은 순) | "likes"(좋아요 많은 순) | "latest"(최근 순)
+let SELLER_TREND_STATUS = "";    // "" = 전체, 그 외엔 REQUEST_STATUS 값
 
 function renderSeller() {
   const el = document.getElementById("view-seller");
@@ -43,6 +46,22 @@ function renderSeller() {
     </div>
 
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
+      <h2 style="margin:0 0 4px;font-size:17px;">신청곡 트렌드</h2>
+      <p style="margin:0 0 14px;font-size:13px;color:var(--muted);">구매자들이 올린 신청곡과 추천(좋아요) 현황이에요. 신청·추천이 많을수록 그만큼 찾는 사람이 많다는 뜻이니, 다음에 만들 악보를 고를 때 참고하세요.</p>
+      <div class="chip-row" style="margin-bottom:8px;">
+        <button class="chip ${SELLER_TREND_INST ? "" : "active"}" data-trend-inst="">전체 악기</button>
+        ${INSTRUMENTS.map(i => `<button class="chip ${SELLER_TREND_INST === i ? "active" : ""}" data-trend-inst="${esc(i)}">${esc(i)}</button>`).join("")}
+      </div>
+      <div class="chip-row" style="margin-bottom:8px;">
+        ${[["", "전체 상태"], ...REQUEST_STATUS.map(s => [s, s])].map(([v, l]) => `<button class="chip ${SELLER_TREND_STATUS === v ? "active" : ""}" data-trend-status="${v}">${esc(l)}</button>`).join("")}
+      </div>
+      <div class="chip-row" style="margin-bottom:14px;">
+        ${[["requests", "신청 많은 순"], ["likes", "좋아요 많은 순"], ["latest", "최근 올라온 순"]].map(([v, l]) => `<button class="chip ${SELLER_TREND_SORT === v ? "active" : ""}" data-trend-sort="${v}">${esc(l)}</button>`).join("")}
+      </div>
+      <div id="seller-trend-list"></div>
+    </div>
+
+    <div id="seller-register-panel" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">악보 등록</h2>
       <p style="margin:0 0 18px;font-size:13px;color:var(--muted);">등록한 악보는 관리자 심사 후 승인되면 목록에 노출됩니다.</p>
 
@@ -244,6 +263,80 @@ function renderSeller() {
   renderSalesStatus(user.id);
   renderWithdrawSection(user.id);
   renderSellerInquiries(user.id);
+  renderSellerTrend();
+}
+
+/* ---------- 신청곡 트렌드 (2026-10-16 추가) ---------- */
+
+function renderSellerTrend() {
+  const listEl = document.getElementById("seller-trend-list");
+  if (!listEl) return;
+
+  document.querySelectorAll("[data-trend-inst]").forEach(b => b.addEventListener("click", () => {
+    SELLER_TREND_INST = b.dataset.trendInst;
+    renderSeller();
+  }));
+  document.querySelectorAll("[data-trend-status]").forEach(b => b.addEventListener("click", () => {
+    SELLER_TREND_STATUS = b.dataset.trendStatus;
+    renderSeller();
+  }));
+  document.querySelectorAll("[data-trend-sort]").forEach(b => b.addEventListener("click", () => {
+    SELLER_TREND_SORT = b.dataset.trendSort;
+    renderSeller();
+  }));
+
+  let list = Object.values(STATE.requests);
+  if (SELLER_TREND_INST) list = list.filter(r => r.instrument === SELLER_TREND_INST);
+  if (SELLER_TREND_STATUS) list = list.filter(r => r.status === SELLER_TREND_STATUS);
+
+  if (SELLER_TREND_SORT === "likes") {
+    list.sort((a, b) => (b.likedBy || []).length - (a.likedBy || []).length || b.buyerIds.length - a.buyerIds.length);
+  } else if (SELLER_TREND_SORT === "latest") {
+    list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  } else {
+    list.sort((a, b) => b.buyerIds.length - a.buyerIds.length || (b.likedBy || []).length - (a.likedBy || []).length);
+  }
+
+  if (!list.length) {
+    listEl.innerHTML = `<p class="muted" style="margin:0;font-size:13px;">해당하는 신청곡이 없어요.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = list.map(r => {
+    const likeCount = (r.likedBy || []).length;
+    const score = r.fulfilledScoreId ? STATE.scores[r.fulfilledScoreId] : null;
+    return `
+      <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);">
+        <div style="flex:1;min-width:0;">
+          <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.title)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(r.composer)} 작곡 · ${esc(r.singer)} · ${esc(r.instrument)}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
+            <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
+            <span style="font-size:12px;color:var(--muted);">신청 ${r.buyerIds.length}명 · 추천 ${likeCount}개</span>
+          </div>
+        </div>
+        <div style="flex-shrink:0;">
+          ${r.status === "완료"
+            ? (score ? `<button class="btn btn-small" data-trend-view="${score.id}">완성된 악보 보기</button>` : `<span style="font-size:12px;color:var(--muted);">완료</span>`)
+            : `<button class="btn btn-small" data-trend-fill="${r.id}">이 곡으로 등록하기</button>`}
+        </div>
+      </div>`;
+  }).join("");
+
+  listEl.querySelectorAll("[data-trend-fill]").forEach(b => b.addEventListener("click", () => {
+    const r = STATE.requests[b.dataset.trendFill];
+    if (!r) return;
+    const titleInput = document.getElementById("sf-title");
+    const artistInput = document.getElementById("sf-artist");
+    const instSelect = document.getElementById("sf-instrument");
+    if (titleInput) titleInput.value = r.title;
+    if (artistInput) artistInput.value = r.singer;
+    if (instSelect) instSelect.value = r.instrument;
+    document.getElementById("seller-register-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }));
+  listEl.querySelectorAll("[data-trend-view]").forEach(b => b.addEventListener("click", () => {
+    if (typeof goBuyer === "function") goBuyer("detail", { id: b.dataset.trendView });
+  }));
 }
 
 /* ---------- 아티스트 프로필 ---------- */

@@ -37,9 +37,7 @@ const POLICY = {
     { amount: 50000, bonus: 0.10 }
   ],
   firstChargeBonus: 0.15, // ※ [미확정] 적용 방식, 공통규칙.md 참고
-  request: {
-    pointCost: 1000
-  },
+  // request: 포인트 납부 신청곡 제도는 폐지하고 무료 커뮤니티 게시판으로 전환했다 (2026-10-16)
   settlement: {
     minWithdraw: 20000,
     payoutDay: 10
@@ -219,6 +217,18 @@ async function load() {
     // 판매자 직접 할인 기능 추가 — 예전 악보에는 discount 칸이 없으므로 채워준다 (2026-10-16)
     if (typeof s.discount === "undefined") s.discount = null;
   }
+  // 신청곡 포인트 납부 제도 폐지 → 무료 커뮤니티 게시판으로 전환 (2026-10-16)
+  // 예전 신청곡에는 artist(가수) 한 칸만 있었다 — singer로 옮기고 composer·note·createdAt을 채워준다.
+  for (const r of Object.values(STATE.requests)) {
+    if (typeof r.artist === "string") {
+      if (typeof r.singer !== "string" || !r.singer) r.singer = r.artist;
+      delete r.artist;
+    }
+    if (typeof r.composer !== "string") r.composer = "";
+    if (typeof r.note !== "string") r.note = "";
+    if (typeof r.createdAt !== "string") r.createdAt = nowISO();
+    if (!Array.isArray(r.likedBy)) r.likedBy = []; // 신청곡 추천(좋아요) (2026-10-16 추가)
+  }
   // 삭제된 카테고리(리코더·칼림바·우쿨렐레) 악보를 가리키는 기록 정리
   for (const key of COLLECTIONS) {
     for (const [id, r] of Object.entries(STATE[key])) {
@@ -397,15 +407,15 @@ function seedDemoData() {
     }
   });
 
-  // 신청곡 예시
+  // 신청곡 예시 (2026-10-16: 무료 커뮤니티 게시판 — 작곡가·가수 분리, note 선택)
   const reqs = [
-    ["데모 신청곡 A", "데모 가수", "드럼", [buyer.id, ...demoBuyers.slice(0, 3).map(b => b.id)]],
-    ["데모 신청곡 B", "데모 가수", "드럼", [buyer.id, demoBuyers[4].id]],
-    ["데모 신청곡 C", "데모 밴드", "기타", [demoBuyers[3].id]]
+    ["데모 신청곡 A", "데모 작곡가", "데모 가수", "드럼", "", [buyer.id, ...demoBuyers.slice(0, 3).map(b => b.id)]],
+    ["데모 신청곡 B", "데모 작곡가", "데모 가수", "드럼", "", [buyer.id, demoBuyers[4].id]],
+    ["데모 신청곡 C", "데모 작곡팀", "데모 밴드", "기타", "원곡 코드로 부탁드려요", [demoBuyers[3].id]]
   ];
-  for (const [title, artist, instrument, buyerIds] of reqs) {
+  for (const [title, composer, singer, instrument, note, buyerIds] of reqs) {
     const id = uid("request");
-    STATE.requests[id] = { id, buyerIds, title, artist, instrument, status: "접수", fulfilledScoreId: null };
+    STATE.requests[id] = { id, buyerIds, likedBy: [], title, composer, singer, note, instrument, status: "접수", fulfilledScoreId: null, createdAt: nowISO() };
   }
 
   // 데모 구매자들의 충전 기록 (산 만큼 충전했다고 보고 포인트 잔액을 맞춘다)
@@ -425,12 +435,6 @@ function seedDemoData() {
     b.pointHistory.sort((x, y) => new Date(x.at) - new Date(y.at));
     b.points = gained - spent;
     b.isFirstCharge = false;
-  }
-
-  // 김구매도 신청곡 2건을 신청한 것으로 맞춘다 (신청금 차감 기록)
-  for (const t of ["데모 신청곡 A", "데모 신청곡 B"]) {
-    buyer.points -= POLICY.request.pointCost;
-    buyer.pointHistory.push({ amount: -POLICY.request.pointCost, reason: `신청곡: ${t}`, at: nowISO() });
   }
 
   buyer.following = [sellers[0].id];
@@ -982,25 +986,26 @@ function getSellerInquiries(sellerId) {
     .sort((a, b) => (a.status === "답변완료") - (b.status === "답변완료") || new Date(b.createdAt) - new Date(a.createdAt));
 }
 
+/* 2026-10-16: 포인트 납부 신청곡 제도를 폐지하고, 구매자가 무료로 자유롭게 올리는
+   커뮤니티 게시판으로 바꿨다. 곡 제목·작곡가·가수·악기를 정확히 적도록 네 항목 모두 필수로 받는다.
+   note(요청 메모)는 선택 입력이다. */
 function submitSongRequest(buyerId, data) {
   const buyer = STATE.users[buyerId];
   if (!buyer) return { ok: false, message: "사용자를 찾을 수 없습니다." };
   const title = (data.title || "").trim();
-  const artist = (data.artist || "").trim();
-  if (!title || !artist || !INSTRUMENTS.includes(data.instrument)) {
-    return { ok: false, message: "곡 제목, 가수, 악기를 모두 입력해주세요." };
+  const composer = (data.composer || "").trim();
+  const singer = (data.singer || "").trim();
+  const note = (data.note || "").trim();
+  if (!title || !composer || !singer || !INSTRUMENTS.includes(data.instrument)) {
+    return { ok: false, message: "곡 제목, 작곡가, 가수, 악기를 모두 입력해주세요." };
   }
 
   const existing = Object.values(STATE.requests).find(
-    r => r.title === title && r.artist === artist && r.instrument === data.instrument && r.status !== "완료"
+    r => r.title === title && r.composer === composer && r.singer === singer && r.instrument === data.instrument && r.status !== "완료"
   );
   if (existing && existing.buyerIds.includes(buyerId)) {
     return { ok: false, message: "이미 신청한 곡입니다." };
   }
-  if (buyer.points < POLICY.request.pointCost) return { ok: false, message: "포인트가 부족합니다." };
-
-  buyer.points -= POLICY.request.pointCost;
-  buyer.pointHistory.push({ amount: -POLICY.request.pointCost, reason: `신청곡: ${title}`, at: nowISO() });
 
   if (existing) {
     existing.buyerIds.push(buyerId);
@@ -1010,11 +1015,24 @@ function submitSongRequest(buyerId, data) {
 
   const requestId = uid("request");
   STATE.requests[requestId] = {
-    id: requestId, buyerIds: [buyerId], title, artist,
-    instrument: data.instrument, status: "접수", fulfilledScoreId: null
+    id: requestId, buyerIds: [buyerId], likedBy: [], title, composer, singer, note,
+    instrument: data.instrument, status: "접수", fulfilledScoreId: null, createdAt: nowISO()
   };
   save();
   return { ok: true, requestId, joined: false };
+}
+
+/* 신청곡 추천(좋아요) — 신청(buyerIds)과는 별개다. 신청하지 않은 구매자도 눌러서
+   관심을 표시할 수 있고, 완성 시 무료 악보 지급 대상(buyerIds)에는 영향을 주지 않는다. (2026-10-16 추가) */
+function toggleRequestLike(userId, requestId) {
+  const user = STATE.users[userId];
+  const r = STATE.requests[requestId];
+  if (!user || !r) return { ok: false, message: "정보를 찾을 수 없습니다." };
+  if (!Array.isArray(r.likedBy)) r.likedBy = [];
+  const has = r.likedBy.includes(userId);
+  r.likedBy = has ? r.likedBy.filter(id => id !== userId) : [...r.likedBy, userId];
+  save();
+  return { ok: true, added: !has };
 }
 
 function setRequestStatus(requestId, status) {
@@ -1026,30 +1044,20 @@ function setRequestStatus(requestId, status) {
   return { ok: true };
 }
 
-/* 신청곡 완료: 연결한 악보를 신청자 전원에게 무료(0P)로 지급한다 */
+/* 신청곡 완료: 연결한 악보를 상태에 기록만 한다.
+   2026-10-16 변경: 신청자에게 악보를 무료(0P)로 지급하던 혜택을 완전히 삭제했다.
+   이제 신청곡 완료는 "이 곡이 채보되어 악보로 나왔다"는 안내일 뿐이고, 신청자도
+   다른 구매자와 동일하게 정가로 구매해야 한다. */
 function fulfillRequest(requestId, scoreId) {
   const r = STATE.requests[requestId];
   const score = STATE.scores[scoreId];
   if (!r || !score) return { ok: false, message: "정보를 찾을 수 없습니다." };
   if (score.status !== "승인") return { ok: false, message: "승인된 악보만 연결할 수 있습니다." };
   if (r.status === "완료") return { ok: false, message: "이미 완료된 신청곡입니다." };
-  let given = 0;
-  for (const buyerId of r.buyerIds) {
-    if (!STATE.users[buyerId] || hasPurchased(buyerId, scoreId)) continue;
-    const pid = uid("purchase");
-    STATE.purchases[pid] = {
-      id: pid, buyerId, scoreId, sellerId: score.sellerId,
-      price: 0, commissionRate: calcCommission(score), sellerEarning: 0,
-      purchasedAt: nowISO(), downloaded: false, downloadedAt: null,
-      refunded: false, refundedAt: null,
-      refundDeadline: new Date(Date.now() + POLICY.refund.windowDays * 86400000).toISOString()
-    };
-    given += 1;
-  }
   r.status = "완료";
   r.fulfilledScoreId = scoreId;
   save();
-  return { ok: true, given, total: r.buyerIds.length };
+  return { ok: true, total: r.buyerIds.length };
 }
 
 /* ============================================================
