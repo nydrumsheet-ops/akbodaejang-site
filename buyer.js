@@ -629,7 +629,7 @@ function renderListPage(el, p) {
       <div class="filter-line">
         <span class="filter-label">악기</span>
         <div class="chip-row">
-          ${["", ...INSTRUMENTS].map(i => `<button class="chip ${(p.instrument || "") === i ? "active" : ""}" data-f-inst="${esc(i)}">${i ? `${INSTRUMENT_ICON[i]} ${esc(i)}` : "전체"}</button>`).join("")}
+          ${["", ...INSTRUMENTS].map(i => `<button class="chip ${(p.instrument || "") === i ? "active" : ""}" data-f-inst="${esc(i)}">${i ? esc(i) : "전체"}</button>`).join("")}
         </div>
       </div>
       <div class="filter-line">
