@@ -387,7 +387,7 @@ function renderHomePage(el) {
           <div class="eyebrow">아티스트 모집</div>
           <h2>내 악보를 올리고<br>판매 금액의 ${Math.round((1 - POLICY.commission.rate) * 100)}%를 정산받으세요</h2>
           <p>적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이면 매달 ${POLICY.settlement.payoutDay}일 신청 없이 자동으로 입금돼요.</p>
-          <button class="btn" id="hero-artist-btn" style="background:#ffa110;border-color:#ffa110;color:var(--c-ink);">아티스트로 시작하기</button>
+          <button class="btn" id="hero-artist-btn" style="background:#ff8a50;border-color:#ff8a50;color:var(--c-ink);">아티스트로 시작하기</button>
           </div>
           <div class="hero-art hero-photo-empty" id="hero-photo-3"></div>
         </div>
@@ -539,12 +539,18 @@ function renderPopRow() {
 function setupHero() {
   const track = document.getElementById("hero-track");
   const dots = document.querySelectorAll("#hero-dots .hero-dot");
+  const dotsWrap = document.getElementById("hero-dots");
   if (!track) return;
+  const HERO_DOT_ACCENTS = { 2: "#ff8a50" };
   let idx = 0;
   const go = (i) => {
     idx = i;
     track.style.transform = `translateX(-${i * 100}%)`;
     dots.forEach((d, k) => d.classList.toggle("active", k === i));
+    if (dotsWrap) {
+      if (HERO_DOT_ACCENTS[i]) dotsWrap.style.setProperty("--hero-dot-accent", HERO_DOT_ACCENTS[i]);
+      else dotsWrap.style.removeProperty("--hero-dot-accent");
+    }
   };
   dots.forEach(d => d.addEventListener("click", () => { go(Number(d.dataset.slide)); restart(); }));
   const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
