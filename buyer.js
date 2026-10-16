@@ -29,7 +29,7 @@ const FAQ_LIST = [
   { id: "f4", cat: "악보·심사", q: "악보 등록하면 언제 노출되나요?",
     a: () => `등록 즉시 관리자 심사로 넘어가고, 승인되면 바로 악보 목록에 노출돼요. 반려되면 사유와 함께 돌아오고, 고쳐서 다시 등록하면 돼요.` },
   { id: "f5", cat: "악보·심사", q: "수수료는 얼마인가요?",
-    a: () => `일반 편곡은 ${Math.round(POLICY.commission.normal * 100)}%, 창작·오리지널 편곡은 ${Math.round(POLICY.commission.original * 100)}% 수수료가 붙어요. 나머지는 전부 판매자 몫이에요.` },
+    a: () => `수수료는 ${Math.round(POLICY.commission.rate * 100)}%예요. 나머지는 전부 판매자 몫이에요.` },
   { id: "f6", cat: "정산", q: "정산은 언제 들어오나요?",
     a: () => `출금 신청은 따로 안 해요. 적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이고 정산 계좌가 등록돼 있으면, 매달 ${POLICY.settlement.payoutDay}일에 자동으로 입금돼요.` },
   { id: "f7", cat: "계정", q: "비밀번호는 어떻게 바꾸나요?",
@@ -248,6 +248,16 @@ function approvedScores() {
   return Object.values(STATE.scores).filter(s => s.status === "승인");
 }
 
+/* 2026-10-16 추가: 할인 중이면 할인율 배지 + 취소선 정가 + 할인가를, 아니면 그냥 가격을 보여준다 */
+function priceHtml(s) {
+  const d = activeDiscount(s);
+  if (!d) return formatPoint(s.price);
+  const pct = Math.round(d.rate * 100);
+  return `<span style="color:var(--danger);font-weight:700;">${pct}%</span> `
+    + `<span style="text-decoration:line-through;color:var(--muted);font-weight:400;">${formatPoint(s.price)}</span> `
+    + `<span>${formatPoint(effectivePrice(s))}</span>`;
+}
+
 function scoreCard(s, opts) {
   const o = opts || {};
   const user = getCurrentUser();
@@ -267,13 +277,12 @@ function scoreCard(s, opts) {
         <div class="tags">
           <span class="tag">${esc(s.instrument)}</span>
           <span class="tag tag-diff">${esc(s.difficulty)}</span>
-          ${s.isOriginal ? `<span class="tag tag-orig">오리지널</span>` : ""}
         </div>
         <div class="card-title">${esc(s.title)}</div>
         <div class="card-artist">${esc(s.artist)}</div>
         <div class="card-seller"><span class="avatar" style="${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</div>
         <div class="card-foot">
-          <span class="price">${formatPoint(s.price)}</span>
+          <span class="price">${priceHtml(s)}</span>
           ${r.count ? `<span class="rating"><b>★</b> ${r.avg} (${r.count})</span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
         </div>
       </div>
@@ -376,7 +385,7 @@ function renderHomePage(el) {
         <div class="hero-slide slide-3">
           <div class="hero-text">
           <div class="eyebrow">아티스트 모집</div>
-          <h2>내 악보를 올리고<br>판매 금액의 ${Math.round((1 - POLICY.commission.normal) * 100)}%를 정산받으세요</h2>
+          <h2>내 악보를 올리고<br>판매 금액의 ${Math.round((1 - POLICY.commission.rate) * 100)}%를 정산받으세요</h2>
           <p>적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이면 매달 ${POLICY.settlement.payoutDay}일 신청 없이 자동으로 입금돼요.</p>
           <button class="btn" id="hero-artist-btn" style="background:#ffa110;border-color:#ffa110;color:var(--c-ink);">아티스트로 시작하기</button>
           </div>
@@ -440,7 +449,7 @@ function renderHomePage(el) {
                   <td><span data-artist-id="${s.sellerId}" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;">${esc(sellerName(s.sellerId))}</span></td>
                   <td>${esc(s.instrument)}</td>
                   <td class="hide-m">${esc(s.difficulty)}</td>
-                  <td style="text-align:right;font-weight:700;white-space:nowrap;">${formatPoint(s.price)}</td>
+                  <td style="text-align:right;font-weight:700;white-space:nowrap;">${priceHtml(s)}</td>
                 </tr>`).join("")}
             </tbody>
           </table>
@@ -581,15 +590,14 @@ function filterScores(p) {
   if (p.instrument) list = list.filter(s => s.instrument === p.instrument);
   if (p.difficulty) list = list.filter(s => s.difficulty === p.difficulty);
   if (p.video) list = list.filter(s => s.hasVideo);
-  if (p.original) list = list.filter(s => s.isOriginal);
-  if (p.minPrice) list = list.filter(s => s.price >= Number(p.minPrice));
-  if (p.maxPrice) list = list.filter(s => s.price <= Number(p.maxPrice));
+  if (p.minPrice) list = list.filter(s => effectivePrice(s) >= Number(p.minPrice));
+  if (p.maxPrice) list = list.filter(s => effectivePrice(s) <= Number(p.maxPrice));
 
   const sort = p.sort || "popular";
   const byDate = (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
   if (sort === "latest") list.sort(byDate);
-  else if (sort === "priceLow") list.sort((a, b) => a.price - b.price || byDate(a, b));
-  else if (sort === "priceHigh") list.sort((a, b) => b.price - a.price || byDate(a, b));
+  else if (sort === "priceLow") list.sort((a, b) => effectivePrice(a) - effectivePrice(b) || byDate(a, b));
+  else if (sort === "priceHigh") list.sort((a, b) => effectivePrice(b) - effectivePrice(a) || byDate(a, b));
   else if (sort === "views") list.sort((a, b) => b.viewCount - a.viewCount);
   else if (sort === "rating") list.sort((a, b) => getScoreRating(b.id).avg - getScoreRating(a.id).avg || b.salesCount - a.salesCount);
   else list.sort((a, b) => b.salesCount - a.salesCount || b.viewCount - a.viewCount);
@@ -633,7 +641,6 @@ function renderListPage(el, p) {
       <div class="filter-line" style="flex-wrap:wrap;">
         <span class="filter-label">조건</span>
         <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> ▶ 연주영상 있음</label>
-        <label class="toggle"><input type="checkbox" id="f-orig" ${p.original ? "checked" : ""}> 오리지널 편곡</label>
         <span style="display:inline-flex;align-items:center;gap:6px;">
           <input class="toolbar field" style="width:90px;" type="number" min="0" step="500" id="f-min" placeholder="최소P" value="${esc(p.minPrice || "")}">
           ~
@@ -665,7 +672,6 @@ function renderListPage(el, p) {
   el.querySelectorAll("[data-f-inst]").forEach(b => b.addEventListener("click", () => update({ instrument: b.dataset.fInst })));
   el.querySelectorAll("[data-f-diff]").forEach(b => b.addEventListener("click", () => update({ difficulty: b.dataset.fDiff })));
   document.getElementById("f-video")?.addEventListener("change", (e) => update({ video: e.target.checked }));
-  document.getElementById("f-orig")?.addEventListener("change", (e) => update({ original: e.target.checked }));
   document.getElementById("f-sort")?.addEventListener("change", (e) => update({ sort: e.target.value }));
   document.getElementById("f-price")?.addEventListener("click", () => update({
     minPrice: document.getElementById("f-min").value, maxPrice: document.getElementById("f-max").value
@@ -736,7 +742,7 @@ function renderDetailPage(el, p) {
         <button class="btn" id="d-cart">${inCart ? "장바구니 보기" : "장바구니 담기"}</button>
         <button class="btn wish-big" id="d-wish" style="color:${wished ? "var(--hot)" : "var(--text)"};">${wished ? "♥ 찜함" : "♡ 찜"}</button>
       </div>
-      ${user ? `<p class="buy-note">보유 포인트 <b>${formatPoint(user.points)}</b>${user.points < s.price ? ` · <span style="color:var(--danger);">${formatPoint(s.price - user.points)} 부족</span>` : ""}</p>` : ""}`;
+      ${user ? `<p class="buy-note">보유 포인트 <b>${formatPoint(user.points)}</b>${user.points < effectivePrice(s) ? ` · <span style="color:var(--danger);">${formatPoint(effectivePrice(s) - user.points)} 부족</span>` : ""}</p>` : ""}`;
   }
 
   el.innerHTML = `
@@ -767,7 +773,6 @@ function renderDetailPage(el, p) {
         <div class="tags">
           <span class="tag">${esc(s.instrument)}</span>
           <span class="tag tag-diff">${esc(s.difficulty)}</span>
-          ${s.isOriginal ? `<span class="tag tag-orig">창작·오리지널 편곡</span>` : ""}
           ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);">▶ 연주영상</span>` : ""}
         </div>
         <h1 class="detail-title" style="margin-top:8px;">${esc(s.title)}</h1>
@@ -788,13 +793,12 @@ function renderDetailPage(el, p) {
         <table class="info-table">
           <tr><th>악기</th><td>${esc(s.instrument)}</td></tr>
           <tr><th>난이도</th><td>${esc(s.difficulty)}</td></tr>
-          <tr><th>편곡 구분</th><td>${s.isOriginal ? "창작·오리지널 편곡" : "일반 편곡"}</td></tr>
           <tr><th>파일</th><td>PDF</td></tr>
           <tr><th>등록일</th><td>${formatDate(s.approvedAt || s.createdAt)}</td></tr>
           <tr><th>조회 · 판매</th><td>${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</td></tr>
         </table>
 
-        <div class="price-big">${formatPoint(s.price)}</div>
+        <div class="price-big">${priceHtml(s)}</div>
         ${buyArea}
         <p class="buy-note">구매 후 ${POLICY.refund.windowDays}일 이내, 파일을 열지 않았다면 포인트로 전액 환불돼요. 구매한 악보는 마이페이지 › 내 악보함에서 언제든 다시 받을 수 있어요.</p>
       </div>
@@ -854,8 +858,8 @@ function renderDetailPage(el, p) {
   document.getElementById("d-buy")?.addEventListener("click", () => requireLogin(() => {
     const u = getCurrentUser();
     if (hasPurchased(u.id, s.id)) { renderBuyer(); return; }
-    if (u.points < s.price) {
-      toast(`포인트가 ${formatPoint(s.price - u.points)} 부족해요. 충전 화면으로 이동합니다.`, true);
+    if (u.points < effectivePrice(s)) {
+      toast(`포인트가 ${formatPoint(effectivePrice(s) - u.points)} 부족해요. 충전 화면으로 이동합니다.`, true);
       goBuyer("mypage", { tab: "points", back: s.id });
       return;
     }
@@ -927,7 +931,7 @@ function renderArtistPage(el, p) {
   const instruments = [...new Set(list.map(s => s.instrument))];
   if (inst) list = list.filter(s => s.instrument === inst);
   if (sort === "latest") list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
-  else if (sort === "priceLow") list.sort((a, b) => a.price - b.price);
+  else if (sort === "priceLow") list.sort((a, b) => effectivePrice(a) - effectivePrice(b));
   else list.sort((a, b) => b.salesCount - a.salesCount);
   const videoCount = approvedScores().filter(s => s.sellerId === u.id && s.hasVideo).length;
 
@@ -983,7 +987,7 @@ function renderCartPage(el) {
   }
   const items = user.cart.map(id => STATE.scores[id]).filter(Boolean);
   const valid = items.filter(s => s.status === "승인" && !hasPurchased(user.id, s.id));
-  const total = valid.reduce((sum, s) => sum + s.price, 0);
+  const total = valid.reduce((sum, s) => sum + effectivePrice(s), 0);
   const after = user.points - total;
 
   el.innerHTML = `
@@ -1004,7 +1008,7 @@ function renderCartPage(el) {
                 </div>
               </div>
               <div class="row-actions" style="align-items:center;">
-                <b style="white-space:nowrap;">${formatPoint(s.price)}</b>
+                <b style="white-space:nowrap;">${priceHtml(s)}</b>
                 <button class="btn btn-small" data-remove="${s.id}">삭제</button>
               </div>
             </div>`;
@@ -1161,7 +1165,7 @@ function myPointsHTML(user, p) {
   const history = [...user.pointHistory].reverse().slice(0, 30);
   const backScore = p.back && STATE.scores[p.back];
   return `
-    ${backScore ? `<div class="panel" style="margin-bottom:12px;background:var(--band);border-color:var(--border);">"${esc(backScore.title)}" 구매에 ${formatPoint(backScore.price)}가 필요해요. 충전하면 바로 악보 화면으로 돌아갑니다.</div>` : ""}
+    ${backScore ? `<div class="panel" style="margin-bottom:12px;background:var(--band);border-color:var(--border);">"${esc(backScore.title)}" 구매에 ${formatPoint(effectivePrice(backScore))}가 필요해요. 충전하면 바로 악보 화면으로 돌아갑니다.</div>` : ""}
     ${p.backCart ? `<div class="panel" style="margin-bottom:12px;background:var(--band);border-color:var(--border);">충전하면 장바구니로 돌아갑니다.</div>` : ""}
     <div class="panel">
       <h2 style="margin:0 0 4px;font-size:17px;">포인트 충전</h2>

@@ -20,8 +20,11 @@ const ADMIN_EMAILS = ["nydrumsheet@gmail.com"];
 
 const POLICY = {
   commission: {
-    normal: 0.25,   // 일반 편곡 25% (아티스트 정산 75%)
-    original: 0.20  // 창작·오리지널 편곡 20%  ※ [미확정] 수치, 공통규칙.md 참고
+    rate: 0.25   // 전체 공통 수수료 25% (아티스트 정산 75%) — 일반/창작·오리지널 구분 폐지 (2026-10-16)
+  },
+  discount: {
+    minRate: 0.01, // 할인율 최소 1%
+    maxRate: 0.90  // 할인율 최대 90% (2026-10-16 판매자 직접 할인 기능 추가)
   },
   point: {
     unit: 1,
@@ -211,6 +214,10 @@ async function load() {
     if (typeof s.description !== "string") s.description = "";
     if (!Array.isArray(s.tags)) s.tags = [];
     if (typeof s.thumbnailUrl !== "string" || !s.thumbnailUrl.trim()) s.thumbnailUrl = null;
+    // 일반/창작·오리지널 편곡 구분 폐지 — 예전에 저장된 isOriginal 값은 더 이상 쓰지 않는다 (2026-10-16)
+    delete s.isOriginal;
+    // 판매자 직접 할인 기능 추가 — 예전 악보에는 discount 칸이 없으므로 채워준다 (2026-10-16)
+    if (typeof s.discount === "undefined") s.discount = null;
   }
   // 삭제된 카테고리(리코더·칼림바·우쿨렐레) 악보를 가리키는 기록 정리
   for (const key of COLLECTIONS) {
@@ -309,29 +316,29 @@ function seedDemoData() {
   // sellers[3] 은 계좌 미등록 예시로 둔다 (지급 목록에서 빠지는 모습 확인용)
 
   const list = [
-    // [판매자index, 제목, 악기, 난이도, 가격, 오리지널, 영상, 며칠전]
-    [0, "8비트 기본 그루브 연습곡", "드럼", "초급", 1500, true, true, 1],
-    [0, "16비트 하이햇 연습곡", "드럼", "초급", 2000, true, true, 2],
-    [1, "펑크 고스트노트 그루브", "드럼", "중급", 3000, true, true, 3],
-    [1, "셔플 블루스 리듬 연습곡", "드럼", "중급", 2500, true, false, 4],
-    [0, "더블킥 빌드업 연습곡", "드럼", "고급", 4000, true, true, 5],
-    [1, "보사노바 리듬 패턴", "드럼", "중급", 2500, true, true, 6],
-    [0, "필인 모음집 Vol.1", "드럼", "초급", 3500, true, true, 8],
-    [1, "메탈 블라스트비트 연습곡", "드럼", "고급", 4500, true, false, 9],
-    [0, "발라드 6/8 그루브 연습곡", "드럼", "초급", 1500, true, true, 11],
-    [2, "통기타 스트로크 입문 연습곡", "기타", "초급", 1500, true, true, 2],
-    [2, "핑거스타일 아르페지오 연습곡", "기타", "중급", 3000, true, false, 7],
-    [2, "베이스 루트음 워킹 연습곡", "베이스", "초급", 2000, true, true, 10],
-    [3, "피아노 왼손 반주 패턴 연습곡", "피아노", "초급", 2000, true, false, 3]
+    // [판매자index, 제목, 악기, 난이도, 가격, 영상, 며칠전]
+    [0, "8비트 기본 그루브 연습곡", "드럼", "초급", 1500, true, 1],
+    [0, "16비트 하이햇 연습곡", "드럼", "초급", 2000, true, 2],
+    [1, "펑크 고스트노트 그루브", "드럼", "중급", 3000, true, 3],
+    [1, "셔플 블루스 리듬 연습곡", "드럼", "중급", 2500, false, 4],
+    [0, "더블킥 빌드업 연습곡", "드럼", "고급", 4000, true, 5],
+    [1, "보사노바 리듬 패턴", "드럼", "중급", 2500, true, 6],
+    [0, "필인 모음집 Vol.1", "드럼", "초급", 3500, true, 8],
+    [1, "메탈 블라스트비트 연습곡", "드럼", "고급", 4500, false, 9],
+    [0, "발라드 6/8 그루브 연습곡", "드럼", "초급", 1500, true, 11],
+    [2, "통기타 스트로크 입문 연습곡", "기타", "초급", 1500, true, 2],
+    [2, "핑거스타일 아르페지오 연습곡", "기타", "중급", 3000, false, 7],
+    [2, "베이스 루트음 워킹 연습곡", "베이스", "초급", 2000, true, 10],
+    [3, "피아노 왼손 반주 패턴 연습곡", "피아노", "초급", 2000, false, 3]
   ];
 
   const scoreIds = [];
-  for (const [si, title, instrument, difficulty, price, isOriginal, hasVideo, ago] of list) {
+  for (const [si, title, instrument, difficulty, price, hasVideo, ago] of list) {
     const id = uid("score");
     const seller = sellers[si];
     STATE.scores[id] = {
       id, sellerId: seller.id, title, artist: "악보대장 데모 연습곡", instrument, difficulty,
-      price, isOriginal, hasVideo, videoUrl: hasVideo ? "https://www.youtube.com" : null, fileUrl: "demo.pdf",
+      price, hasVideo, videoUrl: hasVideo ? "https://www.youtube.com" : null, fileUrl: "demo.pdf",
       previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`, status: "승인", rejectReason: null,
       createdAt: daysAgoISO(ago), approvedAt: daysAgoISO(ago),
       salesCount: 0, viewCount: Math.floor(Math.random() * 300) + 20,
@@ -345,7 +352,7 @@ function seedDemoData() {
     const id = uid("score");
     STATE.scores[id] = {
       id, sellerId: sellers[1].id, title, artist: "악보대장 데모 연습곡", instrument, difficulty: "중급",
-      price: 2000, isOriginal: false, hasVideo: false, videoUrl: null, fileUrl: "demo.pdf",
+      price: 2000, hasVideo: false, videoUrl: null, fileUrl: "demo.pdf",
       previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`, status: "심사중", rejectReason: null,
       createdAt: nowISO(), approvedAt: null, salesCount: 0, viewCount: 0, description: ""
     };
@@ -450,7 +457,58 @@ function resetDemoData() {
 /* ---------- 정책 계산 ---------- */
 
 function calcCommission(score) {
-  return score.isOriginal ? POLICY.commission.original : POLICY.commission.normal;
+  return POLICY.commission.rate;
+}
+
+/* ---------- 할인 (2026-10-16 추가: 판매자가 본인 악보에 직접 할인율·기간을 설정/해제) ---------- */
+
+/* 지금 시점에 실제로 적용 중인 할인이면 { rate, startAt, endAt } 을 돌려주고, 아니면 null */
+function activeDiscount(score) {
+  const d = score.discount;
+  if (!d) return null;
+  const now = Date.now();
+  if (now < new Date(d.startAt).getTime() || now > new Date(d.endAt).getTime()) return null;
+  return d;
+}
+
+/* 지금 실제로 구매자가 내는 가격 (할인 중이 아니면 원래 가격) */
+function effectivePrice(score) {
+  const d = activeDiscount(score);
+  if (!d) return score.price;
+  return Math.max(0, Math.round(score.price * (1 - d.rate)));
+}
+
+function setScoreDiscount(sellerId, scoreId, rate, startAt, endAt) {
+  const score = STATE.scores[scoreId];
+  if (!score) return { ok: false, message: "악보를 찾을 수 없습니다." };
+  if (score.sellerId !== sellerId) return { ok: false, message: "본인이 등록한 악보만 할인을 설정할 수 있습니다." };
+
+  const r = Number(rate) / 100;
+  if (!Number.isFinite(r) || r < POLICY.discount.minRate || r > POLICY.discount.maxRate) {
+    return { ok: false, message: `할인율은 ${Math.round(POLICY.discount.minRate * 100)}~${Math.round(POLICY.discount.maxRate * 100)}% 사이로 입력해주세요.` };
+  }
+  const start = new Date(startAt);
+  const end = new Date(endAt);
+  if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+    return { ok: false, message: "시작일과 종료일을 올바르게 입력해주세요." };
+  }
+  if (start.getTime() >= end.getTime()) {
+    return { ok: false, message: "종료일은 시작일보다 뒤여야 합니다." };
+  }
+
+  score.discount = { rate: r, startAt: start.toISOString(), endAt: end.toISOString() };
+  save();
+  return { ok: true };
+}
+
+function clearScoreDiscount(sellerId, scoreId) {
+  const score = STATE.scores[scoreId];
+  if (!score) return { ok: false, message: "악보를 찾을 수 없습니다." };
+  if (score.sellerId !== sellerId) return { ok: false, message: "본인이 등록한 악보만 해제할 수 있습니다." };
+  if (!score.discount) return { ok: false, message: "적용 중인 할인이 없습니다." };
+  score.discount = null;
+  save();
+  return { ok: true };
 }
 
 function calcChargeBonus(user, amount) {
@@ -537,14 +595,15 @@ function purchaseScore(buyerId, scoreId) {
   if (!buyer || !score) return { ok: false, message: "정보를 찾을 수 없습니다." };
   if (score.status !== "승인") return { ok: false, message: "판매 중인 악보가 아닙니다." };
   if (score.sellerId === buyerId) return { ok: false, message: "본인이 등록한 악보는 구매할 수 없습니다." };
-  if (buyer.points < score.price) return { ok: false, message: "포인트가 부족합니다." };
+  const payPrice = effectivePrice(score); // 2026-10-16: 할인 적용 시 할인가로 결제
+  if (buyer.points < payPrice) return { ok: false, message: "포인트가 부족합니다." };
   if (hasPurchased(buyerId, scoreId)) return { ok: false, message: "이미 구매한 악보입니다." };
 
   const commissionRate = calcCommission(score);
-  const sellerEarning = Math.round(score.price * (1 - commissionRate));
+  const sellerEarning = Math.round(payPrice * (1 - commissionRate));
 
-  buyer.points -= score.price;
-  buyer.pointHistory.push({ amount: -score.price, reason: `악보 구매: ${score.title}`, at: nowISO() });
+  buyer.points -= payPrice;
+  buyer.pointHistory.push({ amount: -payPrice, reason: `악보 구매: ${score.title}`, at: nowISO() });
 
   const seller = STATE.users[score.sellerId];
   if (seller && seller.sellerInfo) {
@@ -560,7 +619,7 @@ function purchaseScore(buyerId, scoreId) {
 
   STATE.purchases[purchaseId] = {
     id: purchaseId, buyerId, scoreId, sellerId: score.sellerId,
-    price: score.price, commissionRate, sellerEarning,
+    price: payPrice, commissionRate, sellerEarning,
     purchasedAt, downloaded: false, downloadedAt: null,
     refunded: false, refundedAt: null, refundDeadline
   };
@@ -577,7 +636,7 @@ function purchaseCart(buyerId) {
     .map(id => STATE.scores[id])
     .filter(s => s && s.status === "승인" && !hasPurchased(buyerId, s.id) && s.sellerId !== buyerId);
   if (items.length === 0) return { ok: false, message: "장바구니에 구매할 악보가 없습니다." };
-  const total = items.reduce((sum, s) => sum + s.price, 0);
+  const total = items.reduce((sum, s) => sum + effectivePrice(s), 0); // 2026-10-16: 할인가 기준 합계
   if (buyer.points < total) {
     return { ok: false, message: `포인트가 ${formatPoint(total - buyer.points)} 부족합니다.` };
   }
@@ -839,14 +898,15 @@ function submitScore(sellerId, data) {
   STATE.scores[scoreId] = {
     id: scoreId, sellerId,
     title: data.title, artist: data.artist, instrument: data.instrument, difficulty: data.difficulty,
-    price: data.price, isOriginal: !!data.isOriginal, hasVideo: !!data.hasVideo,
+    price: data.price, hasVideo: !!data.hasVideo,
     videoUrl: data.videoUrl || null, fileUrl: data.fileUrl || null,
     previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`,
     status: "등록", rejectReason: null, createdAt: nowISO(), approvedAt: null,
     salesCount: 0, viewCount: 0,
     description: (data.description || "").trim(),
     tags,
-    thumbnailUrl: (data.thumbnailUrl || "").trim() || null
+    thumbnailUrl: (data.thumbnailUrl || "").trim() || null,
+    discount: null // { rate, startAt, endAt } — 판매자가 직접 설정, 등록 시점엔 없음 (2026-10-16 추가)
   };
   save();
   return { ok: true, scoreId };

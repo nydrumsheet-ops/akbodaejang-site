@@ -10,6 +10,7 @@
 let SF_TAGS = []; // 악보 등록 폼에서 지금 입력 중인 태그 (제출 성공해야 비움, 최대 5개)
 let SF_THUMBNAIL_DATA = null; // 선택한 썸네일 이미지를 읽어둔 데이터 (제출 성공해야 비움)
 let SELLER_INQUIRY_OPEN = null; // 펼쳐서 보고 있는 문의 id
+let SELLER_DISCOUNT_OPEN = null; // 펼쳐서 할인 설정 중인 악보 id (2026-10-16 추가)
 
 function renderSeller() {
   const el = document.getElementById("view-seller");
@@ -97,11 +98,6 @@ function renderSeller() {
           <input type="text" id="sf-tag-input" placeholder="태그 입력 후 Enter (예: IU, 아이유, 좋은날)"
             style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
           <span id="sf-tag-hint" style="display:block;margin-top:4px;font-size:11px;color:var(--muted);"></span>
-        </label>
-
-        <label style="font-size:13px;display:flex;align-items:center;gap:8px;">
-          <input type="checkbox" id="sf-original" style="width:16px;height:16px;">
-          <span>창작·오리지널 편곡입니다 <span style="color:var(--muted);">(수수료 20% 적용, 일반 편곡은 25%)</span></span>
         </label>
 
         <label style="font-size:13px;display:flex;align-items:center;gap:8px;">
@@ -316,7 +312,6 @@ function handleSubmitScore(sellerId) {
   const instrument = document.getElementById("sf-instrument").value;
   const difficulty = document.getElementById("sf-difficulty").value;
   const priceRaw = document.getElementById("sf-price").value;
-  const isOriginal = document.getElementById("sf-original").checked;
   const hasVideo = document.getElementById("sf-hasvideo").checked;
   const videoUrl = document.getElementById("sf-videourl").value.trim();
   const description = document.getElementById("sf-description").value.trim();
@@ -345,7 +340,7 @@ function handleSubmitScore(sellerId) {
 
   const result = submitScore(sellerId, {
     title, artist, instrument, difficulty, price,
-    isOriginal, hasVideo,
+    hasVideo,
     videoUrl: hasVideo ? videoUrl : null,
     fileUrl: fileName,
     description,
@@ -405,6 +400,9 @@ function renderMyScores(sellerId) {
          </div>`
       : "";
 
+    /* 2026-10-16 추가: 승인된 악보만 판매자가 직접 할인율·기간을 설정/해제할 수 있다 */
+    const discountBlock = s.status === "승인" ? renderDiscountPanel(s) : "";
+
     return `
       <div style="padding:12px 0;border-top:1px solid var(--border);">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;">
@@ -412,7 +410,6 @@ function renderMyScores(sellerId) {
             <div style="font-size:14px;font-weight:600;">${esc(s.title)} ${videoBadge}</div>
             <div style="font-size:12px;color:var(--muted);margin-top:2px;">
               ${esc(s.artist)} · ${esc(s.instrument)} · ${esc(s.difficulty)} · ${formatPoint(s.price)}
-              ${s.isOriginal ? " · 오리지널" : ""}
             </div>
           </div>
           <span style="flex-shrink:0;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:${color};background:color-mix(in oklch,${color} 14%,var(--card));">
@@ -420,9 +417,93 @@ function renderMyScores(sellerId) {
           </span>
         </div>
         ${rejectBlock}
+        ${discountBlock}
       </div>
     `;
   }).join("");
+
+  wrap.querySelectorAll("[data-disc-toggle]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.discToggle;
+    SELLER_DISCOUNT_OPEN = SELLER_DISCOUNT_OPEN === id ? null : id;
+    renderMyScores(sellerId);
+  }));
+  wrap.querySelectorAll("[data-disc-apply]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.discApply;
+    const rateVal = document.getElementById(`disc-rate-${id}`).value;
+    const startVal = document.getElementById(`disc-start-${id}`).value;
+    const endVal = document.getElementById(`disc-end-${id}`).value;
+    const msgEl = document.getElementById(`disc-msg-${id}`);
+    if (!startVal || !endVal) {
+      showSellerMsg(msgEl, "시작일과 종료일을 모두 선택해주세요.", true);
+      return;
+    }
+    const res = setScoreDiscount(sellerId, id, rateVal, `${startVal}T00:00:00`, `${endVal}T23:59:59`);
+    if (!res.ok) { showSellerMsg(msgEl, res.message, true); return; }
+    renderAll();
+    showSellerMsg(document.getElementById(`disc-msg-${id}`), "할인이 적용되었습니다.", false);
+  }));
+  wrap.querySelectorAll("[data-disc-clear]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.discClear;
+    const res = clearScoreDiscount(sellerId, id);
+    const msgEl = document.getElementById(`disc-msg-${id}`);
+    if (!res.ok) { showSellerMsg(msgEl, res.message, true); return; }
+    renderAll();
+    showSellerMsg(document.getElementById(`disc-msg-${id}`), "할인이 해제되었습니다.", false);
+  }));
+}
+
+/* 2026-10-16 추가: 악보 한 건의 할인 설정 토글 + 입력 패널 */
+function renderDiscountPanel(s) {
+  const open = SELLER_DISCOUNT_OPEN === s.id;
+  const active = activeDiscount(s);
+  const d = s.discount;
+
+  let statusLine;
+  if (active) {
+    statusLine = `<span style="color:var(--primary);">할인 적용 중 · ${Math.round(active.rate * 100)}% · ${formatPoint(effectivePrice(s))} (정가 ${formatPoint(s.price)}) · ~${formatDate(active.endAt)}까지</span>`;
+  } else if (d) {
+    statusLine = `<span style="color:var(--muted);">할인 예약됨 · ${Math.round(d.rate * 100)}% · ${formatDate(d.startAt)} ~ ${formatDate(d.endAt)}</span>`;
+  } else {
+    statusLine = `<span style="color:var(--muted);">적용 중인 할인이 없습니다.</span>`;
+  }
+
+  const toDateInput = (iso) => iso ? new Date(iso).toISOString().slice(0, 10) : "";
+
+  return `
+    <div style="margin-top:8px;">
+      <button type="button" data-disc-toggle="${s.id}" style="all:unset;cursor:pointer;font-size:12px;color:var(--primary);text-decoration:underline;">
+        ${open ? "할인 설정 닫기 ▲" : "할인 설정 ▾"}
+      </button>
+      <div style="margin-top:6px;font-size:12px;">${statusLine}</div>
+      ${open ? `
+        <div style="margin-top:10px;padding:12px;background:var(--bg);border-radius:8px;display:flex;flex-direction:column;gap:8px;">
+          <div id="disc-msg-${s.id}" style="font-size:12px;"></div>
+          <label style="font-size:12px;">
+            할인율 (%)
+            <input type="number" id="disc-rate-${s.id}" min="${Math.round(POLICY.discount.minRate * 100)}" max="${Math.round(POLICY.discount.maxRate * 100)}"
+              value="${d ? Math.round(d.rate * 100) : ""}" placeholder="예: 30"
+              style="width:100%;margin-top:4px;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+          </label>
+          <div style="display:flex;gap:8px;">
+            <label style="font-size:12px;flex:1;">
+              시작일
+              <input type="date" id="disc-start-${s.id}" value="${toDateInput(d && d.startAt)}"
+                style="width:100%;margin-top:4px;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+            </label>
+            <label style="font-size:12px;flex:1;">
+              종료일
+              <input type="date" id="disc-end-${s.id}" value="${toDateInput(d && d.endAt)}"
+                style="width:100%;margin-top:4px;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+            </label>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button data-disc-apply="${s.id}" class="btn btn-primary btn-small">할인 적용</button>
+            ${d ? `<button data-disc-clear="${s.id}" class="btn btn-small" style="background:var(--card);border:1px solid var(--border);">할인 해제</button>` : ""}
+          </div>
+        </div>
+      ` : ""}
+    </div>
+  `;
 }
 
 /* ---------- 판매현황 · 적립금 ---------- */

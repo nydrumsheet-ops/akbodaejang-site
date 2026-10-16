@@ -42,7 +42,8 @@ function renderAdmin() {
         <button class="chip ${ADMIN_TAB === k ? "active" : ""}" data-admin-tab="${k}" style="padding:9px 14px;font-size:13px;">
           ${label}${n ? ` <b style="margin-left:4px;">${n}</b>` : ""}
         </button>`).join("")}
-    </div>\n    <div id="admin-tab-body"></div>
+    </div>
+    <div id="admin-tab-body"></div>
   `;
   el.querySelectorAll("[data-admin-tab]").forEach(b => b.addEventListener("click", () => {
     ADMIN_TAB = b.dataset.adminTab;
@@ -90,7 +91,7 @@ function renderAdmin() {
               <div style="font-size:12px;color:var(--muted);line-height:1.6;">${d}</div>
             </div>`).join("")}
         </div>
-        
+
         <div id="admin-request-msg" style="font-size:13px;margin:0 0 10px;"></div>
         <div id="admin-request-list"></div>
       </div>`;
@@ -279,7 +280,8 @@ function renderAdminMetrics(body) {
           <div style="margin:8px 0;" title="${esc(inst)} ${formatPoint(total)}">
             <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>${esc(inst)}</span><span style="color:var(--muted);">${formatPoint(total)} · ${Math.round(total / Math.max(1, m.revenue) * 100)}%</span></div>
             <div style="height:8px;border-radius:4px;background:var(--band);"><div style="height:8px;border-radius:4px;background:var(--primary);width:${(total / maxInst * 100).toFixed(1)}%;"></div></div>
-          </div>`).join("") : `<p style="margin:0;font-size:13px;color:var(--muted);">이 기간에 판매가 없어요.</p>`}\n      </div>
+          </div>`).join("") : `<p style="margin:0;font-size:13px;color:var(--muted);">이 기간에 판매가 없어요.</p>`}
+      </div>
     </div>
     <p style="font-size:11px;color:var(--muted);margin:0;">지금 숫자는 이 브라우저에 저장된 데이터 기준이에요. 공용 서버를 연결하면 전체 회원 기준으로 바뀝니다.</p>
   `;
@@ -428,6 +430,7 @@ function memberRowHTML(u, sum) {
 function renderAdminInquiries(body) {
   const all = Object.values(STATE.inquiries).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const list = ADMIN_INQUIRY_FILTER ? all.filter(q => q.status === ADMIN_INQUIRY_FILTER) : all;
+
   body.innerHTML = `
     <div style="${ADMIN_PANEL}">
       <h2 style="margin:0 0 4px;font-size:17px;">문의 관리</h2>
@@ -704,14 +707,11 @@ function renderAdminReviewList() {
     const videoBadge = s.hasVideo
       ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:var(--primary-dark);font-size:11px;">${videoIconArt(12)} 영상</span>`
       : "";
-    const originalBadge = s.isOriginal
-      ? `<span style="display:inline-block;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--band);color:#8a6420;font-size:11px;">오리지널</span>`
-      : "";
     const isRejecting = ADMIN_REJECT_TARGET_ID === s.id;
 
     return `
       <div style="padding:12px 0;border-top:1px solid var(--border);">
-        <div style="font-size:14px;font-weight:600;">${esc(s.title)}${videoBadge}${originalBadge}</div>
+        <div style="font-size:14px;font-weight:600;">${esc(s.title)}${videoBadge}</div>
         <div style="font-size:12px;color:var(--muted);margin-top:4px;">
           ${esc(s.artist)} · ${esc(s.instrument)} · ${esc(s.difficulty)} · ${formatPoint(s.price)}
           · 판매자 ${esc(seller ? seller.name : s.sellerId)} · 등록일 ${formatDate(s.createdAt)}
@@ -895,4 +895,3 @@ function renderAdminPayoutBatch() {
       </div>`;
   }).join("") : `<p style="font-size:13px;color:var(--muted);margin:0;">지급 완료 내역이 없습니다.</p>`;
 }
-
