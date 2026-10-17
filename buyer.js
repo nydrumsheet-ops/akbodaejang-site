@@ -259,14 +259,14 @@ function priceHtml(s) {
 }
 
 const DIFF_BADGE_COLORS = {
-  "초급": { bg: "#cbf6ff", fg: "#41c0ff" },
-  "중급": { bg: "#ffecc6", fg: "#ffb525" },
-  "고급": { bg: "#ffc4c4", fg: "#ff7272" },
-  "상급": { bg: "#ffc4c4", fg: "#ff7272" }
+  "초급": { bg: "#ecfcff", fg: "#41c0ff", border: "#87eaff" },
+  "중급": { bg: "#fffaec", fg: "#ffb525", border: "#ffb932" },
+  "고급": { bg: "#ffeeee", fg: "#ff7272", border: "#ff7d7d" },
+  "상급": { bg: "#ffeeee", fg: "#ff7272", border: "#ff7d7d" }
 };
 function diffBadgeStyle(difficulty) {
   const c = DIFF_BADGE_COLORS[difficulty] || DIFF_BADGE_COLORS["초급"];
-  return `background:${c.bg};color:${c.fg};`;
+  return `background:${c.bg};color:${c.fg};border:1px solid ${c.border};`;
 }
 function cartIcon() {
   return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>`;
@@ -284,7 +284,6 @@ function scoreCard(s, opts) {
           ? `<img src="${esc(s.thumbnailUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
           : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${instArt(s.instrument)}</div>`}
         ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶ 연주영상</span>` : ""}
-        <button type="button" class="cart-btn" data-cart="${s.id}" aria-label="장바구니에 담기">${cartIcon()}</button>
       </div>
       <div class="card-body">
         <div class="tags">
@@ -294,8 +293,11 @@ function scoreCard(s, opts) {
         <div class="card-title">${esc(s.title)}</div>
         <div class="card-artist">${esc(s.artist)}</div>
         <div class="card-foot">
-          ${r.count ? `<span class="rating"><b>★</b> ${r.avg} (${r.count})</span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
-          <span class="price">${priceHtml(s)}</span>
+          <button type="button" class="cart-btn" data-cart="${s.id}" aria-label="장바구니에 담기">${cartIcon()}</button>
+          <div class="card-foot-right">
+            ${r.count ? `<span class="rating"><b>★</b> ${r.avg} (${r.count})</span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
+            <span class="price">${priceHtml(s)}</span>
+          </div>
         </div>
       </div>
     </div>
