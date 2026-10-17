@@ -45,17 +45,17 @@ const INSTRUMENT_ICON = {
 /* ---------- 일러스트 (직접 그린 SVG — 외부 이미지 없이 어디서든 보임) ---------- */
 
 const INST_THEME = {
-  "드럼": { tint: "#f4eee5", ink: "#ff9a5c", soft: "#fbcdb5" },
-  "기타": { tint: "#f4eee5", ink: "#c4860e", soft: "#efd9a6" },
-  "피아노": { tint: "#f4eee5", ink: "#3b302a", soft: "#d9cfc3" },
-  "베이스": { tint: "#f4eee5", ink: "#8a4b3c", soft: "#e6c8bf" },
-  "우쿨렐레": { tint: "#f4eee5", ink: "#6b7a2a", soft: "#d8dcb4" },
-  "칼림바": { tint: "#f4eee5", ink: "#2f736c", soft: "#bcd9d4" },
-  "리코더": { tint: "#f4eee5", ink: "#b14d66", soft: "#ecc4ce" }
+  "드럼": { tint: "#fff8e1", ink: "#ff9a5c", soft: "#fbcdb5" },
+  "기타": { tint: "#fff8e1", ink: "#c4860e", soft: "#efd9a6" },
+  "피아노": { tint: "#fff8e1", ink: "#3b302a", soft: "#d9cfc3" },
+  "베이스": { tint: "#fff8e1", ink: "#8a4b3c", soft: "#e6c8bf" },
+  "우쿨렐레": { tint: "#fff8e1", ink: "#6b7a2a", soft: "#d8dcb4" },
+  "칼림바": { tint: "#fff8e1", ink: "#2f736c", soft: "#bcd9d4" },
+  "리코더": { tint: "#fff8e1", ink: "#b14d66", soft: "#ecc4ce" }
 };
 
 function themeOf(inst) {
-  return INST_THEME[inst] || { tint: "#f4eee5", ink: "#ff9a5c", soft: "#fbcdb5" };
+  return INST_THEME[inst] || { tint: "#fff8e1", ink: "#ff9a5c", soft: "#fbcdb5" };
 }
 
 function hashStr(str) {
@@ -490,7 +490,7 @@ function renderHomePage(el) {
         <h2>신청곡 순위</h2>
         <button class="more-link" data-go="requests">신청하러 가기 ›</button>
       </div>
-      <div class="panel" style="background:#f4eee5;">
+      <div class="panel" style="background:#fff8e1;">
         ${requests.length ? requests.map((r, i) => `
           <div class="req-item">
             <div class="req-count"><b>${r.buyerIds.length}</b><span>신청자 수</span></div>
