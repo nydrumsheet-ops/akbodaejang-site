@@ -657,11 +657,11 @@ function renderListPage(el, p) {
       </div>
       <div class="filter-line" style="flex-wrap:wrap;">
         <span class="filter-label">조건</span>
-        <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> ▶ 연주영상 있음</label>
+        <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> 연주영상 있음</label>
         <span style="display:inline-flex;align-items:center;gap:6px;">
-          <input class="toolbar field" style="width:90px;" type="number" min="0" step="500" id="f-min" placeholder="최소P" value="${esc(p.minPrice || "")}">
+          <input class="field" style="width:90px;" type="number" min="0" step="500" id="f-min" placeholder="최소P" value="${esc(p.minPrice || "")}">
           ~
-          <input class="toolbar field" style="width:90px;" type="number" min="0" step="500" id="f-max" placeholder="최대P" value="${esc(p.maxPrice || "")}">
+          <input class="field" style="width:90px;" type="number" min="0" step="500" id="f-max" placeholder="최대P" value="${esc(p.maxPrice || "")}">
           <button class="btn btn-small" id="f-price">가격 적용</button>
         </span>
       </div>
