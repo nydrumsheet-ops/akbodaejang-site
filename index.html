@@ -450,7 +450,8 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .diff-badge{position:absolute;top:8px;right:8px;z-index:2;font:700 12px/1 var(--font-text);padding:6px 10px;border-radius:var(--radius-pill);box-shadow:var(--shadow-sm)}
 .cart-btn{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:none;background:#ff9855;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);transition:background .15s}
 .cart-btn:hover{background:linear-gradient(90deg, #ffb36b 0%, #f07845 100%)}
-.cart-btn svg{display:block}
+.cart-btn svg{display:block;transition:stroke .15s}
+.cart-btn:hover svg{stroke:#fff4d8}
 .card-body{padding:0;display:flex;flex-direction:column;gap:4px;flex:1}
 .tags{display:flex;gap:4px;flex-wrap:wrap}
 .tag{font:500 11px/1 var(--font-text);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:var(--radius-pill);background:var(--surface-inset);color:var(--text)}
