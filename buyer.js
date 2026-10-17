@@ -407,7 +407,7 @@ function renderHomePage(el) {
     <div class="lvl-band">
       <div class="lvl-head"><h2>지금의 나에게, 알맞은 난이도</h2></div>
       <div class="lvl-grid">
-        ${DIFFICULTIES.map((d, n) => { const info = ({"초급":["한 곡을 끝까지, 차근차근","쉬운 반주 · 편안한 조성"],"중급":["표현이 깊어지는 시간","다양한 리듬 · 풍부한 화성"],"고급":["나만의 해석을 더하다","원곡의 깊이 · 연주회 레퍼토리"]})[d] || ["",""]; const lv = 4 - DIFFICULTIES.length + n + 1; const c = approvedScores().filter(s => s.difficulty === d).length; return `<button class="lvl-card" data-go="list:difficulty:${esc(d)}"><span class="lvl-top"><b>${esc(d)}</b><span class="lvl-bars" aria-hidden="true">${[1,2,3,4].map(k => `<i class="${k <= lv ? "on" : ""}" style="height:${8 + k * 3}px"></i>`).join("")}</span></span><span class="lvl-tag">${info[0]}</span><span class="lvl-meta">${info[1]}</span><span class="lvl-foot"><span>${c.toLocaleString()}개의 악보</span><i class="ico" style="--i:url(https://unpkg.com/lucide-static@0.468.0/icons/arrow-right.svg)"></i></span></button>`; }).join("")}
+        ${DIFFICULTIES.map((d, n) => { const info = ({"초급":["한 곡을 끝까지, 차근차근","쉬운 반주 · 편안한 조성"],"중급":["표현이 깊어지는 시간","다양한 리듬 · 풍부한 화성"],"고급":["나만의 해석을 더하다","원곡의 깊이 · 연주회 레퍼토리"]})[d] || ["",""]; const lv = 4 - DIFFICULTIES.length + n + 1; return `<button class="lvl-card" data-go="list:difficulty:${esc(d)}"><span class="lvl-top"><b>${esc(d)}</b><span class="lvl-bars" aria-hidden="true">${[1,2,3,4].map(k => `<i class="${k <= lv ? "on" : ""}" style="height:${8 + k * 3}px"></i>`).join("")}</span></span><span class="lvl-tag">${info[0]}</span><span class="lvl-meta">${info[1]}</span><span class="lvl-foot"><span>보러가기</span><i class="ico" style="--i:url(https://unpkg.com/lucide-static@0.468.0/icons/arrow-right.svg)"></i></span></button>`; }).join("")}
       </div>
     </div>
     </div>
