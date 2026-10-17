@@ -446,10 +446,10 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .thumb-art svg{width:30px;height:30px}
 .rank-num{position:absolute;top:10px;left:10px;z-index:2;width:30px;height:30px;border-radius:var(--radius-field);background:var(--c-canvas);font:700 14px/1 var(--font-mono);display:flex;align-items:center;justify-content:center;color:var(--text)}
 .rank-num.top{background:#1c1c1e;color:var(--text-inverse)}
-.video-flag{position:absolute;left:10px;bottom:10px;z-index:2;background:#ffa110;color:var(--on-accent);font:600 11px/1 var(--font-text);padding:5px 9px;border-radius:var(--radius-pill)}
-.wish-btn{position:absolute;top:8px;right:8px;z-index:2;width:34px;height:34px;border-radius:50%;border:none;background:var(--c-canvas);cursor:pointer;font-size:16px;color:var(--text-muted);box-shadow:var(--shadow-sm)}
-.wish-btn:hover{color:var(--text)}
-.wish-btn.on{color:var(--accent)}
+.video-flag{position:absolute;left:10px;top:10px;z-index:2;background:#ffa110;color:var(--on-accent);font:600 11px/1 var(--font-text);padding:5px 9px;border-radius:var(--radius-pill)}
+.diff-badge{position:absolute;top:8px;right:8px;z-index:2;font:700 12px/1 var(--font-text);padding:6px 10px;border-radius:var(--radius-pill);box-shadow:var(--shadow-sm)}
+.cart-btn{position:absolute;left:10px;bottom:10px;z-index:2;width:34px;height:34px;border-radius:50%;border:none;background:#ff9855;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm)}
+.cart-btn svg{display:block}
 .card-body{padding:0;display:flex;flex-direction:column;gap:4px;flex:1}
 .tags{display:flex;gap:4px;flex-wrap:wrap}
 .tag{font:500 11px/1 var(--font-text);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:var(--radius-pill);background:var(--surface-inset);color:var(--text)}
@@ -460,7 +460,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .card-seller{font-size:13px;color:var(--text);display:flex;align-items:center;gap:6px;margin-top:2px}
 .avatar{width:20px;height:20px;border-radius:50%;background:var(--surface-inset);color:var(--text);display:inline-flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0}
 .avatar.lg{width:64px;height:64px;font-size:24px}
-.card-foot{display:flex;justify-content:space-between;align-items:center;margin-top:auto;padding-top:8px}
+.card-foot{display:flex;flex-direction:column;align-items:flex-end;gap:4px;margin-top:auto;padding-top:8px}
 .price{font:700 16px/1.2 var(--font-text);font-variant-numeric:tabular-nums;color:var(--text)}
 .rating{font:var(--type-mono-sm);color:var(--muted);white-space:nowrap}
 .rating b{color:var(--star)}

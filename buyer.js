@@ -258,32 +258,44 @@ function priceHtml(s) {
     + `<span>${formatPoint(effectivePrice(s))}</span>`;
 }
 
+const DIFF_BADGE_COLORS = {
+  "초급": { bg: "#cbf6ff", fg: "#41c0ff" },
+  "중급": { bg: "#ffecc6", fg: "#ffb525" },
+  "고급": { bg: "#ffc4c4", fg: "#ff7272" },
+  "상급": { bg: "#ffc4c4", fg: "#ff7272" }
+};
+function diffBadgeStyle(difficulty) {
+  const c = DIFF_BADGE_COLORS[difficulty] || DIFF_BADGE_COLORS["초급"];
+  return `background:${c.bg};color:${c.fg};`;
+}
+function cartIcon() {
+  return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>`;
+}
+
 function scoreCard(s, opts) {
   const o = opts || {};
-  const user = getCurrentUser();
-  const wished = user && user.wishlist.includes(s.id);
   const r = getScoreRating(s.id);
   return `
     <div class="score-card" data-score-id="${s.id}">
       <div class="thumb" style="--tint:${themeOf(s.instrument).tint};--ink:${themeOf(s.instrument).ink};">
         ${o.rank ? `<span class="rank-num ${o.rank <= 3 ? "top" : ""}">${o.rank}</span>` : ""}
-        <button type="button" class="wish-btn ${wished ? "on" : ""}" data-wish="${s.id}" aria-label="찜하기">${wished ? "♥" : "♡"}</button>
+        <span class="diff-badge" style="${diffBadgeStyle(s.difficulty)}">${esc(s.difficulty)}</span>
         ${s.thumbnailUrl
           ? `<img src="${esc(s.thumbnailUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
           : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${instArt(s.instrument)}</div>`}
         ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶ 연주영상</span>` : ""}
+        <button type="button" class="cart-btn" data-cart="${s.id}" aria-label="장바구니에 담기">${cartIcon()}</button>
       </div>
       <div class="card-body">
         <div class="tags">
           <span class="tag">${esc(s.instrument)}</span>
-          <span class="tag tag-diff">${esc(s.difficulty)}</span>
         </div>
+        <div class="card-seller"><span class="avatar" style="${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</div>
         <div class="card-title">${esc(s.title)}</div>
         <div class="card-artist">${esc(s.artist)}</div>
-        <div class="card-seller"><span class="avatar" style="${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</div>
         <div class="card-foot">
-          <span class="price">${priceHtml(s)}</span>
           ${r.count ? `<span class="rating"><b>★</b> ${r.avg} (${r.count})</span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
+          <span class="price">${priceHtml(s)}</span>
         </div>
       </div>
     </div>
@@ -301,6 +313,18 @@ function bindCards(root) {
         if (!res.ok) { toast(res.message, true); return; }
         toast(res.added ? "찜 목록에 담았어요" : "찜을 해제했어요");
         renderBuyer();
+        renderHeaderAuth();
+      });
+    });
+  });
+  root.querySelectorAll("[data-cart]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.cart;
+      requireLogin(() => {
+        const res = addToCart(getCurrentUser().id, id);
+        if (!res.ok) { toast(res.message, true); return; }
+        toast("장바구니에 담았어요");
         renderHeaderAuth();
       });
     });
