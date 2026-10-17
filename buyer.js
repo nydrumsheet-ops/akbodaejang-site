@@ -364,31 +364,34 @@ function renderHomePage(el) {
     <div class="hero" id="hero">
       <div class="hero-track" id="hero-track">
         <div class="hero-slide slide-1">
+          <div class="hero-inner">
           <div class="hero-text">
           <div class="eyebrow">악보는 영상과 함께</div>
           <h2>연주 영상과 함께 보는 악보</h2>
           <p>연주영상 표시가 있는 악보는<br>판매 아티스트가 직접 연주한 영상을 함께 볼 수 있어요.</p>
           <button class="btn btn-primary" id="hero-video-btn" data-go="list:video:true" style="background:linear-gradient(90deg,#ffb36b 0%,#f07845 100%);border-color:transparent;">연주영상 악보 보기</button>
           </div>
-          <div class="hero-art hero-photo-empty" id="hero-photo-1"></div>
+          </div>
         </div>
         <div class="hero-slide slide-2">
+          <div class="hero-inner">
           <div class="hero-text">
           <div class="eyebrow">찾는 악보가 없다면</div>
           <h2>신청곡을 올려주세요</h2>
           <p>누구나 무료로 올릴 수 있어요.<br>신청이 많은 곡부터 채보해서<br>악보로 만들어 드려요.</p>
           <button class="btn btn-accent" id="hero-request-btn" data-go="requests">신청곡 보러가기</button>
           </div>
-          <div class="hero-art hero-photo-empty" id="hero-photo-2"></div>
+          </div>
         </div>
         <div class="hero-slide slide-3">
+          <div class="hero-inner">
           <div class="hero-text">
           <div class="eyebrow">아티스트 모집</div>
           <h2>내 악보를 올리고<br>판매 금액의 ${Math.round((1 - POLICY.commission.rate) * 100)}%를 정산받으세요</h2>
           <p>적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이면 매달 ${POLICY.settlement.payoutDay}일 신청 없이 자동으로 입금돼요.</p>
           <button class="btn" id="hero-artist-btn" style="background:linear-gradient(90deg,#ffb36b 0%,#f07845 100%);border-color:transparent;border-radius:16px;">아티스트로 시작하기</button>
           </div>
-          <div class="hero-art hero-photo-empty" id="hero-photo-3"></div>
+          </div>
         </div>
       </div>
       <div class="hero-dots" id="hero-dots">
