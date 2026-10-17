@@ -14,9 +14,54 @@ const SUPABASE_URL = "https://qvnprznzritqopwqmqlq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Gf-vX_Cm_8sFZ_oGep5Azg_DtU0_yFK";
 const SITE_URL = "https://akbodaejang-site.vercel.app"; // 로그인 이메일(인증·재설정)이 돌아올 주소
 
-/* 이 이메일로 가입(또는 이미 가입)하면 관리자 권한이 자동으로 붙는다. (2026-10-13 추가)
-   관리자를 더 추가/제거하려면 이 배열만 고치면 된다 — 다른 코드는 손댈 필요 없음. */
+/* 이 이메일로 가입(또는 이미 가입)하면 관리자 권한이 자동으로 붙는다.
+   예전 기본값 — STATE.adminEmails 가 없는 첫 실행 때 한 번만 초기값으로 쓰인다.
+   이후로는 관리자 화면 › 회원관리 › 관리자 계정 관리에서 직접 추가/해제한다. (2026-10-17 변경) */
 const ADMIN_EMAILS = ["nydrumsheet@gmail.com"];
+
+/* 지금 관리자로 등록된 이메일 목록(소문자)을 돌려준다. STATE.adminEmails 가 기준이다. */
+function getAdminEmails() {
+  return (STATE && Array.isArray(STATE.adminEmails)) ? STATE.adminEmails : ADMIN_EMAILS;
+}
+
+function isAdminEmail(email) {
+  return getAdminEmails().includes((email || "").toLowerCase());
+}
+
+/* 관리자 계정 등록. 이메일만 미리 등록해두면, 그 이메일로 이미 가입돼 있으면 즉시 권한이 붙고
+   아직 가입 전이면 나중에 그 이메일로 가입할 때 자동으로 관리자가 된다. */
+function addAdminEmail(email) {
+  const e = (email || "").trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(e)) return { ok: false, message: "올바른 이메일 주소를 입력해주세요." };
+  if (!Array.isArray(STATE.adminEmails)) STATE.adminEmails = [...ADMIN_EMAILS];
+  if (STATE.adminEmails.includes(e)) return { ok: false, message: "이미 관리자로 등록된 이메일입니다." };
+  STATE.adminEmails.push(e);
+  const user = findUserByEmail(e);
+  if (user) user.isAdmin = true;
+  save();
+  return { ok: true, alreadyMember: !!user };
+}
+
+/* 관리자 지정 해제. 본인(지금 로그인한 관리자) 또는 마지막 남은 관리자는 해제할 수 없다 —
+   관리자가 0명이 되어 아무도 관리자 화면에 못 들어가는 상황을 막기 위함. */
+function removeAdminEmail(email) {
+  const e = (email || "").trim().toLowerCase();
+  if (!Array.isArray(STATE.adminEmails) || !STATE.adminEmails.includes(e)) {
+    return { ok: false, message: "등록되지 않은 이메일입니다." };
+  }
+  const me = getCurrentUser();
+  if (me && (me.email || "").toLowerCase() === e) {
+    return { ok: false, message: "본인의 관리자 권한은 직접 해제할 수 없습니다." };
+  }
+  if (STATE.adminEmails.length <= 1) {
+    return { ok: false, message: "마지막 남은 관리자는 해제할 수 없습니다." };
+  }
+  STATE.adminEmails = STATE.adminEmails.filter(x => x !== e);
+  const user = findUserByEmail(e);
+  if (user) user.isAdmin = false;
+  save();
+  return { ok: true };
+}
 
 const POLICY = {
   commission: {
@@ -191,15 +236,17 @@ async function load() {
   for (const key of COLLECTIONS) {
     if (!STATE[key]) STATE[key] = {};
   }
+  // 예전에 저장된 데이터에 관리자 이메일 목록이 없으면 기존 ADMIN_EMAILS 값으로 한 번만 채운다 (2026-10-17 추가)
+  if (!Array.isArray(STATE.adminEmails)) STATE.adminEmails = [...ADMIN_EMAILS];
   // 예전에 저장된 데이터에 새 칸(찜·장바구니·구독·악보소개)이 없으면 빈 값으로 채운다
   for (const u of Object.values(STATE.users)) {
     if (!Array.isArray(u.wishlist)) u.wishlist = [];
     if (!Array.isArray(u.cart)) u.cart = [];
     if (!Array.isArray(u.following)) u.following = [];
     if (typeof u.supabaseUserId === "undefined") u.supabaseUserId = null; // 실제 로그인(비밀번호) 전환 전 회원은 비어있다
-    // 관리자 지정 이메일(ADMIN_EMAILS)과 일치하면 관리자 권한을 자동으로 붙인다 (2026-10-13 추가)
-    if (typeof u.isAdmin !== "boolean") u.isAdmin = ADMIN_EMAILS.includes((u.email || "").toLowerCase());
-    else if (ADMIN_EMAILS.includes((u.email || "").toLowerCase())) u.isAdmin = true;
+    // 관리자 지정 이메일(STATE.adminEmails)과 일치하면 관리자 권한을 자동으로 붙인다 (2026-10-13 추가, 2026-10-17 STATE 기반으로 변경)
+    if (typeof u.isAdmin !== "boolean") u.isAdmin = isAdminEmail(u.email);
+    else if (isAdminEmail(u.email)) u.isAdmin = true;
     // 활동명(displayName)이 없는 예전 판매자는 가입할 때 적은 이름을 기본값으로 채운다 (2026-10-13 추가)
     if (u.sellerInfo && (typeof u.sellerInfo.displayName !== "string" || !u.sellerInfo.displayName.trim())) {
       u.sellerInfo.displayName = u.name;
@@ -296,7 +343,7 @@ function makeUser(name, email, role, extra) {
     points: 0, pointHistory: [], isFirstCharge: true, createdAt: nowISO(),
     wishlist: [], cart: [], following: [],
     supabaseUserId: null,
-    isAdmin: ADMIN_EMAILS.includes((email || "").toLowerCase())
+    isAdmin: isAdminEmail(email)
   };
   if (role === "seller" || role === "both") {
     user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: name, settleBalance: 0, displayName: name };
@@ -1319,8 +1366,8 @@ async function handleSupabaseSignedIn(session) {
 
   if (user) {
     if (!user.supabaseUserId) user.supabaseUserId = authId;
-    // 관리자 지정 이메일(ADMIN_EMAILS)로 로그인하면 기존 회원이어도 관리자 권한을 붙여준다
-    if (ADMIN_EMAILS.includes(email.toLowerCase())) user.isAdmin = true;
+    // 관리자 지정 이메일(STATE.adminEmails)로 로그인하면 기존 회원이어도 관리자 권한을 붙여준다
+    if (isAdminEmail(email)) user.isAdmin = true;
   } else {
     let name = email.split("@")[0];
     let role = "buyer";
@@ -1557,7 +1604,6 @@ function renderHeaderAuth() {
       ${cartBtn}
       <button id="header-login-btn" class="auth-btn">로그인</button>
       <button id="header-artist-btn" class="auth-btn auth-btn-primary">아티스트 되기</button>
-      <button id="header-admin-btn" class="auth-btn">관리자</button>
     `;
     document.getElementById("header-login-btn")?.addEventListener("click", () => openLoginModal("buyer"));
     document.getElementById("header-artist-btn")?.addEventListener("click", () => openLoginModal("seller"));
