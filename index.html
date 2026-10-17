@@ -570,8 +570,9 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .point-card .pc-label{font:var(--type-eyebrow);letter-spacing:.08em;color:var(--c-mute)}
 .point-card .pc-value{font:var(--type-display-md);letter-spacing:var(--display-tracking);color:var(--text-inverse);margin-top:8px;font-variant-numeric:tabular-nums}
 .tier-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(130px,1fr));gap:10px}
-.tier-btn{padding:16px 10px;border:1px solid var(--border-strong);border-radius:var(--radius-control);background:transparent;cursor:pointer;font:700 16px/1.2 var(--font-text);color:var(--text);transition:background-color var(--dur-fast)}
-.tier-btn:hover{background:var(--surface-inset)}
+.tier-btn{padding:16px 10px;border:1px solid #eae4dc;border-radius:var(--radius-control);background:#ffffff;cursor:pointer;font:700 16px/1.2 var(--font-text);color:var(--text);transition:background-color .18s var(--ease),border-color .18s var(--ease)}
+.tier-btn:hover{background:#fff0e4;border-color:#ff9855}
+.tier-btn:focus-visible{outline:2px solid #ff9855;outline-offset:2px}
 .tier-btn small{display:block;font:500 12px/1.2 var(--font-text);color:var(--accent-ink);margin-top:4px}
 .row-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-top:1px solid var(--border)}
 .row-item:first-child{border-top:none}
