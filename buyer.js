@@ -745,13 +745,14 @@ function renderDetailPage(el, p) {
   }
 
   el.innerHTML = `
+    <div class="detail-page">
     <div class="breadcrumb">
       <button data-go="home">홈</button> › <button data-go="list:instrument:${esc(s.instrument)}">${esc(s.instrument)}</button> › ${esc(s.title)}
     </div>
 
     <div class="detail-grid">
       <div>
-        <div class="preview-box" style="background:${themeOf(s.instrument).tint};">
+        <div class="preview-box">
           <div class="preview-sheet">
             <div class="ps-title">${esc(s.title)}</div>
             <div class="ps-sub">${esc(s.artist)} · ${esc(s.instrument)} · arr. ${esc(sellerName(s.sellerId))}</div>
@@ -793,8 +794,8 @@ function renderDetailPage(el, p) {
           <tr><th>악기</th><td>${esc(s.instrument)}</td></tr>
           <tr><th>난이도</th><td>${esc(s.difficulty)}</td></tr>
           <tr><th>파일</th><td>PDF</td></tr>
-          <tr><th>등록일</th><td>${formatDate(s.approvedAt || s.createdAt)}</td></tr>
-          <tr><th>조회 · 판매</th><td>${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</td></tr>
+          <tr class="meta-row"><th>등록일</th><td>${formatDate(s.approvedAt || s.createdAt)}</td></tr>
+          <tr class="meta-row"><th>조회 · 판매</th><td>${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</td></tr>
         </table>
 
         <div class="price-big">${priceHtml(s)}</div>
@@ -850,6 +851,7 @@ function renderDetailPage(el, p) {
         <div class="section-head"><h2>함께 많이 산 악보</h2></div>
         <div class="score-row">${together.map(x => scoreCard(x)).join("")}</div>
       </div>` : ""}
+    </div>
   `;
 
   bindCards(el);
