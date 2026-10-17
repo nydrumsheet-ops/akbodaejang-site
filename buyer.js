@@ -350,7 +350,6 @@ function renderBuyer() {
 
 function renderHomePage(el) {
   const user = getCurrentUser();
-  const recent = getRecentViewed().map(id => STATE.scores[id]).filter(s => s && s.status === "승인");
   const videoScores = approvedScores()
     .filter(s => s.hasVideo)
     .sort((a, b) => (a.instrument === "드럼" ? -1 : 0) - (b.instrument === "드럼" ? -1 : 0) || b.salesCount - a.salesCount)
@@ -412,12 +411,6 @@ function renderHomePage(el) {
       </div>
     </div>
     </div>
-
-    ${recent.length ? `
-      <div class="section">
-        <div class="section-head"><h2>최근 본 악보</h2></div>
-        <div class="score-row">${recent.slice(0, 8).map(s => scoreCard(s)).join("")}</div>
-      </div>` : ""}
 
     <div class="section">
       <div class="section-head">
