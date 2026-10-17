@@ -762,11 +762,6 @@ function renderDetailPage(el, p) {
           </div>
           <p class="preview-note">미리보기는 악보 첫 ${POLICY.preview.bars}마디까지 보여요. 실제 악보 이미지는 파일 업로드가 연결되면 이 자리에 나옵니다.</p>
         </div>
-        ${s.hasVideo ? `
-          <a class="video-card" href="${esc(s.videoUrl || "#")}" target="_blank" rel="noopener">
-            <span class="video-play">▶</span>
-            <span><span class="vc-title">연주 영상 보기</span><br><span class="vc-sub">${esc(sellerName(s.sellerId))}님이 직접 연주한 영상 (새 창으로 열려요)</span></span>
-          </a>` : ""}
       </div>
 
       <div>
@@ -790,19 +785,32 @@ function renderDetailPage(el, p) {
           ${own ? "" : `<button class="btn btn-small ${following ? "" : "btn-primary"}" id="d-follow">${following ? "구독중" : "+ 구독"}</button>`}
         </div>
 
-        <table class="info-table">
-          <tr><th>악기</th><td>${esc(s.instrument)}</td></tr>
-          <tr><th>난이도</th><td>${esc(s.difficulty)}</td></tr>
-          <tr><th>파일</th><td>PDF</td></tr>
-          <tr class="meta-row"><th>등록일</th><td>${formatDate(s.approvedAt || s.createdAt)}</td></tr>
-          <tr class="meta-row"><th>조회 · 판매</th><td>${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</td></tr>
-        </table>
-
         <div class="price-big">${priceHtml(s)}</div>
         ${buyArea}
         <p class="buy-note">구매 후 ${POLICY.refund.windowDays}일 이내, 파일을 열지 않았다면 포인트로 전액 환불돼요. 구매한 악보는 마이페이지 › 내 악보함에서 언제든 다시 받을 수 있어요.</p>
       </div>
     </div>
+
+    <div class="section">
+      <div class="section-head"><h2>악보 상세 정보</h2></div>
+      <div class="spec-grid">
+        <div class="spec-item"><span class="spec-k">악기</span><span class="spec-v">${esc(s.instrument)}</span></div>
+        <div class="spec-item"><span class="spec-k">난이도</span><span class="spec-v">${esc(s.difficulty)}</span></div>
+        <div class="spec-item"><span class="spec-k">파일 형식</span><span class="spec-v">PDF</span></div>
+        ${s.tags && s.tags.length ? `<div class="spec-item"><span class="spec-k">태그</span><span class="spec-v">${s.tags.map(t => esc(t)).join(", ")}</span></div>` : ""}
+        <div class="spec-item spec-meta"><span class="spec-k">등록일</span><span class="spec-v">${formatDate(s.approvedAt || s.createdAt)}</span></div>
+        <div class="spec-item spec-meta"><span class="spec-k">조회 · 판매</span><span class="spec-v">${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</span></div>
+      </div>
+    </div>
+
+    ${s.hasVideo ? `
+    <div class="section">
+      <div class="section-head"><h2>연주 영상</h2></div>
+      <a class="video-card" href="${esc(s.videoUrl || "#")}" target="_blank" rel="noopener">
+        <span class="video-play">▶</span>
+        <span><span class="vc-title">연주 영상 보기</span><br><span class="vc-sub">${esc(sellerName(s.sellerId))}님이 직접 연주한 영상 (새 창으로 열려요)</span></span>
+      </a>
+    </div>` : ""}
 
     <div class="section">
       <div class="section-head"><h2>악보 소개</h2></div>
