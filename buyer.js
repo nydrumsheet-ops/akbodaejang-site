@@ -686,7 +686,7 @@ function renderListPage(el, p) {
     </div>
 
     ${shown.length
-      ? `<div class="score-grid">${shown.map(s => scoreCard(s)).join("")}</div>`
+      ? `<div class="score-grid">${shown.map(s => scoreCard(s, { hideVideoBadge: true })).join("")}</div>`
       : `<div class="empty">
            <p style="margin:0 0 10px;">조건에 맞는 악보가 없어요.</p>
            <button class="btn btn-small" id="go-request">이 곡 신청하기</button>
