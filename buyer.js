@@ -271,7 +271,7 @@ function scoreCard(s, opts) {
         ${s.thumbnailUrl
           ? `<img src="${esc(s.thumbnailUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
           : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${instArt(s.instrument)}</div>`}
-        ${s.hasVideo ? `<span class="video-flag">▶ 연주영상</span>` : ""}
+        ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶ 연주영상</span>` : ""}
       </div>
       <div class="card-body">
         <div class="tags">
@@ -441,7 +441,7 @@ function renderHomePage(el) {
                   : instArt(s.instrument)}
               </div>
               <div class="rank-info">
-                <div class="rank-title">${esc(s.title)} ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);">▶ 영상</span>` : ""}</div>
+                <div class="rank-title">${esc(s.title)}</div>
                 <div class="rank-sub">${esc(s.artist)} · ${esc(s.instrument)}</div>
               </div>
             </div>`).join("")}
@@ -523,7 +523,7 @@ function renderPopRow() {
   if (!wrap) return;
   const list = getPopularScores(HOME_POP.period || null, HOME_POP.instrument).slice(0, 10);
   wrap.innerHTML = list.length
-    ? `<div class="score-row">${list.map((s, i) => scoreCard(s, { rank: i + 1 })).join("")}</div>`
+    ? `<div class="score-row">${list.map((s, i) => scoreCard(s, { rank: i + 1, hideVideoBadge: true })).join("")}</div>`
     : `<div class="empty">이 조건의 악보가 아직 없어요.</div>`;
   bindCards(wrap);
 }
