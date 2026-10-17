@@ -1269,7 +1269,7 @@ function renderRequestsPage(el) {
     <p class="muted" style="margin:0 0 16px;line-height:1.6;">찾는 악보가 없으면 누구나 무료로 자유롭게 올릴 수 있는 게시판이에요. 신청이 많은 곡부터 채보해서 악보로 만들어요.</p>
 
     <div class="two-col req-layout">
-      <div class="panel" style="display:flex;flex-direction:column;gap:8px;">
+      <div class="panel req-form-panel" style="display:flex;flex-direction:column;gap:8px;">
         <h2 style="margin:0 0 4px;font-size:16px;">새 곡 신청하기</h2>
         <input class="field" id="rq-title" placeholder="곡 제목" value="${esc(prefill)}">
         <input class="field" id="rq-composer" placeholder="작곡가">
@@ -1287,7 +1287,7 @@ function renderRequestsPage(el) {
         <div class="chip-row" style="margin-bottom:10px;">
           ${[["", "전체"], ...REQUEST_STATUS.map(s => [s, s]), ...(user ? [["mine", "내 신청"]] : [])].map(([v, l]) => `<button class="chip ${REQ_FILTER === v ? "active" : ""}" data-rq-filter="${v}">${l}</button>`).join("")}
         </div>
-        <div class="panel">
+        <div class="panel req-list-panel">
           ${list.length ? list.map((r, i) => {
             const joined = user && r.buyerIds.includes(user.id);
             const likedBy = r.likedBy || [];
@@ -1306,7 +1306,7 @@ function renderRequestsPage(el) {
                     <button type="button" class="btn btn-small" data-rq-like="${r.id}" style="color:${liked ? "var(--hot)" : "var(--text)"};">추천 ${likedBy.length}</button>
                     ${r.status === "완료" && r.fulfilledScoreId
                       ? `<button class="btn btn-small" data-score-id="${r.fulfilledScoreId}">악보 보기</button>`
-                      : joined ? "" : `<button class="btn btn-small" data-join="${r.id}">저도 신청</button>`}
+                      : joined ? "" : `<button class="btn btn-small" data-join="${r.id}">나도신청</button>`}
                   </div>
                 </div>
               </div>`;

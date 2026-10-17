@@ -612,8 +612,13 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .cart-summary{position:sticky;top:150px}
 .sum-line{display:flex;justify-content:space-between;padding:7px 0;font-size:15px;font-variant-numeric:tabular-nums}
 .sum-line.total{font:700 20px/1.3 var(--font-text);border-top:1px solid var(--border);margin-top:8px;padding-top:14px}
+.req-form-panel{background:#ffffff;border:1px solid #faf6f1}
+.req-form-panel #rq-submit{font-weight:800}
+.req-list-panel{background:#ffffff}
 .req-item{display:flex;align-items:center;gap:14px;padding:14px 0;border-top:1px solid var(--border)}
 .req-item:first-child{border-top:none}
+[data-rq-like],[data-join]{border-color:#e0e3e9;transition:border-color var(--dur-fast) var(--ease),color var(--dur-fast) var(--ease)}
+[data-rq-like]:hover,[data-join]:hover{border-color:#e87949;color:#e87949 !important}
 .req-count{width:56px;text-align:center;flex-shrink:0}
 .req-count b{display:block;font:700 20px/1.1 var(--font-mono)}
 .req-count span{font-size:11px;color:var(--muted)}
