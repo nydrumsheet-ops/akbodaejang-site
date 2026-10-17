@@ -425,27 +425,26 @@ function renderHomePage(el) {
       <div id="pop-row"></div>
     </div>
 
-    <div class="section">
+    <div class="section latest-section">
       <div class="section-head">
         <h2>최신 악보</h2>
         <button class="more-link" data-go="list:sort:latest">더 보기 ›</button>
       </div>
       ${latest.length ? `
-        <div class="table-wrap">
-          <table class="list-table">
-            <thead><tr><th>노래 제목</th><th class="hide-m">가수</th><th>아티스트</th><th>악기</th><th class="hide-m">난이도</th><th style="text-align:right;">가격</th></tr></thead>
-            <tbody>
-              ${latest.map(s => `
-                <tr data-score-id="${s.id}">
-                  <td><b>${esc(s.title)}</b> ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);">▶ 영상</span>` : ""}</td>
-                  <td class="hide-m muted">${esc(s.artist)}</td>
-                  <td><span data-artist-id="${s.sellerId}" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;">${esc(sellerName(s.sellerId))}</span></td>
-                  <td>${esc(s.instrument)}</td>
-                  <td class="hide-m">${esc(s.difficulty)}</td>
-                  <td style="text-align:right;font-weight:700;white-space:nowrap;">${priceHtml(s)}</td>
-                </tr>`).join("")}
-            </tbody>
-          </table>
+        <div class="rank-list-grid">
+          ${latest.map((s, i) => `
+            <div class="rank-row" data-score-id="${s.id}">
+              <span class="rank-order">${i + 1}</span>
+              <div class="rank-thumb" style="--tint:${themeOf(s.instrument).tint};--ink:${themeOf(s.instrument).ink};">
+                ${s.thumbnailUrl
+                  ? `<img src="${esc(s.thumbnailUrl)}" alt="" onerror="this.style.display='none';">`
+                  : instArt(s.instrument)}
+              </div>
+              <div class="rank-info">
+                <div class="rank-title">${esc(s.title)} ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);">▶ 영상</span>` : ""}</div>
+                <div class="rank-sub">${esc(s.artist)} · ${esc(s.instrument)}</div>
+              </div>
+            </div>`).join("")}
         </div>` : `<div class="empty">아직 등록된 악보가 없어요.</div>`}
     </div>
 

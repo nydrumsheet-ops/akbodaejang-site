@@ -473,6 +473,19 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .list-table tr{cursor:pointer}
 .list-table tbody tr:hover{background:#fff0e4}
 .table-wrap{overflow-x:auto;border:1px solid #eae4dc;border-radius:var(--radius-card)}
+.latest-section{background:#ffffff;border:1px solid #eae4dc;border-radius:var(--radius-card);padding:28px}
+.rank-list-grid{display:grid;grid-template-columns:1fr 1fr;grid-template-rows:repeat(5,auto);grid-auto-flow:column;gap:0 32px}
+.rank-row{display:flex;align-items:center;gap:14px;padding:14px 0;border-bottom:1px solid #f1ece5;cursor:pointer}
+.rank-row:last-child{border-bottom:none}
+.rank-list-grid .rank-row:nth-child(5){border-bottom:none}
+.rank-order{width:22px;flex-shrink:0;text-align:center;font:700 16px/1 var(--font-mono);color:#b8b0a6}
+.rank-thumb{width:44px;height:44px;flex-shrink:0;border-radius:10px;background:var(--tint,var(--surface-card));display:flex;align-items:center;justify-content:center;overflow:hidden}
+.rank-thumb img{width:100%;height:100%;object-fit:cover}
+.rank-thumb svg{width:26px;height:26px}
+.rank-info{min-width:0;flex:1;display:flex;flex-direction:column;gap:2px}
+.rank-title{font:600 15px/1.3 var(--font-text);color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.rank-row:hover .rank-title{color:var(--hot);}
+.rank-sub{font:400 13px/1.3 var(--font-text);color:var(--text-muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .artist-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:16px}
 .artist-card{background:var(--surface-card);border:var(--card-border);border-radius:var(--radius-card);padding:20px;cursor:pointer;display:flex;flex-direction:column;gap:12px;transition:background-color var(--dur-fast) var(--ease)}
 .artist-card:hover{background:var(--surface-inset)}
@@ -633,6 +646,9 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .detail-title{font-size:28px}
 .spec-grid{grid-template-columns:1fr}
 .list-table .hide-m{display:none}.page-title{font:var(--type-display-sm)}
+.latest-section{padding:20px 16px}
+.rank-list-grid{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row}
+.rank-list-grid .rank-row:nth-child(5){border-bottom:1px solid #f1ece5}
 .q-icon{width:56px;height:56px}.q-icon svg{width:34px;height:34px}
 }
 @media (prefers-reduced-motion:reduce){.paper,.q-icon,.btn,.hero-track,.info-banner{transition:none}}
