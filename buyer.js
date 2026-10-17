@@ -668,11 +668,22 @@ function renderListPage(el, p) {
     </div>
 
     <div class="toolbar">
-      <span class="muted">${list.length ? `${(current - 1) * PAGE_SIZE + 1}–${(current - 1) * PAGE_SIZE + shown.length} / ${list.length}` : ""}</span>
-      <select id="f-sort" aria-label="정렬">
-        ${[["popular", "인기순"], ["latest", "최신순"], ["priceLow", "낮은 가격순"], ["priceHigh", "높은 가격순"], ["views", "조회순"], ["rating", "별점순"]]
-          .map(([v, l]) => `<option value="${v}" ${(p.sort || "popular") === v ? "selected" : ""}>${l}</option>`).join("")}
-      </select>
+      <div class="toolbar-left">
+        <div class="sort-quick">
+          ${[["popular", "인기순"], ["latest", "최신순"]].map(([v, l]) => `<button type="button" class="chip ${(p.sort || "popular") === v ? "active" : ""}" data-sort-quick="${v}">${l}</button>`).join("")}
+        </div>
+        <span class="muted">${list.length ? `${(current - 1) * PAGE_SIZE + 1}–${(current - 1) * PAGE_SIZE + shown.length} / ${list.length}` : ""}</span>
+      </div>
+      <div class="sort-dd" id="sort-dd">
+        <button type="button" class="sort-dd-btn" id="sort-dd-btn" aria-haspopup="listbox" aria-expanded="false">${esc((() => {
+          const found = [["priceLow", "낮은 가격순"], ["priceHigh", "높은 가격순"], ["views", "조회순"], ["rating", "별점순"]].find(([v]) => v === p.sort);
+          return found ? found[1] : "정렬";
+        })())} <span aria-hidden="true">▾</span></button>
+        <div class="sort-dd-list" id="sort-dd-list" role="listbox">
+          ${[["priceLow", "낮은 가격순"], ["priceHigh", "높은 가격순"], ["views", "조회순"], ["rating", "별점순"]]
+            .map(([v, l]) => `<button type="button" class="sort-dd-opt ${p.sort === v ? "active" : ""}" role="option" data-sort-dd="${v}">${l}</button>`).join("")}
+        </div>
+      </div>
     </div>
 
     ${shown.length
@@ -689,7 +700,26 @@ function renderListPage(el, p) {
   el.querySelectorAll("[data-f-inst]").forEach(b => b.addEventListener("click", () => update({ instrument: b.dataset.fInst })));
   el.querySelectorAll("[data-f-diff]").forEach(b => b.addEventListener("click", () => update({ difficulty: b.dataset.fDiff })));
   document.getElementById("f-video")?.addEventListener("change", (e) => update({ video: e.target.checked }));
-  document.getElementById("f-sort")?.addEventListener("change", (e) => update({ sort: e.target.value }));
+  el.querySelectorAll("[data-sort-quick]").forEach(b => b.addEventListener("click", () => update({ sort: b.dataset.sortQuick })));
+  el.querySelectorAll("[data-sort-dd]").forEach(b => b.addEventListener("click", () => update({ sort: b.dataset.sortDd })));
+  document.getElementById("sort-dd-btn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const list = document.getElementById("sort-dd-list");
+    const isOpen = list.classList.toggle("open");
+    e.currentTarget.setAttribute("aria-expanded", isOpen ? "true" : "false");
+  });
+  if (!window.__sortDdOutsideBound) {
+    window.__sortDdOutsideBound = true;
+    document.addEventListener("click", (e) => {
+      const dd = document.getElementById("sort-dd");
+      const list = document.getElementById("sort-dd-list");
+      if (!dd || !list || !list.classList.contains("open")) return;
+      if (!dd.contains(e.target)) {
+        list.classList.remove("open");
+        document.getElementById("sort-dd-btn")?.setAttribute("aria-expanded", "false");
+      }
+    });
+  }
   document.getElementById("f-price")?.addEventListener("click", () => update({
     minPrice: document.getElementById("f-min").value, maxPrice: document.getElementById("f-max").value
   }));
