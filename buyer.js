@@ -276,7 +276,7 @@ function scoreCard(s, opts) {
         ${s.thumbnailUrl
           ? `<img src="${esc(s.thumbnailUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
           : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${esc(s.instrument)}</div>`}
-        ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶ 연주영상</span>` : ""}
+        ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶</span>` : ""}
       </div>
       <div class="card-body">
         <div class="card-seller"><span class="avatar" style="${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</div>
