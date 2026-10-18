@@ -1156,8 +1156,61 @@ function payoutWithdrawal(withdrawalId) {
   return { ok: true };
 }
 
+/* ---------- 악보 파일 업로드·다운로드 (Supabase Storage, 2026-10-18 추가) ----------
+   저장 경로 규칙: "{판매자 아이디}/{악보 아이디}.pdf" — Storage 보안 정책(RLS)이 이
+   경로 규칙을 그대로 보고 "이 파일은 이 판매자 것"이라고 판단하므로 경로 형식을
+   임의로 바꾸면 안 된다. */
+
+async function uploadScoreFile(sellerId, scoreId, file) {
+  const sb = getSb();
+  if (!sb) return { ok: false, message: "서버 연결 준비 중입니다. 잠시 후 다시 시도해주세요." };
+  if (!file) return { ok: false, message: "악보 파일을 선택해주세요." };
+  const isPdf = file.type === "application/pdf" || /\.pdf$/i.test(file.name || "");
+  if (!isPdf) return { ok: false, message: "PDF 파일만 업로드할 수 있습니다." };
+  const MAX_BYTES = 30 * 1024 * 1024; // 30MB (Storage 버킷 설정과 동일)
+  if (file.size > MAX_BYTES) return { ok: false, message: "파일 크기는 30MB를 넘을 수 없습니다." };
+
+  const path = `${sellerId}/${scoreId}.pdf`;
+  let error = null;
+  try {
+    const res = await sb.storage.from("scores").upload(path, file, { upsert: true, contentType: "application/pdf" });
+    error = res.error;
+  } catch (e) {
+    error = e;
+  }
+  if (error) {
+    console.error("[common] 악보 파일 업로드 오류", error);
+    return { ok: false, message: "파일 업로드 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요." };
+  }
+  return { ok: true, path };
+}
+
+/* 구매자가 실제로 받을 수 있는 다운로드 링크(서명된 URL, 60초간 유효)를 만든다.
+   누가 받을 수 있는지는 Storage 보안 정책(RLS)이 서버에서 다시 한 번 확인한다
+   (본인이 올린 판매자 / 환불 안 된 구매자 / 관리자만 가능). */
+async function getScoreDownloadUrl(scoreId) {
+  const score = STATE.scores[scoreId];
+  if (!score) return { ok: false, message: "악보를 찾을 수 없습니다." };
+  if (!score.fileUrl) return { ok: false, message: "등록된 파일이 없습니다." };
+  const sb = getSb();
+  if (!sb) return { ok: false, message: "서버 연결 준비 중입니다. 잠시 후 다시 시도해주세요." };
+
+  let data = null, error = null;
+  try {
+    const res = await sb.storage.from("scores").createSignedUrl(score.fileUrl, 60);
+    data = res.data; error = res.error;
+  } catch (e) {
+    error = e;
+  }
+  if (error || !data || !data.signedUrl) {
+    console.error("[common] 다운로드 링크 생성 오류", error);
+    return { ok: false, message: "다운로드 링크를 만드는 중 문제가 발생했습니다. 잠시 후 다시 시도해주세요." };
+  }
+  return { ok: true, url: data.signedUrl };
+}
+
 function submitScore(sellerId, data) {
-  const scoreId = uid("score");
+  const scoreId = data.id || uid("score");
   const tags = Array.isArray(data.tags)
     ? [...new Set(data.tags.map(t => String(t).trim()).filter(Boolean))].slice(0, 5)
     : [];

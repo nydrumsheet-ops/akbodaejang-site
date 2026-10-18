@@ -14,6 +14,7 @@ let SELLER_DISCOUNT_OPEN = null; // 펼쳐서 할인 설정 중인 악보 id (20
 let SELLER_TREND_INST = "";      // 신청곡 트렌드 악기 필터, "" = 전체 (2026-10-16 추가)
 let SELLER_TREND_SORT = "requests"; // "requests"(신청 많은 순) | "likes"(좋아요 많은 순) | "latest"(최근 순)
 let SELLER_TREND_STATUS = "";    // "" = 전체, 그 외엔 REQUEST_STATUS 값
+let SF_SESSION_COUNT = 0;        // 이번 접속(새로고침 전까지)에서 연속으로 등록한 곡 수 (2026-10-18 대량 등록 개선 추가)
 
 function renderSeller() {
   const el = document.getElementById("view-seller");
@@ -63,7 +64,8 @@ function renderSeller() {
 
     <div id="seller-register-panel" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">악보 등록</h2>
-      <p style="margin:0 0 18px;font-size:13px;color:var(--muted);">등록한 악보는 관리자 심사 후 승인되면 목록에 노출됩니다.</p>
+      <p style="margin:0 0 4px;font-size:13px;color:var(--muted);">등록한 악보는 관리자 심사 후 승인되면 목록에 노출됩니다. 여러 곡을 올릴 땐 등록 후 이 폼이 비워진 채 그대로 이어서 다음 곡을 입력하면 돼요.</p>
+      ${SF_SESSION_COUNT > 0 ? `<p style="margin:0 0 14px;font-size:12px;color:var(--primary-dark);font-weight:600;">이번 접속에서 ${SF_SESSION_COUNT}곡 등록했어요.</p>` : `<div style="margin-bottom:18px;"></div>`}
 
       <div id="seller-form-msg" style="font-size:13px;margin:0 0 12px;"></div>
 
@@ -134,10 +136,10 @@ function renderSeller() {
 
         <label style="font-size:13px;">
           악보 파일
-          <input type="file" id="sf-file" class="file-input"
+          <input type="file" id="sf-file" class="file-input" accept="application/pdf,.pdf"
             style="width:100%;margin-top:4px;padding:8px 0;font-size:13px;">
           <span style="display:block;margin-top:4px;font-size:11px;color:var(--muted);">
-            지금은 파일 이름만 임시로 저장됩니다. 실제 파일 업로드·다운로드는 서버가 준비되면 연결됩니다.
+            PDF 파일만 올릴 수 있어요 (최대 30MB).
           </span>
         </label>
 
@@ -397,8 +399,9 @@ function addTagFromInput() {
   renderTagChips();
 }
 
-function handleSubmitScore(sellerId) {
+async function handleSubmitScore(sellerId) {
   const msgEl = document.getElementById("seller-form-msg");
+  const submitBtn = document.getElementById("sf-submit");
 
   const title = document.getElementById("sf-title").value.trim();
   const artist = document.getElementById("sf-artist").value.trim();
@@ -409,7 +412,7 @@ function handleSubmitScore(sellerId) {
   const videoUrl = document.getElementById("sf-videourl").value.trim();
   const description = document.getElementById("sf-description").value.trim();
   const fileInput = document.getElementById("sf-file");
-  const fileName = fileInput.files && fileInput.files[0] ? fileInput.files[0].name : "";
+  const file = fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
   const thumbnailUrl = SF_THUMBNAIL_DATA;
   addTagFromInput(); // 입력창에 남아있는데 Enter를 안 누른 태그도 제출 전에 챙겨준다
 
@@ -426,31 +429,47 @@ function handleSubmitScore(sellerId) {
     showSellerMsg(msgEl, "영상이 있다고 체크했으면 영상 링크도 입력해주세요.", true);
     return;
   }
-  if (!fileName) {
+  if (!file) {
     showSellerMsg(msgEl, "악보 파일을 선택해주세요.", true);
     return;
   }
 
+  if (submitBtn) submitBtn.disabled = true;
+  showSellerMsg(msgEl, "파일 업로드 중입니다. 잠시만 기다려주세요...", false);
+
+  const scoreId = uid("score");
+  const uploadResult = await uploadScoreFile(sellerId, scoreId, file);
+  if (!uploadResult.ok) {
+    if (submitBtn) submitBtn.disabled = false;
+    showSellerMsg(msgEl, uploadResult.message || "파일 업로드에 실패했습니다.", true);
+    return;
+  }
+
   const result = submitScore(sellerId, {
+    id: scoreId,
     title, artist, instrument, difficulty, price,
     hasVideo,
     videoUrl: hasVideo ? videoUrl : null,
-    fileUrl: fileName,
+    fileUrl: uploadResult.path,
     description,
     tags: SF_TAGS,
     thumbnailUrl
   });
 
   if (!result.ok) {
+    if (submitBtn) submitBtn.disabled = false;
     showSellerMsg(msgEl, result.message || "등록에 실패했습니다.", true);
     return;
   }
 
   SF_TAGS = [];
   SF_THUMBNAIL_DATA = null;
+  SF_SESSION_COUNT += 1;
   renderSeller();
   const newMsgEl = document.getElementById("seller-form-msg");
-  showSellerMsg(newMsgEl, `"${esc(title)}" 등록되었습니다. 관리자 심사 후 승인되면 노출됩니다.`, false);
+  showSellerMsg(newMsgEl, `"${esc(title)}" 등록되었습니다. 이어서 다음 곡을 입력해주세요.`, false);
+  document.getElementById("seller-register-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  document.getElementById("sf-title")?.focus();
 }
 
 function showSellerMsg(el, text, isError) {
