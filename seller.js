@@ -14,7 +14,6 @@ let SELLER_DISCOUNT_OPEN = null; // 펼쳐서 할인 설정 중인 악보 id (20
 let SELLER_TREND_INST = "";      // 신청곡 트렌드 악기 필터, "" = 전체 (2026-10-16 추가)
 let SELLER_TREND_SORT = "requests"; // "requests"(신청 많은 순) | "likes"(좋아요 많은 순) | "latest"(최근 순)
 let SELLER_TREND_STATUS = "";    // "" = 전체, 그 외엔 REQUEST_STATUS 값
-let SF_SESSION_COUNT = 0;        // 이번 접속(새로고침 전까지)에서 연속으로 등록한 곡 수 (2026-10-18 대량 등록 개선 추가)
 
 function renderSeller() {
   const el = document.getElementById("view-seller");
@@ -64,8 +63,7 @@ function renderSeller() {
 
     <div id="seller-register-panel" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">악보 등록</h2>
-      <p style="margin:0 0 4px;font-size:13px;color:var(--muted);">등록한 악보는 관리자 심사 후 승인되면 목록에 노출됩니다. 여러 곡을 올릴 땐 등록 후 이 폼이 비워진 채 그대로 이어서 다음 곡을 입력하면 돼요.</p>
-      ${SF_SESSION_COUNT > 0 ? `<p style="margin:0 0 14px;font-size:12px;color:var(--primary-dark);font-weight:600;">이번 접속에서 ${SF_SESSION_COUNT}곡 등록했어요.</p>` : `<div style="margin-bottom:18px;"></div>`}
+      <p style="margin:0 0 18px;font-size:13px;color:var(--muted);">등록한 악보는 관리자 심사 후 승인되면 목록에 노출됩니다.</p>
 
       <div id="seller-form-msg" style="font-size:13px;margin:0 0 12px;"></div>
 
@@ -450,12 +448,9 @@ function handleSubmitScore(sellerId) {
 
   SF_TAGS = [];
   SF_THUMBNAIL_DATA = null;
-  SF_SESSION_COUNT += 1;
   renderSeller();
   const newMsgEl = document.getElementById("seller-form-msg");
-  showSellerMsg(newMsgEl, `"${esc(title)}" 등록되었습니다. 이어서 다음 곡을 입력해주세요.`, false);
-  document.getElementById("seller-register-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  document.getElementById("sf-title")?.focus();
+  showSellerMsg(newMsgEl, `"${esc(title)}" 등록되었습니다. 관리자 심사 후 승인되면 노출됩니다.`, false);
 }
 
 function showSellerMsg(el, text, isError) {

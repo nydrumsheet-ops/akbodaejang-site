@@ -1107,11 +1107,28 @@ function renderMyPage(el, p) {
   el.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => goBuyer("mypage", { tab: b.dataset.tab }, { keepScroll: true })));
 
   // 내 악보함 버튼
-  el.querySelectorAll("[data-download]").forEach(b => b.addEventListener("click", () => {
-    const res = downloadPurchase(b.dataset.download);
-    if (!res.ok) { toast(res.message, true); return; }
-    toast("파일을 받았어요 (서버 연결 전이라 실제 파일은 아직 없어요)");
-    renderBuyer();
+  el.querySelectorAll("[data-download]").forEach(b => b.addEventListener("click", async () => {
+    if (b.disabled) return;
+    b.disabled = true;
+    const originalText = b.textContent;
+    b.textContent = "준비 중...";
+    try {
+      const urlRes = await getScoreDownloadUrl(STATE.purchases[b.dataset.download]?.scoreId);
+      if (!urlRes.ok) { toast(urlRes.message, true); return; }
+      const res = downloadPurchase(b.dataset.download);
+      if (!res.ok) { toast(res.message, true); return; }
+      const a = document.createElement("a");
+      a.href = urlRes.url;
+      a.download = "";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      toast("파일을 받았어요");
+      renderBuyer();
+    } finally {
+      b.disabled = false;
+      b.textContent = originalText;
+    }
   }));
   el.querySelectorAll("[data-refund]").forEach(b => b.addEventListener("click", async () => {
     if (b.dataset.confirm !== "1") {
