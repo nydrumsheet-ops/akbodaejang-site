@@ -15,6 +15,7 @@ let ADMIN_MEMBER_SORT = "recent";
 let ADMIN_MEMBER_OPEN = null;        // 펼쳐서 보고 있는 회원 id
 let ADMIN_INQUIRY_FILTER = "";       // 문의 관리 상태 필터
 let ADMIN_INQUIRY_OPEN = null;       // 펼쳐서 보고 있는 문의 id
+let ADMIN_BULK_RESULT = null;        // 일괄 등록 결과 (2026-10-18 추가, mydrumsheet.com 이관용)
 
 const ADMIN_PANEL = "background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow);";
 
@@ -29,6 +30,7 @@ function renderAdmin() {
   const tabs = [
     ["metrics", "운영지표", ""],
     ["review", "악보 심사", pendingReview],
+    ["bulk", "일괄 등록", ""],
     ["payout", "정산 지급", payout.items.length],
     ["requests", "신청곡", openRequests],
     ["inquiries", "문의 관리", openInquiries],
@@ -61,6 +63,33 @@ function renderAdmin() {
         <div id="admin-review-list"></div>
       </div>`;
     renderAdminReviewList();
+  } else if (ADMIN_TAB === "bulk") {
+    body.innerHTML = `
+      <div style="${ADMIN_PANEL}">
+        <h2 style="margin:0 0 4px;font-size:17px;">일괄 등록</h2>
+        <p style="margin:0 0 4px;font-size:13px;color:var(--muted);line-height:1.6;">
+          다른 사이트의 악보 목록처럼 이미 검증된 카탈로그를 한 번에 옮겨올 때 씁니다.
+          여기로 등록한 악보는 심사 단계 없이 바로 "승인" 상태가 되어 즉시 노출되고,
+          전부 지금 로그인한 관리자 계정(대표님 계정) 이름으로 등록됩니다.
+        </p>
+        <p style="margin:0 0 14px;font-size:12px;color:var(--muted);line-height:1.7;background:#faf7f2;padding:10px 12px;border-radius:8px;">
+          한 줄에 악보 하나, <b>제목|아티스트|악기|난이도|가격</b> 순서로 파이프( | )로 구분해서 붙여넣어주세요.<br>
+          예시: 좋은 날|아이유|드럼|중급|2000<br>
+          악기는 ${INSTRUMENTS.join("·")} 중 하나, 난이도는 ${DIFFICULTIES.join("·")} 중 하나여야 해요.
+          같은 제목+아티스트+난이도가 이미 있으면 자동으로 건너뛰어요.
+        </p>
+        <div id="admin-bulk-msg" style="font-size:13px;margin:0 0 10px;"></div>
+        <textarea id="admin-bulk-text" rows="14" placeholder="좋은 날|아이유|드럼|중급|2000
+Lost and Found|Xdinary Heroes|드럼|고급|2500"
+          style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace;resize:vertical;"></textarea>
+        <button id="admin-bulk-submit"
+          style="margin-top:10px;padding:12px 18px;font-size:14px;border:none;border-radius:10px;background:var(--primary);color:var(--on-accent);cursor:pointer;">
+          일괄등록
+        </button>
+        <div id="admin-bulk-result" style="margin-top:16px;"></div>
+      </div>`;
+    document.getElementById("admin-bulk-submit").addEventListener("click", handleAdminBulkImport);
+    renderAdminBulkResult();
   } else if (ADMIN_TAB === "payout") {
     body.innerHTML = `
       <div style="${ADMIN_PANEL}">
@@ -832,6 +861,79 @@ function renderAdminReviewList() {
       renderAdminReviewList();
     });
   }
+}
+
+/* ---------- 일괄 등록 (2026-10-18 추가, mydrumsheet.com 이관용) ---------- */
+
+function parseBulkImportText(text) {
+  return text.split("\n")
+    .map(line => line.trim())
+    .filter(line => line.length > 0)
+    .map(line => {
+      const parts = line.split("|").map(p => p.trim());
+      return {
+        raw: line,
+        title: parts[0] || "",
+        artist: parts[1] || "",
+        instrument: parts[2] || "",
+        difficulty: parts[3] || "",
+        price: parts[4] || ""
+      };
+    });
+}
+
+function handleAdminBulkImport() {
+  const textEl = document.getElementById("admin-bulk-text");
+  const text = textEl ? textEl.value : "";
+  const rows = parseBulkImportText(text);
+
+  if (rows.length === 0) {
+    showAdminMsg("admin-bulk-msg", "붙여넣은 내용이 없습니다.", true);
+    return;
+  }
+
+  const user = getCurrentUser();
+  const result = bulkImportScores(user.id, rows);
+  if (!result.ok) {
+    showAdminMsg("admin-bulk-msg", result.message || "일괄등록에 실패했습니다.", true);
+    return;
+  }
+
+  ADMIN_BULK_RESULT = result;
+  renderAll();
+  showAdminMsg("admin-bulk-msg",
+    `${result.created}곡 등록 완료 · 중복 ${result.skippedDuplicate.length}곡 건너뜀 · 오류 ${result.skippedInvalid.length}줄`, false);
+}
+
+function renderAdminBulkResult() {
+  const wrap = document.getElementById("admin-bulk-result");
+  if (!wrap) return;
+  if (!ADMIN_BULK_RESULT) { wrap.innerHTML = ""; return; }
+
+  const { created, skippedDuplicate, skippedInvalid } = ADMIN_BULK_RESULT;
+
+  const dupBlock = skippedDuplicate.length ? `
+    <div style="margin-top:10px;">
+      <div style="font-size:13px;font-weight:600;margin-bottom:4px;">중복으로 건너뛴 ${skippedDuplicate.length}곡</div>
+      <div style="font-size:12px;color:var(--muted);line-height:1.8;max-height:160px;overflow-y:auto;">
+        ${skippedDuplicate.map(d => `${d.line}번째 줄 — ${esc(d.title)} · ${esc(d.artist)} · ${esc(d.difficulty)}`).join("<br>")}
+      </div>
+    </div>` : "";
+
+  const invalidBlock = skippedInvalid.length ? `
+    <div style="margin-top:10px;">
+      <div style="font-size:13px;font-weight:600;color:var(--danger);margin-bottom:4px;">오류로 건너뛴 ${skippedInvalid.length}줄</div>
+      <div style="font-size:12px;color:var(--danger);line-height:1.8;max-height:160px;overflow-y:auto;">
+        ${skippedInvalid.map(d => `${d.line}번째 줄 — ${esc(d.reason)} (${esc(d.raw)})`).join("<br>")}
+      </div>
+    </div>` : "";
+
+  wrap.innerHTML = `
+    <div style="padding:14px;border-radius:10px;background:#faf7f2;">
+      <div style="font-size:14px;font-weight:700;">이번 실행: ${created}곡 등록됨</div>
+      ${dupBlock}
+      ${invalidBlock}
+    </div>`;
 }
 
 /* ---------- 이번 달 정산 지급 ---------- */

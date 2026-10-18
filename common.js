@@ -963,6 +963,80 @@ function submitScore(sellerId, data) {
   return { ok: true, scoreId };
 }
 
+/* ---------- 일괄 등록 (2026-10-18 추가, mydrumsheet.com 이관용) ----------
+   관리자 전용. 여러 악보를 한 번에 "승인" 상태로 바로 등록한다(일반 등록과 달리
+   심사 단계를 건너뛴다 — 다른 사이트에서 이미 검증된 외부 카탈로그를 옮겨오는
+   용도라서). rows 는 { title, artist, instrument, difficulty, price, hasVideo?, videoUrl? } 배열.
+   같은 판매자 안에서 제목+아티스트+난이도가 전부 같으면 중복으로 보고 건너뛴다
+   (실수로 같은 목록을 두 번 등록해도 중복이 쌓이지 않도록). */
+function bulkImportScores(sellerId, rows) {
+  const seller = STATE.users[sellerId];
+  if (!seller) return { ok: false, message: "판매자 계정을 찾을 수 없습니다." };
+
+  // 이 계정이 아직 판매자 정보가 없으면(예: 관리자 계정을 판매자로도 쓰는 첫 사용) 최소 정보를 채워준다.
+  if (seller.role !== "seller" && seller.role !== "both") seller.role = "both";
+  if (!seller.sellerInfo) {
+    seller.sellerInfo = { bankName: "", bankAccount: "", accountHolder: seller.name, settleBalance: 0, displayName: seller.name };
+  }
+
+  const existingKeys = new Set(
+    Object.values(STATE.scores)
+      .filter(s => s.sellerId === sellerId)
+      .map(s => `${s.title.trim().toLowerCase()}|${s.artist.trim().toLowerCase()}|${s.difficulty}`)
+  );
+
+  let created = 0;
+  const skippedDuplicate = [];
+  const skippedInvalid = [];
+
+  rows.forEach((row, i) => {
+    const lineNo = i + 1;
+    const title = (row.title || "").trim();
+    const artist = (row.artist || "").trim();
+    const instrument = (row.instrument || "").trim();
+    const difficulty = (row.difficulty || "").trim();
+    const price = Number(row.price);
+
+    if (!title || !artist || !instrument || !difficulty || !Number.isFinite(price) || price <= 0) {
+      skippedInvalid.push({ line: lineNo, reason: "제목·아티스트·악기·난이도·가격 중 비어있거나 가격이 올바르지 않음", raw: row.raw || "" });
+      return;
+    }
+    if (!INSTRUMENTS.includes(instrument)) {
+      skippedInvalid.push({ line: lineNo, reason: `악기 "${instrument}"는 쓸 수 없는 값(${INSTRUMENTS.join("/")} 중 하나여야 함)`, raw: row.raw || "" });
+      return;
+    }
+    if (!DIFFICULTIES.includes(difficulty)) {
+      skippedInvalid.push({ line: lineNo, reason: `난이도 "${difficulty}"는 쓸 수 없는 값(${DIFFICULTIES.join("/")} 중 하나여야 함)`, raw: row.raw || "" });
+      return;
+    }
+
+    const key = `${title.toLowerCase()}|${artist.toLowerCase()}|${difficulty}`;
+    if (existingKeys.has(key)) {
+      skippedDuplicate.push({ line: lineNo, title, artist, difficulty });
+      return;
+    }
+    existingKeys.add(key);
+
+    const scoreId = uid("score");
+    STATE.scores[scoreId] = {
+      id: scoreId, sellerId,
+      title, artist, instrument, difficulty, price,
+      hasVideo: !!row.hasVideo, videoUrl: row.videoUrl || null,
+      fileUrl: row.fileUrl || null,
+      previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`,
+      status: "승인", rejectReason: null,
+      createdAt: nowISO(), approvedAt: nowISO(),
+      salesCount: 0, viewCount: 0,
+      description: "", tags: [], thumbnailUrl: null,
+      discount: null
+    };
+    created++;
+  });
+
+  save();
+  return { ok: true, created, skippedDuplicate, skippedInvalid };
+}
+
 function approveScore(scoreId) {
   const score = STATE.scores[scoreId];
   if (!score) return { ok: false, message: "악보를 찾을 수 없습니다." };
