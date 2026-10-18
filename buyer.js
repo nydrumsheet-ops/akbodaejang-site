@@ -480,7 +480,7 @@ function renderHomePage(el) {
         <h2>신청곡 순위</h2>
         <button class="more-link" data-go="requests">신청하러 가기 ›</button>
       </div>
-      <div class="panel" style="background:#fff8e1;">
+      <div class="panel" style="background:#fffae3;">
         ${requests.length ? requests.map((r, i) => `
           <div class="req-item">
             <div class="req-count"><b>${r.buyerIds.length}</b><span>신청자 수</span></div>
