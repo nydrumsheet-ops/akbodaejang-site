@@ -85,7 +85,7 @@ function renderAdmin() {
             ["2", "채보 진행", `신청 많은 순으로 위에 보여요.<br>신청곡을 눌러 열고 "채보중"을 누르세요.<br>구매자 신청곡 화면에도 상태가 바로 바뀌어 보여요.`],
             ["3", "작업 완료", `판매자가 그 곡을 등록하고 심사에서 승인되면,<br>신청곡을 열어 그 악보를 고르고 "작업 완료"를 누르세요.<br>구매자 신청곡 화면에 완료로 표시되고, 신청자도<br>다른 구매자와 동일하게 정가로 구매할 수 있어요.`]
           ].map(([n, t, d]) => `
-            <div style="padding:14px;border-radius:12px;background:var(--band);">
+            <div style="padding:14px;border-radius:12px;background:#faf7f2;">
               <div style="font-size:12px;font-weight:800;color:var(--primary);">STEP ${n}</div>
               <div style="font-weight:700;margin:4px 0;">${t}</div>
               <div style="font-size:12px;color:var(--muted);line-height:1.6;">${d}</div>
@@ -279,7 +279,7 @@ function renderAdminMetrics(body) {
         ${instRows.length ? instRows.map(([inst, total]) => `
           <div style="margin:8px 0;" title="${esc(inst)} ${formatPoint(total)}">
             <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>${esc(inst)}</span><span style="color:var(--muted);">${formatPoint(total)} · ${Math.round(total / Math.max(1, m.revenue) * 100)}%</span></div>
-            <div style="height:8px;border-radius:4px;background:var(--band);"><div style="height:8px;border-radius:4px;background:var(--primary);width:${(total / maxInst * 100).toFixed(1)}%;"></div></div>
+            <div style="height:8px;border-radius:4px;background:#faf7f2;"><div style="height:8px;border-radius:4px;background:var(--primary);width:${(total / maxInst * 100).toFixed(1)}%;"></div></div>
           </div>`).join("") : `<p style="margin:0;font-size:13px;color:var(--muted);">이 기간에 판매가 없어요.</p>`}
       </div>
     </div>
@@ -412,14 +412,14 @@ function renderAdminMembers(body) {
 
 function memberRowHTML(u, sum) {
   const open = ADMIN_MEMBER_OPEN === u.id;
-  const roleColor = u.sellerInfo ? "background:var(--band);color:var(--text);" : "background:var(--primary-soft);color:var(--primary);";
+  const roleColor = u.sellerInfo ? "background:#faf7f2;color:var(--text);" : "background:var(--primary-soft);color:var(--primary);";
   let detail = "";
   if (open) {
     const history = [...u.pointHistory].reverse().slice(0, 8);
     const purchases = Object.values(STATE.purchases).filter(p => p.buyerId === u.id).sort((a, b) => new Date(b.purchasedAt) - new Date(a.purchasedAt)).slice(0, 8);
     const myScores = u.sellerInfo ? Object.values(STATE.scores).filter(s => s.sellerId === u.id) : [];
     detail = `
-      <div style="margin-top:10px;padding:14px;border-radius:12px;background:var(--band);display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;font-size:12px;">
+      <div style="margin-top:10px;padding:14px;border-radius:12px;background:#faf7f2;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;font-size:12px;">
         <div>
           <div style="font-weight:700;margin-bottom:6px;">포인트 내역 (최근 8건)</div>
           ${history.length ? history.map(h => `<div style="display:flex;justify-content:space-between;gap:6px;padding:3px 0;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${formatDate(h.at)} ${esc(h.reason)}</span><b style="white-space:nowrap;">${h.amount >= 0 ? "+" : ""}${formatPoint(h.amount)}</b></div>`).join("") : `<span style="color:var(--muted);">없음</span>`}
@@ -564,7 +564,7 @@ function renderAdminRequests() {
   listEl.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px;">
       ${[["접수", count("접수")], ["채보중", count("채보중")], ["완료", count("완료")], ["신청한 사람(누적)", `${people}명`]].map(([l, v]) => `
-        <div style="padding:12px;border-radius:12px;background:var(--band);">
+        <div style="padding:12px;border-radius:12px;background:#faf7f2;">
           <div style="font-size:11px;color:var(--muted);">${l}</div>
           <div style="font-size:18px;font-weight:800;margin-top:2px;">${v}</div>
         </div>`).join("")}
@@ -645,7 +645,7 @@ function renderAdminRequests() {
 
 function requestDetailHTML(r) {
   const requesters = r.buyerIds.map(id => STATE.users[id]).filter(Boolean);
-  const box = "padding:14px;border-radius:12px;background:var(--band);";
+  const box = "padding:14px;border-radius:12px;background:#faf7f2;";
   const requesterList = `
     <div style="${box}">
       <div style="font-weight:700;font-size:13px;margin-bottom:8px;">신청한 사람 ${requesters.length}명</div>
@@ -849,12 +849,12 @@ function renderAdminPayoutBatch() {
     wrap.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:0 0 8px;">다음 지급일(${dateText})에 지급할 판매자가 아직 없어요.</p>`;
   } else {
     wrap.innerHTML = `
-      <div style="padding:12px;border-radius:10px;background:var(--band);margin-bottom:10px;font-size:13px;">
+      <div style="padding:12px;border-radius:10px;background:#faf7f2;margin-bottom:10px;font-size:13px;">
         다음 지급일 <b>${dateText}</b> · 대상 <b>${batch.items.length}명</b> · 합계 <b>${formatWon(batch.total)}</b>
       </div>
       <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr style="background:var(--band);color:var(--muted);text-align:left;">
+          <thead><tr style="background:#faf7f2;color:var(--muted);text-align:left;">
             <th style="padding:8px 10px;font-weight:600;">판매자</th>
             <th style="padding:8px 10px;font-weight:600;">은행 · 계좌</th>
             <th style="padding:8px 10px;font-weight:600;">예금주</th>
