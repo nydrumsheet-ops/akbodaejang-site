@@ -329,7 +329,34 @@ function renderAdminMembers(body) {
   else rows.sort((a, b) => new Date(b.u.createdAt) - new Date(a.u.createdAt));
 
   const all = Object.values(STATE.users);
+  const adminEmails = getAdminEmails();
+  const myEmail = (getCurrentUser()?.email || "").toLowerCase();
   body.innerHTML = `
+    <div style="${ADMIN_PANEL}">
+      <h2 style="margin:0 0 4px;font-size:17px;">관리자 계정 관리</h2>
+      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.6;">
+        이메일을 등록해두면 그 이메일로 이미 가입돼 있을 경우 즉시 관리자가 되고, 아직 가입 전이면 나중에 그 이메일로 가입할 때 자동으로 관리자가 돼요.
+        본인 또는 마지막 남은 관리자는 해제할 수 없어요.
+      </p>
+      <div id="admin-admins-msg" style="font-size:13px;margin:0 0 10px;"></div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <input id="admin-admin-email" class="field" type="email" style="flex:1;min-width:220px;" placeholder="등록할 관리자 이메일">
+        <button id="admin-admin-add" class="btn btn-primary">등록</button>
+      </div>
+      <div>
+        ${adminEmails.map(e => {
+          const locked = e === myEmail || adminEmails.length <= 1;
+          const u = findUserByEmail(e);
+          return `
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--border);">
+            <span style="font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+              ${esc(e)}${e === myEmail ? ` <span style="color:var(--muted);">(나)</span>` : ""}${!u ? ` <span style="color:var(--muted);">· 미가입</span>` : ""}
+            </span>
+            <button data-admin-remove="${esc(e)}" class="btn btn-small" ${locked ? "disabled" : ""}>해제</button>
+          </div>`;
+        }).join("")}
+      </div>
+    </div>
     <div style="${ADMIN_PANEL}">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
         <h2 style="margin:0;font-size:17px;">회원관리</h2>
@@ -357,6 +384,19 @@ function renderAdminMembers(body) {
     const again = document.getElementById("mem-q");
     if (again) { again.focus(); again.setSelectionRange(pos, pos); }
   });
+  document.getElementById("admin-admin-add")?.addEventListener("click", () => {
+    const input = document.getElementById("admin-admin-email");
+    const res = addAdminEmail(input.value);
+    if (!res.ok) { showAdminMsg("admin-admins-msg", res.message, true); return; }
+    renderAll();
+    showAdminMsg("admin-admins-msg", res.alreadyMember ? "관리자로 등록했어요. 즉시 반영됩니다." : "관리자로 등록했어요. 이 이메일로 가입하면 자동으로 관리자가 돼요.", false);
+  });
+  body.querySelectorAll("[data-admin-remove]").forEach(b => b.addEventListener("click", () => {
+    const res = removeAdminEmail(b.dataset.adminRemove);
+    if (!res.ok) { showAdminMsg("admin-admins-msg", res.message, true); return; }
+    renderAll();
+    showAdminMsg("admin-admins-msg", "관리자 권한을 해제했어요.", false);
+  }));
   document.getElementById("mem-sort")?.addEventListener("change", (e) => { ADMIN_MEMBER_SORT = e.target.value; renderAdmin(); });
   body.querySelectorAll("[data-mem-role]").forEach(b => b.addEventListener("click", () => { ADMIN_MEMBER_ROLE = b.dataset.memRole; renderAdmin(); }));
   body.querySelectorAll("[data-mem-open]").forEach(b => b.addEventListener("click", () => {

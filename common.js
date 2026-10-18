@@ -31,6 +31,49 @@ const SITE_URL = "https://akbodaejang-site.vercel.app"; // 로그인 이메일(�
    관리자를 더 추가/제거하려면 이 배열만 고치면 된다 — 다른 코드는 손댈 필요 없음. */
 const ADMIN_EMAILS = ["nydrumsheet@gmail.com"];
 
+function getAdminEmails() {
+  return (STATE && Array.isArray(STATE.adminEmails)) ? STATE.adminEmails : ADMIN_EMAILS;
+}
+
+function isAdminEmail(email) {
+  return getAdminEmails().includes((email || "").toLowerCase());
+}
+
+/* 관리자 계정 등록. 이메일만 미리 등록해두면, 그 이메일로 이미 가입돼 있으면 즉시 권한이 붙고
+   아직 가입 전이면 나중에 그 이메일로 가입할 때 자동으로 관리자가 된다. */
+function addAdminEmail(email) {
+  const e = (email || "").trim().toLowerCase();
+  if (!/^\S+@\S+\.\S+$/.test(e)) return { ok: false, message: "올바른 이메일 주소를 입력해주세요." };
+  if (!Array.isArray(STATE.adminEmails)) STATE.adminEmails = [...ADMIN_EMAILS];
+  if (STATE.adminEmails.includes(e)) return { ok: false, message: "이미 관리자로 등록된 이메일입니다." };
+  STATE.adminEmails.push(e);
+  const user = findUserByEmail(e);
+  if (user) user.isAdmin = true;
+  save();
+  return { ok: true, alreadyMember: !!user };
+}
+
+/* 관리자 지정 해제. 본인(지금 로그인한 관리자) 또는 마지막 남은 관리자는 해제할 수 없다 —
+   관리자가 0명이 되어 아무도 관리자 화면에 못 들어가는 상황을 막기 위함. */
+function removeAdminEmail(email) {
+  const e = (email || "").trim().toLowerCase();
+  if (!Array.isArray(STATE.adminEmails) || !STATE.adminEmails.includes(e)) {
+    return { ok: false, message: "등록되지 않은 이메일입니다." };
+  }
+  const me = getCurrentUser();
+  if (me && (me.email || "").toLowerCase() === e) {
+    return { ok: false, message: "본인의 관리자 권한은 직접 해제할 수 없습니다." };
+  }
+  if (STATE.adminEmails.length <= 1) {
+    return { ok: false, message: "마지막 남은 관리자는 해제할 수 없습니다." };
+  }
+  STATE.adminEmails = STATE.adminEmails.filter(x => x !== e);
+  const user = findUserByEmail(e);
+  if (user) user.isAdmin = false;
+  save();
+  return { ok: true };
+}
+
 const POLICY = {
   commission: {
     rate: 0.25   // 전체 공통 수수료 25% (아티스트 정산 75%) — 일반/창작·오리지널 구분 폐지 (2026-10-16)
@@ -363,8 +406,8 @@ async function load() {
     if (!Array.isArray(u.cart)) u.cart = [];
     if (!Array.isArray(u.following)) u.following = [];
     if (typeof u.supabaseUserId === "undefined") u.supabaseUserId = null;
-    if (typeof u.isAdmin !== "boolean") u.isAdmin = ADMIN_EMAILS.includes((u.email || "").toLowerCase());
-    else if (ADMIN_EMAILS.includes((u.email || "").toLowerCase())) u.isAdmin = true;
+    if (typeof u.isAdmin !== "boolean") u.isAdmin = isAdminEmail(u.email);
+    else if (isAdminEmail(u.email)) u.isAdmin = true;
     if (u.sellerInfo && (typeof u.sellerInfo.displayName !== "string" || !u.sellerInfo.displayName.trim())) {
       u.sellerInfo.displayName = u.name;
     }
@@ -561,7 +604,7 @@ function makeUser(name, email, role, extra) {
     points: 0, pointHistory: [], isFirstCharge: true, createdAt: nowISO(),
     wishlist: [], cart: [], following: [],
     supabaseUserId: null,
-    isAdmin: ADMIN_EMAILS.includes((email || "").toLowerCase())
+    isAdmin: isAdminEmail(email)
   };
   if (role === "seller" || role === "both") {
     user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: name, settleBalance: 0, displayName: name };
@@ -1636,8 +1679,8 @@ async function handleSupabaseSignedIn(session) {
 
   if (user) {
     if (!user.supabaseUserId) user.supabaseUserId = authId;
-    // 관리자 지정 이메일(ADMIN_EMAILS)로 로그인하면 기존 회원이어도 관리자 권한을 붙여준다
-    if (ADMIN_EMAILS.includes(email.toLowerCase())) user.isAdmin = true;
+    // 관리자 지정 이메일(STATE.adminEmails)로 로그인하면 기존 회원이어도 관리자 권한을 붙여준다
+    if (isAdminEmail(email)) user.isAdmin = true;
   } else {
     let name = email.split("@")[0];
     let role = "buyer";
@@ -1874,7 +1917,6 @@ function renderHeaderAuth() {
       ${cartBtn}
       <button id="header-login-btn" class="auth-btn">로그인</button>
       <button id="header-artist-btn" class="auth-btn auth-btn-primary">아티스트 되기</button>
-      <button id="header-admin-btn" class="auth-btn">관리자</button>
     `;
     document.getElementById("header-login-btn")?.addEventListener("click", () => openLoginModal("buyer"));
     document.getElementById("header-artist-btn")?.addEventListener("click", () => openLoginModal("seller"));
