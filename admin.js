@@ -15,7 +15,6 @@ let ADMIN_MEMBER_SORT = "recent";
 let ADMIN_MEMBER_OPEN = null;        // 펼쳐서 보고 있는 회원 id
 let ADMIN_INQUIRY_FILTER = "";       // 문의 관리 상태 필터
 let ADMIN_INQUIRY_OPEN = null;       // 펼쳐서 보고 있는 문의 id
-let ADMIN_BULK_RESULT = null;        // 일괄 등록 결과 (2026-10-18 추가, mydrumsheet.com 이관용)
 
 const ADMIN_PANEL = "background:var(--card);border:1px solid var(--border);border-radius:16px;padding:18px;margin-bottom:16px;box-shadow:var(--shadow);";
 
@@ -27,14 +26,15 @@ function renderAdmin() {
   const openRequests = Object.values(STATE.requests).filter(r => r.status !== "완료").length;
   const openInquiries = Object.values(STATE.inquiries).filter(q => q.status !== "답변완료").length;
   const payout = getPayoutBatch();
+  const pdfSt = pdfMappingStatus();
   const tabs = [
     ["metrics", "운영지표", ""],
     ["review", "악보 심사", pendingReview],
-    ["bulk", "일괄 등록", ""],
     ["payout", "정산 지급", payout.items.length],
     ["requests", "신청곡", openRequests],
     ["inquiries", "문의 관리", openInquiries],
     ["members", "회원관리", ""],
+    ["pdfupload", "PDF 일괄 업로드", pdfSt.remaining],
     ["demo", "데모 데이터", ""]
   ];
 
@@ -63,33 +63,6 @@ function renderAdmin() {
         <div id="admin-review-list"></div>
       </div>`;
     renderAdminReviewList();
-  } else if (ADMIN_TAB === "bulk") {
-    body.innerHTML = `
-      <div style="${ADMIN_PANEL}">
-        <h2 style="margin:0 0 4px;font-size:17px;">일괄 등록</h2>
-        <p style="margin:0 0 4px;font-size:13px;color:var(--muted);line-height:1.6;">
-          다른 사이트의 악보 목록처럼 이미 검증된 카탈로그를 한 번에 옮겨올 때 씁니다.
-          여기로 등록한 악보는 심사 단계 없이 바로 "승인" 상태가 되어 즉시 노출되고,
-          전부 지금 로그인한 관리자 계정(대표님 계정) 이름으로 등록됩니다.
-        </p>
-        <p style="margin:0 0 14px;font-size:12px;color:var(--muted);line-height:1.7;background:#faf7f2;padding:10px 12px;border-radius:8px;">
-          한 줄에 악보 하나, <b>제목|아티스트|악기|난이도|가격</b> 순서로 파이프( | )로 구분해서 붙여넣어주세요.<br>
-          예시: 좋은 날|아이유|드럼|중급|2000<br>
-          악기는 ${INSTRUMENTS.join("·")} 중 하나, 난이도는 ${DIFFICULTIES.join("·")} 중 하나여야 해요.
-          같은 제목+아티스트+난이도가 이미 있으면 자동으로 건너뛰어요.
-        </p>
-        <div id="admin-bulk-msg" style="font-size:13px;margin:0 0 10px;"></div>
-        <textarea id="admin-bulk-text" rows="14" placeholder="좋은 날|아이유|드럼|중급|2000
-Lost and Found|Xdinary Heroes|드럼|고급|2500"
-          style="width:100%;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:13px;font-family:monospace;resize:vertical;"></textarea>
-        <button id="admin-bulk-submit"
-          style="margin-top:10px;padding:12px 18px;font-size:14px;border:none;border-radius:10px;background:var(--primary);color:var(--on-accent);cursor:pointer;">
-          일괄등록
-        </button>
-        <div id="admin-bulk-result" style="margin-top:16px;"></div>
-      </div>`;
-    document.getElementById("admin-bulk-submit").addEventListener("click", handleAdminBulkImport);
-    renderAdminBulkResult();
   } else if (ADMIN_TAB === "payout") {
     body.innerHTML = `
       <div style="${ADMIN_PANEL}">
@@ -114,7 +87,7 @@ Lost and Found|Xdinary Heroes|드럼|고급|2500"
             ["2", "채보 진행", `신청 많은 순으로 위에 보여요.<br>신청곡을 눌러 열고 "채보중"을 누르세요.<br>구매자 신청곡 화면에도 상태가 바로 바뀌어 보여요.`],
             ["3", "작업 완료", `판매자가 그 곡을 등록하고 심사에서 승인되면,<br>신청곡을 열어 그 악보를 고르고 "작업 완료"를 누르세요.<br>구매자 신청곡 화면에 완료로 표시되고, 신청자도<br>다른 구매자와 동일하게 정가로 구매할 수 있어요.`]
           ].map(([n, t, d]) => `
-            <div style="padding:14px;border-radius:12px;background:#faf7f2;">
+            <div style="padding:14px;border-radius:12px;background:var(--band);">
               <div style="font-size:12px;font-weight:800;color:var(--primary);">STEP ${n}</div>
               <div style="font-weight:700;margin:4px 0;">${t}</div>
               <div style="font-size:12px;color:var(--muted);line-height:1.6;">${d}</div>
@@ -129,6 +102,8 @@ Lost and Found|Xdinary Heroes|드럼|고급|2500"
     renderAdminMembers(body);
   } else if (ADMIN_TAB === "inquiries") {
     renderAdminInquiries(body);
+  } else if (ADMIN_TAB === "pdfupload") {
+    renderAdminPdfUpload(body);
   } else if (ADMIN_TAB === "demo") {
     body.innerHTML = `
       <div style="${ADMIN_PANEL}">
@@ -308,7 +283,7 @@ function renderAdminMetrics(body) {
         ${instRows.length ? instRows.map(([inst, total]) => `
           <div style="margin:8px 0;" title="${esc(inst)} ${formatPoint(total)}">
             <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>${esc(inst)}</span><span style="color:var(--muted);">${formatPoint(total)} · ${Math.round(total / Math.max(1, m.revenue) * 100)}%</span></div>
-            <div style="height:8px;border-radius:4px;background:#faf7f2;"><div style="height:8px;border-radius:4px;background:var(--primary);width:${(total / maxInst * 100).toFixed(1)}%;"></div></div>
+            <div style="height:8px;border-radius:4px;background:var(--band);"><div style="height:8px;border-radius:4px;background:var(--primary);width:${(total / maxInst * 100).toFixed(1)}%;"></div></div>
           </div>`).join("") : `<p style="margin:0;font-size:13px;color:var(--muted);">이 기간에 판매가 없어요.</p>`}
       </div>
     </div>
@@ -354,34 +329,7 @@ function renderAdminMembers(body) {
   else rows.sort((a, b) => new Date(b.u.createdAt) - new Date(a.u.createdAt));
 
   const all = Object.values(STATE.users);
-  const adminEmails = getAdminEmails();
-  const myEmail = (getCurrentUser()?.email || "").toLowerCase();
   body.innerHTML = `
-    <div style="${ADMIN_PANEL}">
-      <h2 style="margin:0 0 4px;font-size:17px;">관리자 계정 관리</h2>
-      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.6;">
-        이메일을 등록해두면 그 이메일로 이미 가입돼 있을 경우 즉시 관리자가 되고, 아직 가입 전이면 나중에 그 이메일로 가입할 때 자동으로 관리자가 돼요.
-        본인 또는 마지막 남은 관리자는 해제할 수 없어요.
-      </p>
-      <div id="admin-admins-msg" style="font-size:13px;margin:0 0 10px;"></div>
-      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
-        <input id="admin-admin-email" class="field" type="email" style="flex:1;min-width:220px;" placeholder="등록할 관리자 이메일">
-        <button id="admin-admin-add" class="btn btn-primary">등록</button>
-      </div>
-      <div>
-        ${adminEmails.map(e => {
-          const locked = e === myEmail || adminEmails.length <= 1;
-          const u = findUserByEmail(e);
-          return `
-          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 0;border-top:1px solid var(--border);">
-            <span style="font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
-              ${esc(e)}${e === myEmail ? ` <span style="color:var(--muted);">(나)</span>` : ""}${!u ? ` <span style="color:var(--muted);">· 미가입</span>` : ""}
-            </span>
-            <button data-admin-remove="${esc(e)}" class="btn btn-small" ${locked ? "disabled" : ""}>해제</button>
-          </div>`;
-        }).join("")}
-      </div>
-    </div>
     <div style="${ADMIN_PANEL}">
       <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
         <h2 style="margin:0;font-size:17px;">회원관리</h2>
@@ -409,19 +357,6 @@ function renderAdminMembers(body) {
     const again = document.getElementById("mem-q");
     if (again) { again.focus(); again.setSelectionRange(pos, pos); }
   });
-  document.getElementById("admin-admin-add")?.addEventListener("click", () => {
-    const input = document.getElementById("admin-admin-email");
-    const res = addAdminEmail(input.value);
-    if (!res.ok) { showAdminMsg("admin-admins-msg", res.message, true); return; }
-    renderAll();
-    showAdminMsg("admin-admins-msg", res.alreadyMember ? "관리자로 등록했어요. 즉시 반영됩니다." : "관리자로 등록했어요. 이 이메일로 가입하면 자동으로 관리자가 돼요.", false);
-  });
-  body.querySelectorAll("[data-admin-remove]").forEach(b => b.addEventListener("click", () => {
-    const res = removeAdminEmail(b.dataset.adminRemove);
-    if (!res.ok) { showAdminMsg("admin-admins-msg", res.message, true); return; }
-    renderAll();
-    showAdminMsg("admin-admins-msg", "관리자 권한을 해제했어요.", false);
-  }));
   document.getElementById("mem-sort")?.addEventListener("change", (e) => { ADMIN_MEMBER_SORT = e.target.value; renderAdmin(); });
   body.querySelectorAll("[data-mem-role]").forEach(b => b.addEventListener("click", () => { ADMIN_MEMBER_ROLE = b.dataset.memRole; renderAdmin(); }));
   body.querySelectorAll("[data-mem-open]").forEach(b => b.addEventListener("click", () => {
@@ -441,14 +376,14 @@ function renderAdminMembers(body) {
 
 function memberRowHTML(u, sum) {
   const open = ADMIN_MEMBER_OPEN === u.id;
-  const roleColor = u.sellerInfo ? "background:#faf7f2;color:var(--text);" : "background:var(--primary-soft);color:var(--primary);";
+  const roleColor = u.sellerInfo ? "background:var(--band);color:var(--text);" : "background:var(--primary-soft);color:var(--primary);";
   let detail = "";
   if (open) {
     const history = [...u.pointHistory].reverse().slice(0, 8);
     const purchases = Object.values(STATE.purchases).filter(p => p.buyerId === u.id).sort((a, b) => new Date(b.purchasedAt) - new Date(a.purchasedAt)).slice(0, 8);
     const myScores = u.sellerInfo ? Object.values(STATE.scores).filter(s => s.sellerId === u.id) : [];
     detail = `
-      <div style="margin-top:10px;padding:14px;border-radius:12px;background:#faf7f2;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;font-size:12px;">
+      <div style="margin-top:10px;padding:14px;border-radius:12px;background:var(--band);display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;font-size:12px;">
         <div>
           <div style="font-weight:700;margin-bottom:6px;">포인트 내역 (최근 8건)</div>
           ${history.length ? history.map(h => `<div style="display:flex;justify-content:space-between;gap:6px;padding:3px 0;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${formatDate(h.at)} ${esc(h.reason)}</span><b style="white-space:nowrap;">${h.amount >= 0 ? "+" : ""}${formatPoint(h.amount)}</b></div>`).join("") : `<span style="color:var(--muted);">없음</span>`}
@@ -593,7 +528,7 @@ function renderAdminRequests() {
   listEl.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px;">
       ${[["접수", count("접수")], ["채보중", count("채보중")], ["완료", count("완료")], ["신청한 사람(누적)", `${people}명`]].map(([l, v]) => `
-        <div style="padding:12px;border-radius:12px;background:#faf7f2;">
+        <div style="padding:12px;border-radius:12px;background:var(--band);">
           <div style="font-size:11px;color:var(--muted);">${l}</div>
           <div style="font-size:18px;font-weight:800;margin-top:2px;">${v}</div>
         </div>`).join("")}
@@ -674,7 +609,7 @@ function renderAdminRequests() {
 
 function requestDetailHTML(r) {
   const requesters = r.buyerIds.map(id => STATE.users[id]).filter(Boolean);
-  const box = "padding:14px;border-radius:12px;background:#faf7f2;";
+  const box = "padding:14px;border-radius:12px;background:var(--band);";
   const requesterList = `
     <div style="${box}">
       <div style="font-weight:700;font-size:13px;margin-bottom:8px;">신청한 사람 ${requesters.length}명</div>
@@ -863,79 +798,6 @@ function renderAdminReviewList() {
   }
 }
 
-/* ---------- 일괄 등록 (2026-10-18 추가, mydrumsheet.com 이관용) ---------- */
-
-function parseBulkImportText(text) {
-  return text.split("\n")
-    .map(line => line.trim())
-    .filter(line => line.length > 0)
-    .map(line => {
-      const parts = line.split("|").map(p => p.trim());
-      return {
-        raw: line,
-        title: parts[0] || "",
-        artist: parts[1] || "",
-        instrument: parts[2] || "",
-        difficulty: parts[3] || "",
-        price: parts[4] || ""
-      };
-    });
-}
-
-function handleAdminBulkImport() {
-  const textEl = document.getElementById("admin-bulk-text");
-  const text = textEl ? textEl.value : "";
-  const rows = parseBulkImportText(text);
-
-  if (rows.length === 0) {
-    showAdminMsg("admin-bulk-msg", "붙여넣은 내용이 없습니다.", true);
-    return;
-  }
-
-  const user = getCurrentUser();
-  const result = bulkImportScores(user.id, rows);
-  if (!result.ok) {
-    showAdminMsg("admin-bulk-msg", result.message || "일괄등록에 실패했습니다.", true);
-    return;
-  }
-
-  ADMIN_BULK_RESULT = result;
-  renderAll();
-  showAdminMsg("admin-bulk-msg",
-    `${result.created}곡 등록 완료 · 중복 ${result.skippedDuplicate.length}곡 건너뜀 · 오류 ${result.skippedInvalid.length}줄`, false);
-}
-
-function renderAdminBulkResult() {
-  const wrap = document.getElementById("admin-bulk-result");
-  if (!wrap) return;
-  if (!ADMIN_BULK_RESULT) { wrap.innerHTML = ""; return; }
-
-  const { created, skippedDuplicate, skippedInvalid } = ADMIN_BULK_RESULT;
-
-  const dupBlock = skippedDuplicate.length ? `
-    <div style="margin-top:10px;">
-      <div style="font-size:13px;font-weight:600;margin-bottom:4px;">중복으로 건너뛴 ${skippedDuplicate.length}곡</div>
-      <div style="font-size:12px;color:var(--muted);line-height:1.8;max-height:160px;overflow-y:auto;">
-        ${skippedDuplicate.map(d => `${d.line}번째 줄 — ${esc(d.title)} · ${esc(d.artist)} · ${esc(d.difficulty)}`).join("<br>")}
-      </div>
-    </div>` : "";
-
-  const invalidBlock = skippedInvalid.length ? `
-    <div style="margin-top:10px;">
-      <div style="font-size:13px;font-weight:600;color:var(--danger);margin-bottom:4px;">오류로 건너뛴 ${skippedInvalid.length}줄</div>
-      <div style="font-size:12px;color:var(--danger);line-height:1.8;max-height:160px;overflow-y:auto;">
-        ${skippedInvalid.map(d => `${d.line}번째 줄 — ${esc(d.reason)} (${esc(d.raw)})`).join("<br>")}
-      </div>
-    </div>` : "";
-
-  wrap.innerHTML = `
-    <div style="padding:14px;border-radius:10px;background:#faf7f2;">
-      <div style="font-size:14px;font-weight:700;">이번 실행: ${created}곡 등록됨</div>
-      ${dupBlock}
-      ${invalidBlock}
-    </div>`;
-}
-
 /* ---------- 이번 달 정산 지급 ---------- */
 
 function renderAdminPayoutBatch() {
@@ -951,12 +813,12 @@ function renderAdminPayoutBatch() {
     wrap.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:0 0 8px;">다음 지급일(${dateText})에 지급할 판매자가 아직 없어요.</p>`;
   } else {
     wrap.innerHTML = `
-      <div style="padding:12px;border-radius:10px;background:#faf7f2;margin-bottom:10px;font-size:13px;">
+      <div style="padding:12px;border-radius:10px;background:var(--band);margin-bottom:10px;font-size:13px;">
         다음 지급일 <b>${dateText}</b> · 대상 <b>${batch.items.length}명</b> · 합계 <b>${formatWon(batch.total)}</b>
       </div>
       <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr style="background:#faf7f2;color:var(--muted);text-align:left;">
+          <thead><tr style="background:var(--band);color:var(--muted);text-align:left;">
             <th style="padding:8px 10px;font-weight:600;">판매자</th>
             <th style="padding:8px 10px;font-weight:600;">은행 · 계좌</th>
             <th style="padding:8px 10px;font-weight:600;">예금주</th>
@@ -1036,4 +898,674 @@ function renderAdminPayoutBatch() {
         <span style="color:var(--muted);">${formatWon(w.amount)} · ${formatDate(w.paidAt)}</span>
       </div>`;
   }).join("") : `<p style="font-size:13px;color:var(--muted);margin:0;">지급 완료 내역이 없습니다.</p>`;
+}
+
+/* ============================================================
+   PDF 일괄 업로드 (2026-10-18 추가)
+   mydrumsheet.com 에서 이관된 750곡 중 실제 PDF 파일이 비어있던 악보들을,
+   반진영님이 보내주신 "판매용 악보" 폴더의 파일명과 자동으로 맞춰본 목록이다
+   (제목·아티스트·난이도로 자동 매칭해서 확실하다고 판단된 524곡만 들어있다).
+   관리자가 그 폴더를 통째로 선택하면, 이 목록과 파일명을 맞춰보고
+   맞는 파일만 Supabase Storage 에 업로드하고 scores.file_url 을 채운다.
+   이름이 너무 달라 자동 매칭을 못했거나(134곡 확인 필요), 폴더에 파일 자체가
+   없는 악보(74곡)는 이 목록에 없다 — 그런 악보는 따로 하나씩 올려야 한다.
+   같은 곡이 중복 등록돼 있던 7건은 먼저 등록된 쪽만 이 목록에 남기고
+   나머지 중복 행은 삭제하기로 했다(2026-10-18 확인).
+   ============================================================ */
+
+const SCORE_PDF_SELLER_ID = "user_mv614qnq_a1h5cu";
+const SCORE_PDF_MAPPING = [
+{id:"score_mvd75i7l_mbds2t",file:"백예린 - 1-4-3_중급.pdf"},
+  {id:"score_mvd75i7o_eu0f6w",file:"루시 - 10sec_프로.pdf"},
+  {id:"score_mvd75i7m_61qcpg",file:"한로로 (HANRORO) - 1111_고급.pdf"},
+  {id:"score_mvd75i7n_mz65o1",file:"BOYNEXTDOOR - 123-78_고급.pdf"},
+  {id:"score_mvd75i7l_5xv5h1",file:"AB6IX (에이비식스) - 1분 1초_중급 쉬운버전.pdf"},
+  {id:"score_mvd75i7m_4zhdwh",file:"AB6IX (에이비식스) - 1분 1초_고급.pdf"},
+  {id:"score_mvd75i7o_thxaio",file:"유다빈밴드 - 20s_프로.pdf"},
+  {id:"score_mvd75i7n_6k55jh",file:"이창섭 - 33_고급.pdf"},
+  {id:"score_mvd75i7m_sf2zz2",file:"MAMAMOO - 4 Flowers_고급.pdf"},
+  {id:"score_mvd75i7l_dv1rjg",file:"엔플라잉 - 4242_중급.pdf"},
+  {id:"score_mvd75i7n_zyd25b",file:"허각 - 9월 24일_고급.pdf"},
+  {id:"score_mvd75i7n_tk5i5v",file:"Ed Sheeran - A Little More_고급.pdf"},
+  {id:"score_mvd75i7o_ykujzr",file:"LUCY - A yo_고급.pdf"},
+  {id:"score_mvd75i7o_wi8suk",file:"쏜애플(THORNAPPLE) - Acacia_프로.pdf"},
+  {id:"score_mvd75i7n_dzleai",file:"Xdinary Heroes - AGAIN AGAIN_고급.pdf"},
+  {id:"score_mvd75i7m_ewiwcb",file:"브로큰 발렌타인 - Alien_고급.pdf"},
+  {id:"score_mvd75i7m_kp4lm5",file:"[고급7] Boramiyu(보라미유) - All In Future(나를 건 미래에 우린).pdf"},
+  {id:"score_mvd75i7l_y3mjz6",file:"[중급5] Boramiyu(보라미유) - All In Future(나를 건 미래에 우린).pdf"},
+  {id:"score_mvd75i7o_za9qba",file:"Xdinary Heroes - Ashes to Ashes_프로.pdf"},
+  {id:"score_mvd75i7l_8o81eb",file:"The Rose - Back To Me_중급.pdf"},
+  {id:"score_mvd75i7m_5ww2ah",file:"QWER - BAD HABIT_고급.pdf"},
+  {id:"score_mvd75i7l_7fe9n3",file:"IVE 아이브 - BANG BANG_중급.pdf"},
+  {id:"score_mvd75i7m_j0uja8",file:"Green Day - Basket Case_고급.pdf"},
+  {id:"score_mvd75i7n_2xwanr",file:"NCT DREAM - Beat It Up_고급.pdf"},
+  {id:"score_mvd75i7l_lvpb6c",file:"Charlie Puth - Beat Yourself Up_중급.pdf"},
+  {id:"score_mvd75i7o_8i8au6",file:"Xdinary Heroes - Beautiful Life_프로.pdf"},
+  {id:"score_mvd75i7m_xmofbg",file:"Xdinary Heroes - Bicycle_고급.pdf"},
+  {id:"score_mvd75i7n_qni3ph",file:"실리카겔 - BIG VOID_고급.pdf"},
+  {id:"score_mvd75i7l_g5q77y",file:"씨엔블루 - Bliss_중급_0001.pdf"},
+  {id:"score_mvd75i7m_4awwux",file:"씨엔블루 - Bliss_고급.pdf"},
+  {id:"score_mvd75i7m_etp982",file:"BTS (방탄소년단) -Body to Body_고급.pdf"},
+  {id:"score_mvd75i7o_uss5wu",file:"Xdinary Heroes - Break The Brake_프로.pdf"},
+  {id:"score_mvd75i7n_94t46l",file:"Stray Kids - CEREMONY_고급.pdf"},
+  {id:"score_mvd75i7m_ago747",file:"BLACKPINK - Champion_고급.pdf"},
+  {id:"score_mvd75i7n_8xj3p2",file:"유회승 (엔플라잉) - Change_고급.pdf.pdf"},
+  {id:"score_mvd75i7k_rxzwm8",file:"WENDY - Chapter You_초급.pdf"},
+  {id:"score_mvd75i7l_vhhh6i",file:"오월 오일 - Cherry Roman Candle_중급.pdf"},
+  {id:"score_mvd75i7l_pkxjrg",file:"WOODZ - CINEMA_중급.pdf"},
+  {id:"score_mvd75i7l_brr554",file:"전소미(JEON SOMI) - CLOSER_초중급.pdf"},
+  {id:"score_mvd75i7l_3gi1ep",file:"BTS (방탄소년단) - Come Over_중급.pdf"},
+  {id:"score_mvd75i7m_yyt6yk",file:"DAY6 - Congratulations_중급.pdf"},
+  {id:"score_mvd75i7k_f7gplk",file:"DAY6 - Congratulations_초급.pdf"},
+  {id:"score_mvd75i7l_xekss8",file:"wave to earth - courage_중급.pdf"},
+  {id:"score_mvd75i7m_22c9rm",file:"BoA - Crazier_고급.pdf"},
+  {id:"score_mvd75i7m_c06fnw",file:"Taylor Swift - Cruel Summer_고급.pdf"},
+  {id:"score_mvd75i7m_466mnq",file:"AKMU - DADA_중급.pdf"},
+  {id:"score_mvd75i7n_gadvgp",file:"KiiiKiii - DANCING ALONE_고급.pdf"},
+  {id:"score_mvd75i7l_2povaq",file:"웬디 - Daydream_초중급.pdf"},
+  {id:"score_mvd75i7l_3jwcsf",file:"Xdinary Heroes - Dear H_중급.pdf"},
+  {id:"score_mvd75i7m_24lqhu",file:"제휘 - Dear Moon_고급.pdf"},
+  {id:"score_mvd75i7l_s35sl6",file:"남규리 - December Dream_중급.pdf"},
+  {id:"score_mvd75i7o_umubcb",file:"실리카겔 - Desert Eagle_고급.pdf"},
+  {id:"score_mvd75i7o_isif5l",file:"Xdinary Heroes - Diamond_프로.pdf"},
+  {id:"score_mvd75i7o_3oms7q",file:"Lady Gaga, Bruno Mars - Die With A Smile_고급.pdf"},
+  {id:"score_mvd75i7m_oc3oh8",file:"DAY6 (데이식스) - Disco Day_고급.pdf"},
+  {id:"score_mvd75i7n_px1b9v",file:"Stray Kids - Do It_고급.pdf"},
+  {id:"score_mvd75i7l_62jcjg",file:"더크로스-Don't Cry_중급.pdf"},
+  {id:"score_mvd75i7k_0qwocb",file:"진(BTS) - Don't Say You Love Me_초급.pdf"},
+  {id:"score_mvd75i7m_rmjk8g",file:"Young K - Drivin into Hell_고급.pdf"},
+  {id:"score_mvd75i7l_3ofrqu",file:"Young K - Drivin into Hell_중급(easy).pdf"},
+  {id:"score_mvd75i7m_lawqn7",file:"우즈 - Drowning_중급.pdf"},
+  {id:"score_mvd75i7m_9qw3nj",file:"지코 - DUET_고급.pdf"},
+  {id:"score_mvd75i7n_row0c0",file:"도경수 - DUMB (Feat. PENOMECO)_고급.pdf"},
+  {id:"score_mvd75i7o_2o3tcx",file:"m-flo,지코(ZICO),eill - EKO EKO_프로.pdf"},
+  {id:"score_mvd75i7n_w2fuef",file:"검정치마 - Electra_고급.pdf"},
+  {id:"score_mvd75i7k_yek0ao",file:"Djo - End Of Beginning_초급.pdf"},
+  {id:"score_mvd75i7m_emr3hu",file:"DK - Endless_고급.pdf"},
+  {id:"score_mvd75i7m_0yn2r0",file:"Xdinary Heroes - Enemy_고급.pdf"},
+  {id:"score_mvd75i7m_npa2py",file:"웬디 - EXISTENTIAL CRISIS_고급.pdf"},
+  {id:"score_mvd75i7o_9anpao",file:"슈퍼주니어 - Express Mode_프로.pdf"},
+  {id:"score_mvd75i7n_tjvhg0",file:"ALLDAY PROJECT - FAMOUS_고급.pdf"},
+  {id:"score_mvd75i7l_asamtc",file:"비스트 - Fiction_중급.pdf"},
+  {id:"score_mvd75i7o_jpmp02",file:"Xdinary Heroes - FIGHT ME_프로.pdf"},
+  {id:"score_mvd75i7n_pq2dyh",file:"7, 고급 엔플라잉 - Firefly_0001.pdf"},
+  {id:"score_mvd75i7l_6to3tw",file:"[중급5] ONEWE(원위) - FLY.pdf"},
+  {id:"score_mvd75i7m_gfqr3j",file:"[고급7] ONEWE(원위) - FLY.pdf"},
+  {id:"score_mvd75i7o_624zgr",file:"Xdinary Heroes - Freakin'Bad_고급.pdf"},
+  {id:"score_mvd75i7m_lj0bmo",file:"DAY6 - Free하게 Freely_고급.pdf"},
+  {id:"score_mvd75i7o_lu7f0g",file:"Xdinary Heroes - George the Lobster_프로.pdf"},
+  {id:"score_mvd75i7o_54x0i4",file:"유다빈밴드 - GET LUCKY_프로.pdf"},
+  {id:"score_mvd75i7m_c4zrqh",file:"Xdinary Heroes - Ghost_고급.pdf"},
+  {id:"score_mvd75i7m_t5ogjm",file:"TXT Yeonjun - Ghost girl_고급.pdf"},
+  {id:"score_mvd75i7m_40k9qj",file:"BLACKPINK - GO_고급.pdf"},
+  {id:"score_mvd75i7l_b0cxlc",file:"블랙핑크 - GO_중급(쉬운 악보).pdf"},
+  {id:"score_mvd75i7m_fydmro",file:"Xdinary Heroes - Good enough_고급.pdf"},
+  {id:"score_mvd75i7o_qoowzp",file:"H1-KEY(하이키) - Good for U_프로.pdf"},
+  {id:"score_mvd75i7m_sc35vs",file:"DAY6 - Happy_중급.pdf"},
+  {id:"score_mvd75i7l_cby7w2",file:"김필 - HAPPY END_중급.pdf"},
+  {id:"score_mvd75i7m_abzqom",file:"Xdinary Heroes - Helium Balloon_고급.pdf"},
+  {id:"score_mvd75i7m_vc4yhs",file:"FT Island - Hello Hello_고급.pdf"},
+  {id:"score_mvd75i7l_n07dw0",file:"Young K - Hey Honey_중급.pdf"},
+  {id:"score_mvd75i7o_7mijzv",file:"터치드 - Highlight_고급.pdf"},
+  {id:"score_mvd75i7n_unerzg",file:"BOYNEXTDOOR - Hollywood Action_고급.pdf"},
+  {id:"score_mvd75i7l_nwulld",file:"WOODZ - Human Extinction_중급.pdf"},
+  {id:"score_mvd75i7o_jn0tc9",file:"Xdinary Heroes - Hurt So Good_프로.pdf"},
+  {id:"score_mvd75i7k_pd0a4o",file:"Charlie Puth - I Don't Think That I Like Her_초급.pdf"},
+  {id:"score_mvd75i7n_2r1hw3",file:"BOYNEXTDOOR - I feel good_고급.pdf"},
+  {id:"score_mvd75i7m_54yz9h",file:"Bruno Mars - I Just Might_고급.pdf"},
+  {id:"score_mvd75i7n_7y9v9u",file:"sombr - i wish i knew how to quit you_고급.pdf"},
+  {id:"score_mvd75i7m_a00vwd",file:"EXO - I'm Home_고급.pdf"},
+  {id:"score_mvd75i7l_fgkfud",file:"G-DRAGON(지드래곤)  - IBELONGIIU_초중급.pdf"},
+  {id:"score_mvd75i7m_ayz1we",file:"ONEWE - ICARUS_고급.pdf"},
+  {id:"score_mvd75i7o_v5amce",file:"Xdinary Heroes - ICU_프로.pdf"},
+  {id:"score_mvd75i7n_c1gptz",file:"Stray Kids - In My Head_고급.pdf"},
+  {id:"score_mvd75i7n_a0ydsm",file:"DAY6 (데이식스) - INSIDE OUT_고급.pdf"},
+  {id:"score_mvd75i7m_go1dp6",file:"BTS (방탄소년단) - Into the Sun_고급.pdf"},
+  {id:"score_mvd75i7l_xqk0gi",file:"솔라(마마무) - J에게_초중급.pdf"},
+  {id:"score_mvd75i7m_pdmawp",file:"CNBLUE (씨엔블루) - Killer Joy_고급.pdf"},
+  {id:"score_mvd75i7n_4pi90q",file:"Xdinary Heroes - KNOCK DOWN_고급.pdf"},
+  {id:"score_mvd75i7l_o25way",file:"Xdinary Heroes - KNOCK DOWN_중급(쉬운 악보)_0001.pdf"},
+  {id:"score_mvd75i7l_tv4xsw",file:"Xdinary Heroes - KTM_중급.pdf"},
+  {id:"score_mvd75i7o_lhe0f2",file:"터치드(Touched) - Last Day_프로.pdf"},
+  {id:"score_mvd75i7m_205081",file:"LATENCY - LATENCY_고급.pdf"},
+  {id:"score_mvd75i7o_5g04im",file:"Legends Never Die - League of Legends (리그 오브 레전드)_프로.pdf"},
+  {id:"score_mvd75i7k_omtljz",file:"제니 (JENNIE) - Less than a Lover_초급.pdf"},
+  {id:"score_mvd75i7o_tbyud3",file:"유다빈밴드 - Letter_고급.pdf"},
+  {id:"score_mvd75i7m_gs8cox",file:"BTS (방탄소년단) - Like Animals_고급.pdf"},
+  {id:"score_mvd75i7o_ewy10t",file:"JENNIE - like JENNIE_고급.pdf"},
+  {id:"score_mvd75i7l_obq2t4",file:"FT 아일랜드 - LIMITLESS_중급.pdf"},
+  {id:"score_mvd75i7l_l3nwu8",file:"CNBLUE (씨엔블루) - Little Things_중급_0001.pdf"},
+  {id:"score_mvd75i7m_7uv6f4",file:"태양 - LIVE FAST DIE SLOW_고급.pdf"},
+  {id:"score_mvd75i7n_2dvavw",file:"ALLDAY PROJECT - LOOK AT ME_고급.pdf"},
+  {id:"score_mvd75i7l_66iljk",file:"하현상 - LOST_중급.pdf"},
+  {id:"score_mvd75i7n_4w5ooq",file:"Xdinary Heroes - Lost and Found_고급.pdf"},
+  {id:"score_mvd75i7o_qlnmp7",file:"Maroon 5 - Love is Like_프로.pdf"},
+  {id:"score_mvd75i7n_6zythj",file:"자이언티 - LOVE ME_고급.pdf"},
+  {id:"score_mvd75i7m_ue68ue",file:"Xdinary Heroes -  LOVE ME RIGHT_고급.pdf"},
+  {id:"score_mvd75i7o_a761ct",file:"유다빈밴드 - LOVE SONG_프로.pdf"},
+  {id:"score_mvd75i7n_nu9hw2",file:"JOY - Love Splash!_고급.pdf"},
+  {id:"score_mvd75i7l_ggzybq",file:"3. 초중급 볼빨간사춘기 - Love Story.pdf"},
+  {id:"score_mvd75i7m_rdsypv",file:"비투비 - Love Today_중급.pdf"},
+  {id:"score_mvd75i7n_fg7c0g",file:"헤이즈 - Love Virus (Feat. I.M)_고급.pdf"},
+  {id:"score_mvd75i7m_weui2f",file:"카더가든 - LOVERS_고급.pdf"},
+  {id:"score_mvd75i7m_kifpfu",file:"Mrs.GREEN APPLE-lulu._고급.pdf"},
+  {id:"score_mvd75i7m_m3lu26",file:"Young K - Marionette_고급.pdf"},
+  {id:"score_mvd75i7l_36fzil",file:"DAY6 - Maybe Tomorrow_중급.pdf"},
+  {id:"score_mvd75i7m_dj30bw",file:"BLACKPINK - Me and my_고급.pdf"},
+  {id:"score_mvd75i7m_9i8unb",file:"ASH ISLAND - MIDNIGHT SKY_고급.pdf"},
+  {id:"score_mvd75i7n_phv1s2",file:"백예린 - MIRROR_고급.pdf"},
+  {id:"score_mvd75i7l_2ooyv5",file:"J.Fla - Miss The You (I fell in love with)_초중급.pdf"},
+  {id:"score_mvd75i7n_1e4rhb",file:"Xdinary Heroes - Money On My Mind_고급.pdf"},
+  {id:"score_mvd75i7m_lcjbfa",file:"테이 - Monologue_고급.pdf"},
+  {id:"score_mvd75i7o_8brp4x",file:"Xdinary Heroes - More Than I Like_프로.pdf"},
+  {id:"score_mvd75i7n_gdvlzs",file:"DAY6 (데이식스) - My Way_고급.pdf"},
+  {id:"score_mvd75i7k_3b8h4t",file:"The Rose (더 로즈) - Nebula_초급.pdf"},
+  {id:"score_mvd75i7k_a23sju",file:"[초급2] ROSÉ - new trick.pdf"},
+  {id:"score_mvd75i7m_py8d36",file:"Xdinary heroes - night before the end_중급.pdf"},
+  {id:"score_mvd75i7n_vew1db",file:"정용화 - Night Runner (Shooting Star)_고급.pdf"},
+  {id:"score_mvd75i7m_godew0",file:"Xdinary Heroes - No Cool Kids Zone_고급.pdf"},
+  {id:"score_mvd75i7o_fpogu6",file:"윤하 - No Limit_프로.pdf"},
+  {id:"score_mvd75i7o_dtvzwc",file:"Xdinary Heroes - No Matter Live_프로.pdf"},
+  {id:"score_mvd75i7o_aad3vq",file:"실리카겔(Silica Gel)-No Pain_프로.pdf"},
+  {id:"score_mvd75i7o_782x6p",file:"KARDI(카디) - Not But Disco_프로.pdf"},
+  {id:"score_mvd75i7l_t3bkgz",file:"아일릿 - NOT CUTE ANYMORE_초중급.pdf"},
+  {id:"score_mvd75i7l_i4d0hd",file:"DAY6 - Not Fine (나빠)_중급.pdf"},
+  {id:"score_mvd75i7l_sktqre",file:"드래곤포니 - NOT OUT_중급(easy).pdf"},
+  {id:"score_mvd75i7m_2fxpmv",file:"[고급8] Xdinary Heroes - Obsessed with Youth.pdf"},
+  {id:"score_mvd75i7l_lbf8pr",file:"[중급6] Xdinary Heroes - Obsessed with Youth.pdf"},
+  {id:"score_mvd75i7n_10dt0p",file:"ALLDAY PROJECT (올데이 프로젝트) - One More Time_고급.pdf"},
+  {id:"score_mvd75i7m_eyf2mb",file:"넬 (NELL) - Only One_고급.pdf"},
+  {id:"score_mvd75i7o_xtg78i",file:"남우현 - Only 직진_프로.pdf"},
+  {id:"score_mvd75i7m_3y6dbv",file:"QWER - Our Voyage_고급.pdf"},
+  {id:"score_mvd75i7k_a6jqxz",file:"범규 - Panic_초급.pdf"},
+  {id:"score_mvd75i7n_ep072w",file:"TREASURE - PARADISE_고급.pdf"},
+  {id:"score_mvd75i7l_s07pmf",file:"One Direction - Perfect_중급.pdf"},
+  {id:"score_mvd75i7n_t6384v",file:"Stray Kids - Phoenix_고급.pdf"},
+  {id:"score_mvd75i7o_2zg4vc",file:"QWER - PLAY WE DEW_고급.pdf"},
+  {id:"score_mvd75i7o_z9ug18",file:"Xdinary Heroes - PLUTO_프로.pdf"},
+  {id:"score_mvd75i7k_glgkaw",file:"[중급6] Official髭男dism(오피셜히게단디즘) - Pretender.pdf"},
+  {id:"score_mvd75i7o_k8nbet",file:"이승윤 - PunKanon_프로.pdf"},
+  {id:"score_mvd75i7o_jwhouk",file:"Mrs.GREEN APPLE - Que Sera Sera_프로_0001.pdf"},
+  {id:"score_mvd75i7n_1irhq9",file:"유주 (YUJU) - REPLY_고급.pdf"},
+  {id:"score_mvd75i7m_zz0t20",file:"DK - RETURN_고급.pdf"},
+  {id:"score_mvd75i7o_kbo7tf",file:"aespa - Rich Man_프로.pdf"},
+  {id:"score_mvd75i7o_jg0tsp",file:"Xdinary Heroes - Rise High Rise_프로.pdf"},
+  {id:"score_mvd75i7l_ec17hm",file:"Rolling Quartz - Romantist_중급 쉬운악보.pdf"},
+  {id:"score_mvd75i7m_m9iau7",file:"Rolling Quartz - Romantist_고급.pdf"},
+  {id:"score_mvd75i7o_8miyyb",file:"터치드 - Ruby_프로.pdf"},
+  {id:"score_mvd75i7m_zwtzqz",file:"강남 - Running Flower_고급.pdf"},
+  {id:"score_mvd75i7n_sz4gqh",file:"차은우 - SATURDAY PREACHER_고급.pdf"},
+  {id:"score_mvd75i7n_zmoezs",file:"Xdinary Heroes - Save me_고급.pdf"},
+  {id:"score_mvd75i7n_2ne6od",file:"한만청 - Say Yes_고급.pdf"},
+  {id:"score_mvd75i7m_8ug8a8",file:"[고급7] ONEWE(원위) - Scenario.pdf"},
+  {id:"score_mvd75i7o_03axxw",file:"LUCY - Shine A Light_고급.pdf"},
+  {id:"score_mvd75i7n_kf4m6r",file:"재쓰비 (JAESSBEE) - SHUT THAT_고급.pdf"},
+  {id:"score_mvd75i7m_j123gy",file:"Young K - Shut The Door_고급.pdf"},
+  {id:"score_mvd75i7n_lpqri2",file:"도경수 - SING ALONG!_고급.pdf"},
+  {id:"score_mvd75i7m_1on338",file:"로이킴 - Smile Boy_고급.pdf"},
+  {id:"score_mvd75i7l_k2vip9",file:"로이킴 - Smile Boy_중급(easy).pdf"},
+  {id:"score_mvd75i7n_9zkt4t",file:"Saja Boys - Soda Pop_고급.pdf"},
+  {id:"score_mvd75i7n_u3h1bp",file:"The Rose - Sour_고급.pdf"},
+  {id:"score_mvd75i7o_6p8xlb",file:"Xdinary Heroes - Spoiler!!!_프로.pdf"},
+  {id:"score_mvd75i7n_kjs1vw",file:"지코 (ZICO) - SPOT! (Feat. JENNIE)_고급.pdf"},
+  {id:"score_mvd75i7o_fp0hva",file:"엔플라잉 - Stand By Me_프로.pdf"},
+  {id:"score_mvd75i7o_rzzgqy",file:"리노, 승민, 아이엔 - START!_고급.pdf"},
+  {id:"score_mvd75i7n_d7atyg",file:"어반자카파 - Stay_고급.pdf"},
+  {id:"score_mvd75i7n_fi81sj",file:"플라워 - SUNDAY_고급.pdf.pdf"},
+  {id:"score_mvd75i7m_6ys1m4",file:"ILLIT - Sunday Morning_고급.pdf"},
+  {id:"score_mvd75i7o_98jg5v",file:"Xdinary Heroes - Supernatural_프로.pdf"},
+  {id:"score_mvd75i7n_1fzod3",file:"이창섭 - SURRENDER_고급.pdf"},
+  {id:"score_mvd75i7m_w7z58k",file:"넬(NELL) - Sweet Delusion_고급.pdf"},
+  {id:"score_mvd75i7m_0aszfc",file:"BTS (방탄소년단) - SWIM_고급.pdf"},
+  {id:"score_mvd75i7n_ao9dcd",file:"DAY6 (데이식스) - Take All My Heart_고급.pdf"},
+  {id:"score_mvd75i7m_fi2f38",file:"G-DRAGON - TAKE ME_중급.pdf"},
+  {id:"score_mvd75i7n_qaz1wu",file:"Simple Plan - Take My Hand_고급.pdf"},
+  {id:"score_mvd75i7o_hebint",file:"Alan Walker-The Drum _프로.pdf"},
+  {id:"score_mvd75i7n_riuvep",file:"Taylor Swift - The Fate Of Ophelia_고급.pdf"},
+  {id:"score_mvd75i7o_urk31o",file:"Boys Like Girls - The Great Escape_고급.pdf"},
+  {id:"score_mvd75i7o_7wphui",file:"씨엔블루 - To The Moon And Back_프로.pdf"},
+  {id:"score_mvd75i7l_tyymyr",file:"[중급6] Dragon Pony - To. Nosy Boy (이타심).pdf"},
+  {id:"score_mvd75i7m_575vtk",file:"[고급8] Dragon Pony - To. Nosy Boy (이타심).pdf"},
+  {id:"score_mvd75i7l_1p0394",file:"원필(WONPIL) - Toxic Love_중급.pdf"},
+  {id:"score_mvd75i7o_ulzmf4",file:"ONE OK ROCK - Tropical Therapy_고급.pdf"},
+  {id:"score_mvd75i7m_yzeyi9",file:"KickFlip(킥플립) - Twenty_고급.pdf"},
+  {id:"score_mvd75i7n_l8947t",file:"임영웅 - ULSSIGU_고급.pdf"},
+  {id:"score_mvd75i7o_4ky42g",file:"대성 - Umbrella_프로.pdf"},
+  {id:"score_mvd75i7o_fyd4zr",file:"Xdinary Heroes - UNDEFINED_프로.pdf"},
+  {id:"score_mvd75i7o_jr669k",file:"대성 - Universe_고급.pdf"},
+  {id:"score_mvd75i7l_4myx2l",file:"Mark Ronson(ft.Bruno Mars) - Up Town Funk_중급.pdf"},
+  {id:"score_mvd75i7l_0iqf1t",file:"The Rose (더로즈) - Utopia_중급.pdf"},
+  {id:"score_mvd75i7m_m5v8pb",file:"mgk  - vampire diaries_고급.pdf"},
+  {id:"score_mvd75i7l_s4m2ea",file:"Lady Gaga - Vanish Into You_중급_0001.pdf"},
+  {id:"score_mvd75i7o_7mxrrc",file:"Xdinary Heroes -  Voyager_프로.pdf"},
+  {id:"score_mvd75i7l_5dftvy",file:"Green Day - Wake Me Up When September Ends_초중급.pdf"},
+  {id:"score_mvd75i7m_363ip4",file:"Shut Up and Dance - WALK THE MOON_고급.pdf"},
+  {id:"score_mvd75i7m_m4eri0",file:"Xdinary Heroes - Walking to the Moon_고급.pdf"},
+  {id:"score_mvd75i7o_grpf7d",file:"BABYMONSTER - We go up_프로.pdf"},
+  {id:"score_mvd75i7n_69caxn",file:"My Chemical Romance - Welcome To The Black Parade_고급.pdf"},
+  {id:"score_mvd75i7o_dgmwc3",file:"Day6 - Welcome To The Show_고급.pdf"},
+  {id:"score_mvd75i7k_7dvz5v",file:"[초중급3] DAY6 - Welcome To The Show.pdf"},
+  {id:"score_mvd75i7n_vccctv",file:"헌트릭스 - What It Sounds Like_고급.pdf"},
+  {id:"score_mvd75i7m_elbnp4",file:"People R Ugly - What's Up_고급.pdf"},
+  {id:"score_mvd75i7l_iy15z0",file:"권진아 - White Wine_중급.pdf"},
+  {id:"score_mvd75i7k_dwywji",file:"수호 - Who Are You _초급.pdf"},
+  {id:"score_mvd75i7m_124ujj",file:"원필 (DAY6) - Wish_고급.pdf"},
+  {id:"score_mvd75i7l_t2whoc",file:"임영웅 - Wonderful Life_중급.pdf"},
+  {id:"score_mvd75i7l_3respl",file:"ONEUS(원어스) - X_중급.pdf"},
+  {id:"score_mvd75i7m_a59xw1",file:"Xdinary Heroes - X room_고급.pdf"},
+  {id:"score_mvd75i7n_f3123f",file:"IVE (아이브) - XOXZ_고급.pdf"},
+  {id:"score_mvd75i7l_21xjap",file:"ALLDAY PROJECT - You And I_중급.pdf"},
+  {id:"score_mvd75i7n_b7vdkm",file:"Saja Boys - Your Idol_고급.pdf"},
+  {id:"score_mvd75i7l_pi9l9v",file:"QWER - Yours Sincerely_중급.pdf"},
+  {id:"score_mvd75i7o_mt8eyt",file:"Dragon Pony (드래곤포니) - Zombie_프로_0001.pdf"},
+  {id:"score_mvd75i7n_mr6daj",file:"DK(디셈버) - 가만히 눈을 감고_고급.pdf"},
+  {id:"score_mvd75i7l_iwb9t9",file:"3. 초중급 바이브 - 가을 타나봐.pdf"},
+  {id:"score_mvd75i7l_vv6rna",file:"한동근 - 가질 수 없는 너_중급.pdf"},
+  {id:"score_mvd75i7n_pcrbzg",file:"육성재 - 거짓말_고급.pdf"},
+  {id:"score_mvd75i7m_dpyyhn",file:"들개들 - 걱정말아요 그대_고급.pdf"},
+  {id:"score_mvd75i7n_tm797k",file:"고추잠자리 - 걸어줄래_고급.pdf"},
+  {id:"score_mvd75i7o_6i1p8m",file:"QWER - 검색어는 QWER_프로.pdf"},
+  {id:"score_mvd75i7m_ank04a",file:"한로로(HANRORO) - 게임 오버_고급.pdf"},
+  {id:"score_mvd75i7l_6zufk7",file:"순순희(기태), 신예영 - 결혼_중급.pdf"},
+  {id:"score_mvd75i7l_9xibpi",file:"하현상 - 고양이_초중급.pdf"},
+  {id:"score_mvd75i7l_0gt6ln",file:"메카니즘 - 고장난 타임머신_초중급.pdf"},
+  {id:"score_mvd75i7m_6h3msa",file:"원위 - 관람차_고급.pdf"},
+  {id:"score_mvd75i7n_l5ho9d",file:"진 - 구름과 떠나는 여행_고급.pdf"},
+  {id:"score_mvd75i7m_vstu03",file:"이하이 - 구원자(Feat. B.I)_고급.pdf"},
+  {id:"score_mvd75i7o_5evvb2",file:"[고급7] 대성 - 그 시절의 우리.pdf"},
+  {id:"score_mvd75i7l_1ggyv8",file:"[중급6] 대성 - 그 시절의 우리.pdf"},
+  {id:"score_mvd75i7l_2er7jv",file:"이창섭 - 그 자리에, 그 시간에_중급.pdf"},
+  {id:"score_mvd75i7n_fd85go",file:"투모로우바이투게더 - 그날이 오면_고급.pdf"},
+  {id:"score_mvd75i7n_9w5as5",file:"박혜원 - 그대가 분다_고급.pdf"},
+  {id:"score_mvd75i7n_ng7h5i",file:"전상근 - 그대라는 사치_고급.pdf"},
+  {id:"score_mvd75i7n_k1no3b",file:"신해철 - 그대에게_고급.pdf"},
+  {id:"score_mvd75i7m_hcn73j",file:"임영웅 - 그댈 위한 멜로디_고급.pdf"},
+  {id:"score_mvd75i7n_e13dys",file:"10CM - 그라데이션 (Hard).pdf"},
+  {id:"score_mvd75i7n_7c8br4",file:"유회승(엔플라잉)-그랬나봐_가사_0001.pdf"},
+  {id:"score_mvdt1rmv_lddvni",file:"AKMU - 기쁨, 슬픔, 아름다운 마음_초중급.pdf"},
+  {id:"score_mvd75i7o_vs6ojk",file:"ONEWE(원위) - 기억 세탁소_프로.pdf"},
+  {id:"score_mvd75i7o_7pmmkn",file:"드래곤 포니 - 꼬리를 먹는 뱀_프로.pdf"},
+  {id:"score_mvd75i7n_cgnjgn",file:"이창섭 - 꽃이 되어줄게_고급.pdf"},
+  {id:"score_mvd75i7m_xgljve",file:"태연 - 꿈_고급.pdf"},
+  {id:"score_mvd75i7l_uckh5e",file:"잔나비-꿈과 책과 힘과 벽_중급.pdf"},
+  {id:"score_mvd75i7l_6f62b4",file:"도드리 - 꿈만 같았다_중급.pdf"},
+  {id:"score_mvd75i7n_rbnvpq",file:"Xdinary Heroes - 꿈을 꾸는 소녀_고급.pdf"},
+  {id:"score_mvd75i7n_0pjc0p",file:"DAY6 - 꿈의 버스_고급.pdf"},
+  {id:"score_mvd75i7l_zigh7k",file:"테이(Tei) - 끝사랑_중급 쉬운악보.pdf"},
+  {id:"score_mvd75i7m_qmlzda",file:"테이(Tei) - 끝사랑_고급.pdf"},
+  {id:"score_mvd75i7k_ag4zb8",file:"[초중급3] YB - 나는 나비.pdf"},
+  {id:"score_mvd75i7l_y48j6u",file:"[중급5] YB - 나는 나비.pdf"},
+  {id:"score_mvd75i7n_i9nao9",file:"임영웅 - 나는야 HERO_고급.pdf"},
+  {id:"score_mvd75i7n_ohhlpe",file:"7, 고급 고유진 - 나만의 슬픔.pdf"},
+  {id:"score_mvd75i7k_99v6i7",file:"경서 - 나의 X에게_초급.pdf"},
+  {id:"score_mvd75i7o_f61dd3",file:"ONEWE(원위) - 나의 계절 봄은 끝났다_프로.pdf"},
+  {id:"score_mvd75i7n_vuy5k1",file:"재쓰비 - 나의 여름 설명서_고급.pdf"},
+  {id:"score_mvd75i7m_27w5z2",file:"한결 (HANGYEOL) - 나의 우주_고급.pdf"},
+  {id:"score_mvd75i7m_9hjv1l",file:"H1-KEY(하이키) - 나의 첫사랑에게_고급.pdf"},
+  {id:"score_mvd75i7m_ao3xx7",file:"나상현씨밴드- 낙원_고급.pdf"},
+  {id:"score_mvd75i7o_tgxk3x",file:"LUCY - 낙화_프로.pdf"},
+  {id:"score_mvd75i7n_w8hnl1",file:"이승열 - 날아_고급.pdf"},
+  {id:"score_mvd75i7o_x6pmid",file:"DAY6 (데이식스) - 날아라! 드림라이더_프로.pdf"},
+  {id:"score_mvd75i7m_i3i61o",file:"보라미유 - 내 마음이 움찔했던 순간_고급.pdf"},
+  {id:"score_mvd75i7m_y213wp",file:"아이유 - 내 손을 잡아_고급.pdf"},
+  {id:"score_mvd75i7n_60kvbi",file:"주호 - 내가 아니라도 (Hard).pdf"},
+  {id:"score_mvd75i7n_n30jpk",file:"XIA (준수) - 내가 죽으려고 생각한 것은_고급.pdf"},
+  {id:"score_mvd75i7n_olf7ab",file:"경서예지 - 내일이 찾아오면_고급.pdf"},
+  {id:"score_mvd75i7m_36myvh",file:"최상엽(LUCY) - 내일이 찾아오면_고급.pdf"},
+  {id:"score_mvd75i7l_kbtusq",file:"경서,주시크 - 너를 생각해_중급.pdf"},
+  {id:"score_mvd75i7l_etfxbe",file:"황인욱 - 너를 위해_중급.pdf"},
+  {id:"score_mvd75i7n_8sswp6",file:"이창섭,터치드 - 너를 위해 부른다_고급.pdf"},
+  {id:"score_mvd75i7m_02zxft",file:"김남길 - 너에게 가고 있어_고급.pdf"},
+  {id:"score_mvd75i7o_po9vrs",file:"LUCY - 너에게 가고 있어_프로.pdf"},
+  {id:"score_mvd75i7k_gh03wn",file:"[초중급3] 자전거 탄 풍경 - 너에게 난 나에게 넌.pdf"},
+  {id:"score_mvd75i7l_irshng",file:"[중급5] 자전거 탄 풍경 - 너에게 난 나에게 넌.pdf"},
+  {id:"score_mvd75i7m_m4gsid",file:"[고급7] 자전거 탄 풍경 - 너에게 난 나에게 넌.pdf"},
+  {id:"score_mvd75i7l_s44338",file:"한로로 - 너와 나_중급.pdf"},
+  {id:"score_mvd75i7m_rd6dbn",file:"울랄라세션 - 너와 함께_고급.pdf"},
+  {id:"score_mvd75i7m_vigmbo",file:"재쓰비(JAESSBEE) - 너와의 모든 지금_고급.pdf"},
+  {id:"score_mvd75i7n_42qu9u",file:"이승기 - 너의 곁에 내가_고급.pdf"},
+  {id:"score_mvd75i7o_2fw5t7",file:"소란 - 너의 등장_프로.pdf"},
+  {id:"score_mvd75i7l_i9hl4w",file:"도겸 - 너인데_중급.pdf"},
+  {id:"score_mvd75i7n_r1nl92",file:"이준영 - 널 그리며_고급.pdf"},
+  {id:"score_mvd75i7o_m9laa7",file:"유다빈밴드 - 노래는 불빛처럼 달린다_프로.pdf"},
+  {id:"score_mvd75i7n_3w68iv",file:"다비치 - 노래할래요_고급.pdf"},
+  {id:"score_mvd75i7k_5k53r9",file:"[초중급3] BIG Naughty (서동현) - 노스탈지아.pdf"},
+  {id:"score_mvd75i7o_e0a9tq",file:"DAY6 - 녹아내려요_고급.pdf"},
+  {id:"score_mvd75i7m_neajgx",file:"먼데이 키즈 , 이홍기 (FT아일랜드) - 눈물이 더 가까운 사람 (2026)_고급.pdf"},
+  {id:"score_mvd75i7n_y5soqe",file:"QWER - 눈물참기_고급.pdf"},
+  {id:"score_mvd75i7m_a43a97",file:"율(YUL)-눈물편지_고급.pdf"},
+  {id:"score_mvd75i7m_nnmcyp",file:"Wanna One (워너원) - 다시, 봄바람_고급.pdf"},
+  {id:"score_mvd75i7m_8fbhsg",file:"경서 예지, 전건호 - 다정히 내 이름을 부르면_고급.pdf"},
+  {id:"score_mvd75i7n_rgnkr3",file:"허각 - 단_고급.pdf"},
+  {id:"score_mvd75i7n_nky2vm",file:"로이킴 - 달리 표현할 수 없어요_고급.pdf"},
+  {id:"score_mvd75i7n_i8529t",file:"고윤정, 신시아, 강유석, 한예지 - 달리기_고급.pdf"},
+  {id:"score_mvd75i7n_on0ie9",file:"터치드 - 달춤_고급.pdf"},
+  {id:"score_mvd75i7n_u8p784",file:"임영웅 - 답장을 보낸지_고급.pdf"},
+  {id:"score_mvd75i7o_t6spxo",file:"이보람 - 당신을 위하여_프로.pdf"},
+  {id:"score_mvd75i7l_krr0th",file:"임영웅 - 돌아보지 마세요_중급.pdf"},
+  {id:"score_mvd75i7n_h82463",file:"황가람 - 돌아오지 않을 시간_고급.pdf"},
+  {id:"score_mvd75i7l_u09cd3",file:"부활 - 돛에 부는 바람_중급.pdf"},
+  {id:"score_mvd75i7n_0nl3gn",file:"DAY6 (데이식스) - 드디어 끝나갑니다_고급.pdf"},
+  {id:"score_mvd75i7n_w4o480",file:"임영웅 - 들꽃이 될게요_고급.pdf"},
+  {id:"score_mvd75i7n_6xrydh",file:"노을 - 들리나요_고급.pdf"},
+  {id:"score_mvd75i7l_jlw4fi",file:"순순희(기태) , 백예슬 - 떠나가요, 떠나지마요_중급.pdf"},
+  {id:"score_mvd75i7o_1hmxea",file:"BLACKPINK - 뛰어(JUMP)_프로.pdf"},
+  {id:"score_mvd75i7m_nxlywc",file:"태연 (TAEYEON) - 만찬가_고급.pdf"},
+  {id:"score_mvd75i7m_6ra1j8",file:"LUCY - 메아리_고급.pdf"},
+  {id:"score_mvd75i7l_fbbpjr",file:"DAY6 - 메이플라떼_초중급.pdf"},
+  {id:"score_mvd75i7m_ooj7pq",file:"쏜애플 - 멸종_고급.pdf"},
+  {id:"score_mvd75i7l_hhknlt",file:"이찬혁 - 멸종위기사랑_초중급.pdf"},
+  {id:"score_mvd75i7m_ucq2b2",file:"도겸 (DK) - 명장면_고급.pdf"},
+  {id:"score_mvd75i7n_z0zo9s",file:"잔나비 - 미소를 띄우며 나를 보낸 그 모습처럼_고급.pdf"},
+  {id:"score_mvd75i7m_sxxw1k",file:"황가람 - 미치게 그리워서_중급.pdf"},
+  {id:"score_mvd75i7m_efd17i",file:"송하예 - 바다 가자 (2026)_고급.pdf"},
+  {id:"score_mvd75i7l_gamnvp",file:"송하예 - 바다 가자 (2026) (중급,6)_0001.pdf"},
+  {id:"score_mvd75i7l_aoq4dr",file:"DAY6 - 바래 Wish_중급 쉬운악보.pdf"},
+  {id:"score_mvd75i7m_12o024",file:"DAY6 - 바래 Wish_고급.pdf"},
+  {id:"score_mvd75i7n_q8y6yl",file:"BIG Naughty (서동현) - 바이 바이 (Feat. 이무진)_고급.pdf"},
+  {id:"score_mvd75i7o_bc2pj6",file:"KickFlip(킥플립) - 반창고_프로.pdf"},
+  {id:"score_mvd75i7n_pbw43n",file:"DK(디셈버) - 발걸음_고급.pdf"},
+  {id:"score_mvd75i7n_3l1qlz",file:"7, 고급 비비(BIBI) - 밤양갱_0001.pdf"},
+  {id:"score_mvd75i7m_zeb0oh",file:"원필(WONPIL) - 백만송이는 아니지만_고급.pdf"},
+  {id:"score_mvd75i7n_5p5idd",file:"이무진 - 뱁새_고급.pdf"},
+  {id:"score_mvd75i7m_d3jo58",file:"김민석 (멜로망스) - 버릇처럼 셋을 센다_고급.pdf"},
+  {id:"score_mvd75i7l_sokjk8",file:"김민석 (멜로망스) - 버릇처럼 셋을 센다_중급 쉬운버전_0001.pdf"},
+  {id:"score_mvd75i7l_f3oco2",file:"Stray Kids - 별, 빛 (STAY)_중급_0001.pdf"},
+  {id:"score_mvd75i7k_obpepa",file:"DAY6(데이식스) - 별들 앞에서_초급.pdf"},
+  {id:"score_mvd75i7n_zbhnln",file:"경서예지 - 별빛달빛_고급.pdf"},
+  {id:"score_mvd75i7m_gtjmxn",file:"투모로우바이투게더 - 별의 노래_고급.pdf"},
+  {id:"score_mvd75i7o_rjsj4g",file:"허용별 (허각, 신용재, 임한별) - 별의 순간_프로.pdf"},
+  {id:"score_mvd75i7n_qhbtxc",file:"임창정 - 보고 싶지 않은 니가 보고 싶다_고급.pdf"},
+  {id:"score_mvd75i7n_3yss47",file:"다이나믹 듀오,TEAM 보스 -보스_고급pdf.pdf"},
+  {id:"score_mvd75i7l_8zg92n",file:"AKMU - 봄 색깔_중급.pdf"},
+  {id:"score_mvd75i7o_xqj2zw",file:"김뭉먕 - 부아앙_프로.pdf"},
+  {id:"score_mvd75i7l_gplcug",file:"DK - 부탁_중급.pdf"},
+  {id:"score_mvd75i7o_x05w65",file:"Xdinary Heroes - 불꽃놀이의 밤_프로.pdf"},
+  {id:"score_mvd75i7l_jh1aqx",file:"예빛 - 불안한 내 맘 달랠 곳은 너밖에 없어_중급.pdf"},
+  {id:"score_mvd75i7l_7iw1vo",file:"임영웅 - 비가 와서_중급.pdf"},
+  {id:"score_mvd75i7n_mrgqzo",file:"폴킴 - 비라도 내렸으면 좋겠어_고급.pdf"},
+  {id:"score_mvd75i7o_kdbu0b",file:"이홍기 - 비오니까_프로.pdf"},
+  {id:"score_mvd75i7k_r9rq5x",file:"[초급2] 한로로 (HANRORO) - 비틀비틀 짝짜꿍.pdf"},
+  {id:"score_mvd75i7l_vn5pbe",file:"[중급6] 한로로 (HANRORO) - 비틀비틀 짝짜꿍.pdf"},
+  {id:"score_mvd75i7l_yny5x1",file:"한해 문세윤 - 비행기_중급(easy).pdf"},
+  {id:"score_mvd75i7m_9wy52a",file:"Stray Kids - 삐처리 BLEEP_고급.pdf"},
+  {id:"score_mvd75i7k_esk4nj",file:"[중급6] 이창섭 - 사계, 그리고 너.pdf"},
+  {id:"score_mvd75i7m_ltoj15",file:"소란 - 사과 하나를 그려_고급.pdf"},
+  {id:"score_mvd75i7l_excxo0",file:"조째즈 - 사랑(LOVE)_중급.pdf"},
+  {id:"score_mvd75i7l_bf6v9m",file:"규현 - 사랑은 말로 표현하는게 아니래요_중급.pdf"},
+  {id:"score_mvd75i7n_kg4zsn",file:"LUCY - 사랑은 어쩌고_고급.pdf"},
+  {id:"score_mvd75i7n_epl859",file:"10CM - 사랑은 여섯줄_고급.pdf"},
+  {id:"score_mvd75i7n_uvkis0",file:"이아영 - 사랑을 할 순 없어도 그리울 순 있잖아요_고급.pdf"},
+  {id:"score_mvd75i7l_xs7tn6",file:"더 넛츠 (The Nuts) - 사랑의 바보 (2025)_초중급.pdf"},
+  {id:"score_mvd75i7m_ssefka",file:"멜로망스 - 사랑의 언어_고급.pdf"},
+  {id:"score_mvd75i7n_htrspu",file:"멜로망스 - 사랑인가봐_고급.pdf"},
+  {id:"score_mvd75i7l_7qo6qn",file:"한로로-사랑하게 될 거야_중급.pdf"},
+  {id:"score_mvd75i7l_s4mxon",file:"정승환 - 사랑한다 말할 수 있을까_중급.pdf"},
+  {id:"score_mvd75i7l_9i83l4",file:"윤도현 - 사랑했나봐_초중급.pdf"},
+  {id:"score_mvd75i7m_7xsfgl",file:"[고급7] 국악딴따라 - 살아보니 그렇더라.pdf"},
+  {id:"score_mvd75i7l_guwhej",file:"[중급5] 국악딴따라 - 살아보니 그렇더라.pdf"},
+  {id:"score_mvd75i7l_nbrkjt",file:"넬 (NELL) - 상실의 관성_중급.pdf"},
+  {id:"score_mvd75i7m_vs2ie1",file:"FT아일랜드(FTISLAND)-새들처럼_고급.pdf"},
+  {id:"score_mvd75i7l_wtf6s1",file:"ASH ISLAND(애쉬 아일랜드) - 생각이 나서_초중급.pdf"},
+  {id:"score_mvd75i7l_w3g7r5",file:"순순희 - 세 친구_중급.pdf"},
+  {id:"score_mvd75i7n_2cqu6v",file:"보라미유 - 세상 모든 어른이들에게_고급.pdf"},
+  {id:"score_mvd75i7m_8tz7u9",file:"H1-KEY(하이키) - 세상은 영화 같지 않더라_고급.pdf"},
+  {id:"score_mvd75i7l_nabp0a",file:"황가람 - 세상이 그대를 속일지라도_초중급.pdf"},
+  {id:"score_mvd75i7l_cq8bkq",file:"[중급6] QWER - 소년만화.pdf"},
+  {id:"score_mvd75i7m_qvu3qg",file:"[고급8] QWER - 소년만화.pdf"},
+  {id:"score_mvd75i7k_9mwv3z",file:"[초중급4] QWER - 소년만화.pdf"},
+  {id:"score_mvd75i7k_3os4hu",file:"쏜애플(THORNAPPLE) - 쇠퇴론_고급.pdf"},
+  {id:"score_mvd75i7o_55c673",file:"쏜애플 - 수성의 하루 프로_.pdf"},
+  {id:"score_mvd75i7l_a0x0hi",file:"임영웅 - 순간을 영원처럼_중급.pdf"},
+  {id:"score_mvd75i7l_b154ja",file:"MJ (써니사이드) - 순애보, 12월 이야기 (Feat. 김레전드)_중급.pdf"},
+  {id:"score_mvd75i7m_5fag07",file:"로이킴 - 스물다섯 스물하나_고급.pdf"},
+  {id:"score_mvd75i7n_buihdb",file:"전상근 - 슬픈 거짓말_고급.pdf"},
+  {id:"score_mvd75i7l_szd2fm",file:"순순희 - 슬픈 초대장_중급.pdf"},
+  {id:"score_mvd75i7m_3q2zb7",file:"잔나비 - 슬픔이여안녕_고급.pdf"},
+  {id:"score_mvd75i7o_y87xhg",file:"쏜애플 - 시퍼런 봄_고급.pdf"},
+  {id:"score_mvd75i7n_ntnbro",file:"Stray Kids - 신선 놀음_고급.pdf"},
+  {id:"score_mvd75i7m_j5d40b",file:"V.O.S - 신촌을 못가_고급.pdf"},
+  {id:"score_mvd75i7l_i4ylf7",file:"포스트맨 - 신촌을 못가_초중급.pdf"},
+  {id:"score_mvd75i7m_sh54rn",file:"이무진 - 신호등_고급.pdf"},
+  {id:"score_mvd75i7n_rf41fu",file:"고추잠자리 - 씨앗_고급.pdf"},
+  {id:"score_mvd75i7o_jougfn",file:"Dragon Pony (드래곤포니) - 아 마음대로 다 된다!_프로.pdf"},
+  {id:"score_mvd75i7l_9xiwc6",file:"조정석 - 아로하_초중급.pdf"},
+  {id:"score_mvd75i7l_jbzgc9",file:"잔나비 - 아름다운 꿈_초중급.pdf"},
+  {id:"score_mvd75i7n_iqu7d8",file:"2am - 아름다운 날들_고급.pdf"},
+  {id:"score_mvd75i7o_8x4xm0",file:"허각 - 아름다운 사실_프로.pdf"},
+  {id:"score_mvd75i7m_30dqa4",file:"LUCY - 아지랑이_고급.pdf"},
+  {id:"score_mvd75i7n_weow5y",file:"김나영 - 아직 난 그날에 살아_0001.pdf"},
+  {id:"score_mvd75i7l_iqo5wv",file:"우기 - 아프다_중급.pdf"},
+  {id:"score_mvd75i7n_w7ck3o",file:"킥플립 - 악몽을 꿨던 건 비밀이지만_고급.pdf"},
+  {id:"score_mvd75i7l_akxev7",file:"BIG Naughty (서동현) - 안녕_중급.pdf"},
+  {id:"score_mvd75i7n_z4oebl",file:"임영웅 - 알겠어요 미안해요_고급.pdf"},
+  {id:"score_mvd75i7m_ypr8aq",file:"쏜애플(THORNAPPLE) - 야광_고급.pdf"},
+  {id:"score_mvd75i7m_7zns3t",file:"원필(WONPIL) - 어른이 되어 버렸다_고급.pdf"},
+  {id:"score_mvd75i7n_jcs9p5",file:"Xdinary Heroes - 어리고 부끄럽고 바보 같은_고급.pdf"},
+  {id:"score_mvd75i7l_hh0e0b",file:"우디 - 어제보다 슬픈 오늘_중급.pdf"},
+  {id:"score_mvd75i7l_whl6an",file:"유다빈밴드 - 어지러워_초중급.pdf"},
+  {id:"score_mvd75i7l_nznvao",file:"미도와 파라솔 - 언젠가 눈부시게 빛날 테니_초중급.pdf"},
+  {id:"score_mvd75i7m_pqmvt4",file:"Stray Kids - 엉망_고급.pdf"},
+  {id:"score_mvd75i7o_vd35rq",file:"H1-KEY(하이키) - 여름이었다_프로.pdf"},
+  {id:"score_mvd75i7k_o30zrm",file:"볼빨간사춘기 - 여행_초급.pdf"},
+  {id:"score_mvd75i7l_d9lvmp",file:"윤하(YOUNHA) - 염라_프로.pdf"},
+  {id:"score_mvd75i7m_03p0as",file:"DAY6(데이식스) - 예뻤어(You Were Beautiful)_중급.pdf"},
+  {id:"score_mvd75i7l_gfoos7",file:"조째즈 - 오늘 밤은 취해 볼게요_중급.pdf"},
+  {id:"score_mvd75i7m_jjb0dw",file:"스탠딩 에그 - 오래된 노래_고급.pdf"},
+  {id:"score_mvd75i7k_8ha3m1",file:"악동뮤지션 - 오랜 날 오랜 밤_초중급.pdf"},
+  {id:"score_mvd75i7m_j555c6",file:"윤하(YOUNHA) - 오르트구름_고급.pdf"},
+  {id:"score_mvd75i7l_0tdr3b",file:"윤하(YOUNHA) - 오르트구름_중급 쉬운악보.pdf"},
+  {id:"score_mvd75i7n_f4p0rt",file:"유주 (YUJU) - 오리온자리 (Live)_고급.pdf"},
+  {id:"score_mvd75i7m_8pjedv",file:"잔나비 - 외딴섬 로맨틱_고급.pdf"},
+  {id:"score_mvd75i7n_jiflx2",file:"전건호- 우리가 사랑한 모든 날들_고급.pdf"},
+  {id:"score_mvd75i7n_skl8y2",file:"브라운 아이드 소울 - 우리들의 순간_고급.pdf"},
+  {id:"score_mvd75i7n_3sxfgr",file:"임영웅 - 우리에게 안녕_고급.pdf"},
+  {id:"score_mvd75i7m_0gwhsz",file:"어반자카파 - 우리의 겨울_고급.pdf"},
+  {id:"score_mvd75i7n_3lxpi4",file:"DAY6 - 우리의 계절_고급.pdf"},
+  {id:"score_mvd75i7l_8s2x41",file:"이예은, 아샤트리 - 울어_중급.pdf"},
+  {id:"score_mvd75i7o_kpdq1y",file:"세븐틴 - 음악의 신_프로_0001.pdf"},
+  {id:"score_mvd75i7n_9qhu8c",file:"BIG Naughty (서동현) - 응급실_고급.pdf"},
+  {id:"score_mvd75i7o_c2mi6f",file:"Young K - 응원가 (Anthem)_프로.pdf"},
+  {id:"score_mvd75i7k_vrpqbf",file:"[중급5] 아이유(IU) - 이 별로부터.pdf"},
+  {id:"score_mvd75i7n_poo5dq",file:"탑현 - 이것도 사랑이니_고급.pdf"},
+  {id:"score_mvd75i7l_w87bei",file:"H.Y.B.(허용별 (허각, 신용재, 임한별)) - 이게 뭐냔 말이야_중급.pdf"},
+  {id:"score_mvd75i7o_2xrdgv",file:"조유리 - 이제 안녕_프로.pdf"},
+  {id:"score_mvd75i7l_5c2pym",file:"전건호 - 이제는 어떻게 사랑을 하나요_중급.pdf"},
+  {id:"score_mvd75i7l_445jtb",file:"육성재 - 이제야_중급.pdf"},
+  {id:"score_mvd75i7o_l0y9ya",file:"로이킴 - 있는 모습 그대로_고급.pdf"},
+  {id:"score_mvd75i7n_2e47d5",file:"허각 - 있어줘요_고급.pdf"},
+  {id:"score_mvd75i7k_58d9s5",file:"BOYNEXTDOOR(보이넥스트도어) - 있잖아_초급.pdf"},
+  {id:"score_mvd75i7m_izh7k1",file:"KCM - 잊혀져 가더라_고급.pdf"},
+  {id:"score_mvd75i7l_jw9qj8",file:"FT아일랜드 - 작은 나보다 커다란 세상이 문을 열어 줄 것 같아_중급.pdf"},
+  {id:"score_mvd75i7l_do4yfg",file:"[중급5] 엔플라잉 (N.Flying) - 잔불 (Still).pdf"},
+  {id:"score_mvd75i7m_shhkq9",file:"[고급7] 엔플라잉 (N.Flying) - 잔불 (Still).pdf"},
+  {id:"score_mvd75i7k_mtscf0",file:"[초중급3] 엔플라잉 (N.Flying) - 잔불 (Still).pdf"},
+  {id:"score_mvd75i7m_9pd776",file:"한로로 (HANRORO) - 잔혹한 천사의 테제_고급(easy).pdf"},
+  {id:"score_mvd75i7l_u5i7yj",file:"한로로 (HANRORO) - 잔혹한 천사의 테제_중급(easy).pdf"},
+  {id:"score_mvd75i7n_uyv6p6",file:"산들 - 잘 됐으면 좋겠다_고급.pdf"},
+  {id:"score_mvd75i7l_k6pp4c",file:"황인욱 - 잘하고 있어_중급.pdf"},
+  {id:"score_mvd75i7l_4iotw2",file:"하현상 - 장마_중급.pdf"},
+  {id:"score_mvd75i7l_80ed1z",file:"[중급5] 한로로 (HANRORO) - 재 (Ashes).pdf"},
+  {id:"score_mvd75i7m_als7ua",file:"[고급7] 한로로 (HANRORO) - 재 (Ashes).pdf"},
+  {id:"score_mvd75i7n_w1u797",file:"7, 고급 달담 - 졸업_0001.pdf"},
+  {id:"score_mvd75i7m_vovakl",file:"윤종신 - 좋니_고급.pdf"},
+  {id:"score_mvd75i7m_s4nkkr",file:"DAY6 - 좋아합니다_고급.pdf"},
+  {id:"score_mvd75i7m_9f3w22",file:"민경훈 - 죄_고급.pdf"},
+  {id:"score_mvd75i7n_tys6bs",file:"이창섭 - 주르르_고급.pdf"},
+  {id:"score_mvd75i7m_w3wjpe",file:"잔나비 - 주저하는 연인들을 위해_고급.pdf"},
+  {id:"score_mvd75i7m_2yzxny",file:"임재현 - 중독된 사랑_중급.pdf"},
+  {id:"score_mvd75i7o_rmrteq",file:"드래곤포니 - 지구소년_프로.pdf"},
+  {id:"score_mvd75i7l_ew3okv",file:"김재환 - 지금 데리러 갈게_중급.pdf"},
+  {id:"score_mvd75i7n_zc6dsi",file:"폴킴 - 지금 이대로도 좋아_고급.pdf"},
+  {id:"score_mvd75i7m_ob5l5e",file:"박재정, 설윤 - 지금 이대로만_고급.pdf"},
+  {id:"score_mvd75i7n_6nct5o",file:"Hebi - 지금부터_고급.pdf"},
+  {id:"score_mvd75i7n_eeewne",file:"박진주 -  질풍가도_고급.pdf"},
+  {id:"score_mvd75i7l_c0pqjh",file:"치즈 - 집데이트_중급.pdf"},
+  {id:"score_mvd75i7l_t4565u",file:"범진 - 집으로_초중급.pdf"},
+  {id:"score_mvd75i7o_1divwz",file:"최예나 - 착하다는 말이 제일 싫어_프로.pdf"},
+  {id:"score_mvd75i7n_2vy0nn",file:"배기성 - 참 다행이야_고급.pdf"},
+  {id:"score_mvd75i7l_8d7f3a",file:"[중급6] FTISLAND (FT아일랜드) - 처음 그 날처럼.pdf"},
+  {id:"score_mvd75i7m_g45qrw",file:"[고급8] FTISLAND (FT아일랜드) - 처음 그 날처럼.pdf"},
+  {id:"score_mvd75i7k_k90oak",file:"[초중급4] FTISLAND (FT아일랜드) - 처음 그 날처럼.pdf"},
+  {id:"score_mvd75i7n_k04wii",file:"이창섭 - 천상연_고급.pdf"},
+  {id:"score_mvd75i7o_ovzahj",file:"캔트비블루 - 첫 눈에 널 사랑할 수는 없었을까_프로.pdf"},
+  {id:"score_mvd75i7l_2sedpq",file:"허각 - 첫눈이 오면 잊을 수 있을까_중급.pdf"},
+  {id:"score_mvd75i7n_zja63b",file:"잔나비 - 첫사랑은 안녕히_고급.pdf"},
+  {id:"score_mvd75i7n_dcqs60",file:"윤마치 - 초록_고급.pdf"},
+  {id:"score_mvd75i7n_oqn8bz",file:"현서 (HYUN SEO) - 최선이었다_고급.pdf"},
+  {id:"score_mvd75i7o_w4qul0",file:"유다빈밴드 - 축배_프로.pdf"},
+  {id:"score_mvd75i7k_1yvebq",file:"[초급2] 가을방학 - 취미는 사랑.pdf"},
+  {id:"score_mvd75i7n_1mq5h5",file:"펭수 - 콩국수_고급.pdf"},
+  {id:"score_mvd75i7o_yjrydm",file:"다비치 - 타임캡슐_프로.pdf"},
+  {id:"score_mvd75i7n_85ydml",file:"딘딘 - 태양은 가득히_고급.pdf"},
+  {id:"score_mvd75i7k_soytoa",file:"[초급2] 소연-퇴사할게여.pdf"},
+  {id:"score_mvd75i7n_uyj2b4",file:"7, 고급 윤하 - 포인트 니모_0001.pdf"},
+  {id:"score_mvd75i7m_h6dyhi",file:"쏜애플(THORNAPPLE) - 플라네타리움_고급.pdf"},
+  {id:"score_mvd75i7l_xx2qvi",file:"수지 - 하루_초중급.pdf"},
+  {id:"score_mvd75i7m_sbxl8h",file:"TXT(투모로우바이투게더) - 하루에 하루만 더_고급.pdf"},
+  {id:"score_mvd75i7o_e73wvn",file:"LUCY - 하마_고급.pdf"},
+  {id:"score_mvd75i7n_z0x8ju",file:"대성 - 한도초과_고급.pdf"},
+  {id:"score_mvd75i7n_ina27t",file:"신용재 - 한숨_고급.pdf"},
+  {id:"score_mvd75i7n_ogo1zc",file:"솔지 - 한없이 아름다운 너를 만나_고급.pdf"},
+  {id:"score_mvd75i7o_a9yhmc",file:"유다빈밴드 - 항해_프로.pdf"},
+  {id:"score_mvd75i7n_sei8sd",file:"DAY6 (데이식스) - 해야 뜨지 말아 줘_고급.pdf"},
+  {id:"score_mvd75i7n_kquzqh",file:"QWER - 행복해져라 (캐롤 Ver.)_고급_0001.pdf"},
+  {id:"score_mvd75i7k_det3zm",file:"[초급2] DAY6 - 행복했던 날들이었다.pdf"},
+  {id:"score_mvd75i7m_x8x47y",file:"박재정 - 헤어지자 말해요_고급.pdf"},
+  {id:"score_mvd75i7l_7nxot7",file:"쌍문동 아이들 - 혜화동 (혹은 쌍문동)_중급.pdf"},
+  {id:"score_mvd75i7l_4slgyn",file:"하현상 - 화분_중급.pdf"},
+  {id:"score_mvd75i7o_9wdnix",file:"김동률 - 황금가면_프로.pdf"},
+  {id:"score_mvd75i7o_r0lnbr",file:"음율 - 흑백논리_프로.pdf"},
+  {id:"score_mvd75i7l_mzwngv",file:"장범준 - 흔들리는 꽃들 속에서 네 샴푸향이 느껴진거야_중급.pdf"},
+  {id:"score_mvd75i7m_idqzd4",file:"음율 - 희비교차_고급.pdf"},
+  {id:"score_mvd75i7m_3kmd8a",file:"Vaundy - 呼び声(부르는 소리, 요비고에)_고급.pdf"}
+];
+
+let ADMIN_PDF_RUNNING = false;
+let ADMIN_PDF_STOP = false;
+let ADMIN_PDF_DONE = 0;
+let ADMIN_PDF_OK = 0;
+let ADMIN_PDF_FAIL = 0;
+let ADMIN_PDF_LOG = []; // { file, ok, message }
+
+function pdfMappingStatus() {
+  let done = 0;
+  for (const m of SCORE_PDF_MAPPING) {
+    const s = STATE.scores[m.id];
+    if (s && s.fileUrl) done++;
+  }
+  return { total: SCORE_PDF_MAPPING.length, done, remaining: SCORE_PDF_MAPPING.length - done };
+}
+
+function renderAdminPdfUpload(body) {
+  const st = pdfMappingStatus();
+  body.innerHTML = `
+    <div style="${ADMIN_PANEL}">
+      <h2 style="margin:0 0 4px;font-size:17px;">PDF 일괄 업로드 (이관된 악보용)</h2>
+      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.6;">
+        mydrumsheet.com에서 이관된 악보 중 실제 파일이 비어있던 곡들을, 반진영님이 보내주신
+        "판매용 악보" 폴더의 파일명과 자동으로 맞춰본 목록(${st.total}곡)입니다. 아래 버튼을 누르면
+        그 폴더를 통째로 고를 수 있고, 이름이 맞는 파일만 하나씩 업로드해서 악보에 연결합니다.<br>
+        지금까지 연결됨: <b>${st.done} / ${st.total}</b>곡
+      </p>
+      <div style="padding:12px;border-radius:10px;background:var(--band);font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
+        이름이 너무 달라 자동으로 맞추지 못한 악보, 또는 폴더 안에 파일 자체가 없는 악보는
+        이 목록에 들어있지 않습니다(사람이 다시 확인해야 할 134곡, 파일을 못 찾은 74곡은 별도).
+        이미 연결된 악보는 다시 눌러도 건너뛰니, 중간에 멈췄다가 같은 폴더로 다시 시작해도 안전합니다.
+      </div>
+      <input type="file" id="admin-pdf-folder-input" webkitdirectory directory multiple style="display:none;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button id="admin-pdf-pick-btn" class="btn btn-primary" ${ADMIN_PDF_RUNNING ? "disabled" : ""}>
+          ${ADMIN_PDF_RUNNING ? "업로드 진행 중..." : `"판매용 악보" 폴더 선택해서 업로드 시작`}
+        </button>
+        ${ADMIN_PDF_RUNNING ? `<button id="admin-pdf-stop-btn" style="padding:9px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">중단</button>` : ""}
+      </div>
+      <div id="admin-pdf-progress" style="margin-top:14px;"></div>
+      <div id="admin-pdf-log" style="margin-top:10px;max-height:320px;overflow-y:auto;font-size:12px;"></div>
+    </div>`;
+
+  document.getElementById("admin-pdf-pick-btn")?.addEventListener("click", () => {
+    document.getElementById("admin-pdf-folder-input")?.click();
+  });
+  document.getElementById("admin-pdf-folder-input")?.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    runBulkPdfUpload(files);
+  });
+  document.getElementById("admin-pdf-stop-btn")?.addEventListener("click", () => {
+    ADMIN_PDF_STOP = true;
+  });
+
+  renderAdminPdfProgress();
+}
+
+function renderAdminPdfProgress() {
+  const progEl = document.getElementById("admin-pdf-progress");
+  const logEl = document.getElementById("admin-pdf-log");
+  if (!progEl || !logEl) return;
+  const total = SCORE_PDF_MAPPING.length;
+  const pct = total ? Math.round((ADMIN_PDF_DONE / total) * 100) : 0;
+  progEl.innerHTML = (ADMIN_PDF_RUNNING || ADMIN_PDF_DONE > 0) ? `
+    <div style="font-size:13px;margin-bottom:6px;">${ADMIN_PDF_DONE} / ${total} 처리됨 · 성공 ${ADMIN_PDF_OK} · 실패 ${ADMIN_PDF_FAIL}</div>
+    <div style="height:8px;border-radius:4px;background:var(--band);"><div style="height:8px;border-radius:4px;background:var(--primary);width:${pct}%;"></div></div>
+  ` : "";
+  const recent = ADMIN_PDF_LOG.slice(-200).slice().reverse();
+  logEl.innerHTML = recent.map(r => `
+    <div style="padding:4px 0;border-top:1px solid var(--border);color:${r.ok ? "var(--text)" : "var(--danger)"};">
+      ${r.ok ? "✓" : "✗"} ${esc(r.file)}${r.ok ? "" : ` — ${esc(r.message || "")}`}
+    </div>`).join("");
+}
+
+async function runBulkPdfUpload(files) {
+  if (ADMIN_PDF_RUNNING) return;
+  ADMIN_PDF_RUNNING = true;
+  ADMIN_PDF_STOP = false;
+  ADMIN_PDF_DONE = 0; ADMIN_PDF_OK = 0; ADMIN_PDF_FAIL = 0; ADMIN_PDF_LOG = [];
+  renderAdmin();
+
+  // macOS 브라우저는 한글 파일명을 자모 분리(NFD)로 줄 때가 있어서, 비교 전에
+  // 전부 NFC로 정규화한다 (이관 PDF 매칭 작업 때 겪었던 것과 같은 문제).
+  const byName = new Map();
+  for (const f of files) {
+    const name = (f.name || "").normalize("NFC");
+    byName.set(name, f);
+  }
+
+  for (const m of SCORE_PDF_MAPPING) {
+    if (ADMIN_PDF_STOP) break;
+    const score = STATE.scores[m.id];
+    if (!score) {
+      ADMIN_PDF_LOG.push({ file: m.file, ok: false, message: "악보를 찾을 수 없음(삭제됨?)" });
+      ADMIN_PDF_FAIL++; ADMIN_PDF_DONE++;
+      continue;
+    }
+    if (score.fileUrl) {
+      ADMIN_PDF_DONE++; ADMIN_PDF_OK++; // 이미 연결됨 — 조용히 건너뜀
+      continue;
+    }
+    const wanted = m.file.normalize("NFC");
+    const file = byName.get(wanted);
+    if (!file) {
+      ADMIN_PDF_LOG.push({ file: m.file, ok: false, message: "선택한 폴더에서 이 파일명을 찾지 못함" });
+      ADMIN_PDF_FAIL++; ADMIN_PDF_DONE++;
+      if (ADMIN_PDF_DONE % 10 === 0) renderAdminPdfProgress();
+      continue;
+    }
+    const res = await uploadScoreFile(SCORE_PDF_SELLER_ID, m.id, file);
+    if (res.ok) {
+      score.fileUrl = res.path;
+      ADMIN_PDF_OK++;
+      ADMIN_PDF_LOG.push({ file: m.file, ok: true });
+    } else {
+      ADMIN_PDF_FAIL++;
+      ADMIN_PDF_LOG.push({ file: m.file, ok: false, message: res.message });
+    }
+    ADMIN_PDF_DONE++;
+    if (ADMIN_PDF_DONE % 5 === 0) renderAdminPdfProgress();
+  }
+
+  save(); // scores.fileUrl 변경분을 한꺼번에 서버에 반영 (diff 저장)
+  ADMIN_PDF_RUNNING = false;
+  renderAdmin();
+  if (typeof toast === "function") toast(`PDF 업로드 완료: 성공 ${ADMIN_PDF_OK}건 · 실패 ${ADMIN_PDF_FAIL}건`);
 }
