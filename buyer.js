@@ -45,17 +45,17 @@ const INSTRUMENT_ICON = {
 /* ---------- 일러스트 (직접 그린 SVG — 외부 이미지 없이 어디서든 보임) ---------- */
 
 const INST_THEME = {
-  "드럼": { tint: "#fff8e1", ink: "#ff9a5c", soft: "#fbcdb5" },
-  "기타": { tint: "#fff8e1", ink: "#c4860e", soft: "#efd9a6" },
-  "피아노": { tint: "#fff8e1", ink: "#3b302a", soft: "#d9cfc3" },
-  "베이스": { tint: "#fff8e1", ink: "#8a4b3c", soft: "#e6c8bf" },
-  "우쿨렐레": { tint: "#fff8e1", ink: "#6b7a2a", soft: "#d8dcb4" },
-  "칼림바": { tint: "#fff8e1", ink: "#2f736c", soft: "#bcd9d4" },
-  "리코더": { tint: "#fff8e1", ink: "#b14d66", soft: "#ecc4ce" }
+  "드럼": { tint: "#f4eee5", ink: "#ff9a5c", soft: "#fbcdb5" },
+  "기타": { tint: "#f4eee5", ink: "#c4860e", soft: "#efd9a6" },
+  "피아노": { tint: "#f4eee5", ink: "#3b302a", soft: "#d9cfc3" },
+  "베이스": { tint: "#f4eee5", ink: "#8a4b3c", soft: "#e6c8bf" },
+  "우쿨렐레": { tint: "#f4eee5", ink: "#6b7a2a", soft: "#d8dcb4" },
+  "칼림바": { tint: "#f4eee5", ink: "#2f736c", soft: "#bcd9d4" },
+  "리코더": { tint: "#f4eee5", ink: "#b14d66", soft: "#ecc4ce" }
 };
 
 function themeOf(inst) {
-  return INST_THEME[inst] || { tint: "#fff8e1", ink: "#ff9a5c", soft: "#fbcdb5" };
+  return INST_THEME[inst] || { tint: "#f4eee5", ink: "#ff9a5c", soft: "#fbcdb5" };
 }
 
 function hashStr(str) {
@@ -136,6 +136,13 @@ function sheetArt(seedText, ink, rows) {
     const top = 18 + r * 26;
     for (let l = 0; l < 5; l++) body += `<line x1="6" x2="114" y1="${top + l * 3.2}" y2="${top + l * 3.2}" stroke="#cfd5d2" stroke-width=".6"/>`;
     for (let b = 1; b < 4; b++) body += `<line x1="${6 + b * 27}" x2="${6 + b * 27}" y1="${top}" y2="${top + 12.8}" stroke="#cfd5d2" stroke-width=".6"/>`;
+    for (let k = 0; k < 9; k++) {
+      const x = 12 + k * 11.5 + rand() * 3;
+      const y = top + Math.floor(rand() * 9) * 1.6;
+      const fill = k % 4 === 0 ? ink : "#3b4240";
+      body += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="2.1" ry="1.5" fill="${fill}" transform="rotate(-20 ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
+      body += `<line x1="${(x + 1.9).toFixed(1)}" x2="${(x + 1.9).toFixed(1)}" y1="${y.toFixed(1)}" y2="${(y - 8).toFixed(1)}" stroke="${fill}" stroke-width=".7"/>`;
+    }
   }
   return `<svg viewBox="0 0 120 ${18 + n * 26}" preserveAspectRatio="xMidYMin meet" aria-hidden="true" focusable="false">
     <rect x="30" y="5" width="60" height="3.2" rx="1.6" fill="#3b4240" opacity=".75"/>
@@ -251,43 +258,32 @@ function priceHtml(s) {
     + `<span>${formatPoint(effectivePrice(s))}</span>`;
 }
 
-const DIFF_BADGE_COLORS = {
-  "초급": { bg: "#ecfcff", fg: "#41c0ff", border: "#87eaff" },
-  "중급": { bg: "#fffaec", fg: "#ffb525", border: "#ffb932" },
-  "고급": { bg: "#ffeeee", fg: "#ff7272", border: "#ff7d7d" },
-  "상급": { bg: "#ffeeee", fg: "#ff7272", border: "#ff7d7d" }
-};
-function diffBadgeStyle(difficulty) {
-  const c = DIFF_BADGE_COLORS[difficulty] || DIFF_BADGE_COLORS["초급"];
-  return `background:${c.bg};color:${c.fg};border:1px solid ${c.border};`;
-}
-function cartIcon() {
-  return `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#000" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8h12l-1 11a2 2 0 0 1-2 2H9a2 2 0 0 1-2-2L6 8Z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>`;
-}
-
 function scoreCard(s, opts) {
   const o = opts || {};
+  const user = getCurrentUser();
+  const wished = user && user.wishlist.includes(s.id);
   const r = getScoreRating(s.id);
   return `
     <div class="score-card" data-score-id="${s.id}">
       <div class="thumb" style="--tint:${themeOf(s.instrument).tint};--ink:${themeOf(s.instrument).ink};">
         ${o.rank ? `<span class="rank-num ${o.rank <= 3 ? "top" : ""}">${o.rank}</span>` : ""}
-        <span class="diff-badge" style="${diffBadgeStyle(s.difficulty)}">${esc(s.difficulty)}</span>
+        <button type="button" class="wish-btn ${wished ? "on" : ""}" data-wish="${s.id}" aria-label="찜하기">${wished ? "♥" : "♡"}</button>
         ${s.thumbnailUrl
           ? `<img src="${esc(s.thumbnailUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
-          : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${esc(s.instrument)}</div>`}
-        ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶</span>` : ""}
+          : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${instArt(s.instrument)}</div>`}
+        ${s.hasVideo ? `<span class="video-flag">▶ 연주영상</span>` : ""}
       </div>
       <div class="card-body">
-        <div class="card-seller"><span class="avatar" style="${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</div>
+        <div class="tags">
+          <span class="tag">${esc(s.instrument)}</span>
+          <span class="tag tag-diff">${esc(s.difficulty)}</span>
+        </div>
         <div class="card-title">${esc(s.title)}</div>
         <div class="card-artist">${esc(s.artist)}</div>
+        <div class="card-seller"><span class="avatar" style="${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</div>
         <div class="card-foot">
-          <button type="button" class="cart-btn" data-cart="${s.id}" aria-label="장바구니에 담기">${cartIcon()}</button>
-          <div class="card-foot-right">
-            ${r.count ? `<span class="rating"><b>★</b> ${r.avg} (${r.count})</span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
-            <span class="price">${priceHtml(s)}</span>
-          </div>
+          <span class="price">${priceHtml(s)}</span>
+          ${r.count ? `<span class="rating"><b>★</b> ${r.avg} (${r.count})</span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
         </div>
       </div>
     </div>
@@ -305,18 +301,6 @@ function bindCards(root) {
         if (!res.ok) { toast(res.message, true); return; }
         toast(res.added ? "찜 목록에 담았어요" : "찜을 해제했어요");
         renderBuyer();
-        renderHeaderAuth();
-      });
-    });
-  });
-  root.querySelectorAll("[data-cart]").forEach(btn => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const id = btn.dataset.cart;
-      requireLogin(() => {
-        const res = addToCart(getCurrentUser().id, id);
-        if (!res.ok) { toast(res.message, true); return; }
-        toast("장바구니에 담았어요");
         renderHeaderAuth();
       });
     });
@@ -380,34 +364,31 @@ function renderHomePage(el) {
     <div class="hero" id="hero">
       <div class="hero-track" id="hero-track">
         <div class="hero-slide slide-1">
-          <div class="hero-inner">
           <div class="hero-text">
           <div class="eyebrow">악보는 영상과 함께</div>
           <h2>연주 영상과 함께 보는 악보</h2>
           <p>연주영상 표시가 있는 악보는<br>판매 아티스트가 직접 연주한 영상을 함께 볼 수 있어요.</p>
           <button class="btn btn-primary" id="hero-video-btn" data-go="list:video:true" style="background:linear-gradient(90deg,#ffb36b 0%,#f07845 100%);border-color:transparent;">연주영상 악보 보기</button>
           </div>
-          </div>
+          <div class="hero-art hero-photo-empty" id="hero-photo-1"></div>
         </div>
         <div class="hero-slide slide-2">
-          <div class="hero-inner">
           <div class="hero-text">
           <div class="eyebrow">찾는 악보가 없다면</div>
           <h2>신청곡을 올려주세요</h2>
           <p>누구나 무료로 올릴 수 있어요.<br>신청이 많은 곡부터 채보해서<br>악보로 만들어 드려요.</p>
           <button class="btn btn-accent" id="hero-request-btn" data-go="requests">신청곡 보러가기</button>
           </div>
-          </div>
+          <div class="hero-art hero-photo-empty" id="hero-photo-2"></div>
         </div>
         <div class="hero-slide slide-3">
-          <div class="hero-inner">
           <div class="hero-text">
           <div class="eyebrow">아티스트 모집</div>
           <h2>내 악보를 올리고<br>판매 금액의 ${Math.round((1 - POLICY.commission.rate) * 100)}%를 정산받으세요</h2>
           <p>적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이면 매달 ${POLICY.settlement.payoutDay}일 신청 없이 자동으로 입금돼요.</p>
           <button class="btn" id="hero-artist-btn" style="background:linear-gradient(90deg,#ffb36b 0%,#f07845 100%);border-color:transparent;border-radius:16px;">아티스트로 시작하기</button>
           </div>
-          </div>
+          <div class="hero-art hero-photo-empty" id="hero-photo-3"></div>
         </div>
       </div>
       <div class="hero-dots" id="hero-dots">
@@ -444,26 +425,27 @@ function renderHomePage(el) {
       <div id="pop-row"></div>
     </div>
 
-    <div class="section latest-section">
+    <div class="section">
       <div class="section-head">
         <h2>최신 악보</h2>
         <button class="more-link" data-go="list:sort:latest">더 보기 ›</button>
       </div>
       ${latest.length ? `
-        <div class="rank-list-grid">
-          ${latest.map((s, i) => `
-            <div class="rank-row" data-score-id="${s.id}">
-              <span class="rank-order">${i + 1}</span>
-              <div class="rank-thumb" style="--tint:${themeOf(s.instrument).tint};--ink:${themeOf(s.instrument).ink};">
-                ${s.thumbnailUrl
-                  ? `<img src="${esc(s.thumbnailUrl)}" alt="" onerror="this.style.display='none';">`
-                  : instArt(s.instrument)}
-              </div>
-              <div class="rank-info">
-                <div class="rank-title">${esc(s.title)}</div>
-                <div class="rank-sub">${esc(s.artist)} · ${esc(s.instrument)}</div>
-              </div>
-            </div>`).join("")}
+        <div class="table-wrap">
+          <table class="list-table">
+            <thead><tr><th>노래 제목</th><th class="hide-m">가수</th><th>아티스트</th><th>악기</th><th class="hide-m">난이도</th><th style="text-align:right;">가격</th></tr></thead>
+            <tbody>
+              ${latest.map(s => `
+                <tr data-score-id="${s.id}">
+                  <td><b>${esc(s.title)}</b> ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);">▶ 영상</span>` : ""}</td>
+                  <td class="hide-m muted">${esc(s.artist)}</td>
+                  <td><span data-artist-id="${s.sellerId}" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;">${esc(sellerName(s.sellerId))}</span></td>
+                  <td>${esc(s.instrument)}</td>
+                  <td class="hide-m">${esc(s.difficulty)}</td>
+                  <td style="text-align:right;font-weight:700;white-space:nowrap;">${priceHtml(s)}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
         </div>` : `<div class="empty">아직 등록된 악보가 없어요.</div>`}
     </div>
 
@@ -475,12 +457,12 @@ function renderHomePage(el) {
       ${videoScores.length ? `<div class="score-row">${videoScores.map(s => scoreCard(s)).join("")}</div>` : `<div class="empty">아직 연주 영상이 있는 악보가 없어요.</div>`}
     </div>
 
-    <div class="req-band">
-      <div class="req-band-inner">
-        <div class="section-head">
-          <h2>신청곡 순위</h2>
-          <button class="more-link" data-go="requests">신청하러 가기 ›</button>
-        </div>
+    <div class="section">
+      <div class="section-head">
+        <h2>신청곡 순위</h2>
+        <button class="more-link" data-go="requests">신청하러 가기 ›</button>
+      </div>
+      <div class="panel" style="background:#f4eee5;">
         ${requests.length ? requests.map((r, i) => `
           <div class="req-item">
             <div class="req-count"><b>${r.buyerIds.length}</b><span>신청자 수</span></div>
@@ -542,7 +524,7 @@ function renderPopRow() {
   if (!wrap) return;
   const list = getPopularScores(HOME_POP.period || null, HOME_POP.instrument).slice(0, 10);
   wrap.innerHTML = list.length
-    ? `<div class="score-row">${list.map((s, i) => scoreCard(s, { rank: i + 1, hideVideoBadge: true })).join("")}</div>`
+    ? `<div class="score-row">${list.map((s, i) => scoreCard(s, { rank: i + 1 })).join("")}</div>`
     : `<div class="empty">이 조건의 악보가 아직 없어요.</div>`;
   bindCards(wrap);
 }
@@ -605,7 +587,10 @@ function filterScores(p) {
     );
   }
   if (p.instrument) list = list.filter(s => s.instrument === p.instrument);
-  if (p.difficulty) list = list.filter(s => s.difficulty === p.difficulty);
+  // 2026-10-18 변경: 난이도는 이제 5단계로 저장되므로, 홈카테고리 3개 기준 필터는 difficultyGroup()으로 묶어서 비교한다.
+  if (p.difficulty) list = list.filter(s => difficultyGroup(s.difficulty) === p.difficulty);
+  // 카테고리(중급/고급) 안의 세부 단계(초중급/프로 등) 필터 — p.difficulty 가 선택된 상태에서만 의미가 있다.
+  if (p.subtier) list = list.filter(s => s.difficulty === p.subtier);
   if (p.video) list = list.filter(s => s.hasVideo);
   if (p.minPrice) list = list.filter(s => effectivePrice(s) >= Number(p.minPrice));
   if (p.maxPrice) list = list.filter(s => effectivePrice(s) <= Number(p.maxPrice));
@@ -637,6 +622,9 @@ function renderListPage(el, p) {
 
   const update = (patch) => goBuyer("list", Object.assign({}, p, patch, { page: 1 }), { keepScroll: true });
 
+  // 2026-10-18 추가: 중급/고급 카테고리 안에서만 보여줄 세부 단계 목록 (초급은 세부 단계 없음)
+  const subtiers = p.difficulty ? (DIFFICULTY_SUBTIERS[p.difficulty] || []) : [];
+
   el.innerHTML = `
     <div class="breadcrumb"><button data-go="home">홈</button> › ${title}</div>
     <h1 class="page-title">${title}</h1>
@@ -655,39 +643,35 @@ function renderListPage(el, p) {
           ${["", ...DIFFICULTIES].map(d => `<button class="chip ${(p.difficulty || "") === d ? "active" : ""}" data-f-diff="${esc(d)}">${d ? esc(d) : "전체"}</button>`).join("")}
         </div>
       </div>
+      ${subtiers.length ? `
+      <div class="filter-line">
+        <span class="filter-label">세부 단계</span>
+        <div class="chip-row">
+          ${["", ...subtiers].map(d => `<button class="chip ${(p.subtier || "") === d ? "active" : ""}" data-f-subtier="${esc(d)}">${d ? esc(d) : "전체"}</button>`).join("")}
+        </div>
+      </div>` : ""}
       <div class="filter-line" style="flex-wrap:wrap;">
         <span class="filter-label">조건</span>
-        <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> 연주영상 있음</label>
+        <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> ▶ 연주영상 있음</label>
         <span style="display:inline-flex;align-items:center;gap:6px;">
-          <input class="field" style="width:90px;" type="number" min="0" step="500" id="f-min" placeholder="최소P" value="${esc(p.minPrice || "")}">
+          <input class="toolbar field" style="width:90px;" type="number" min="0" step="500" id="f-min" placeholder="최소P" value="${esc(p.minPrice || "")}">
           ~
-          <input class="field" style="width:90px;" type="number" min="0" step="500" id="f-max" placeholder="최대P" value="${esc(p.maxPrice || "")}">
+          <input class="toolbar field" style="width:90px;" type="number" min="0" step="500" id="f-max" placeholder="최대P" value="${esc(p.maxPrice || "")}">
           <button class="btn btn-small" id="f-price">가격 적용</button>
         </span>
       </div>
     </div>
 
     <div class="toolbar">
-      <div class="toolbar-left">
-        <div class="sort-quick">
-          ${[["popular", "인기순"], ["latest", "최신순"]].map(([v, l]) => `<button type="button" class="chip ${(p.sort || "popular") === v ? "active" : ""}" data-sort-quick="${v}">${l}</button>`).join("")}
-        </div>
-        <span class="muted">${list.length ? `${(current - 1) * PAGE_SIZE + 1}–${(current - 1) * PAGE_SIZE + shown.length} / ${list.length}` : ""}</span>
-      </div>
-      <div class="sort-dd" id="sort-dd">
-        <button type="button" class="sort-dd-btn" id="sort-dd-btn" aria-haspopup="listbox" aria-expanded="false">${esc((() => {
-          const found = [["priceLow", "낮은 가격순"], ["priceHigh", "높은 가격순"], ["views", "조회순"], ["rating", "별점순"]].find(([v]) => v === p.sort);
-          return found ? found[1] : "정렬";
-        })())} <span aria-hidden="true">▾</span></button>
-        <div class="sort-dd-list" id="sort-dd-list" role="listbox">
-          ${[["priceLow", "낮은 가격순"], ["priceHigh", "높은 가격순"], ["views", "조회순"], ["rating", "별점순"]]
-            .map(([v, l]) => `<button type="button" class="sort-dd-opt ${p.sort === v ? "active" : ""}" role="option" data-sort-dd="${v}">${l}</button>`).join("")}
-        </div>
-      </div>
+      <span class="muted">${list.length ? `${(current - 1) * PAGE_SIZE + 1}–${(current - 1) * PAGE_SIZE + shown.length} / ${list.length}` : ""}</span>
+      <select id="f-sort" aria-label="정렬">
+        ${[["popular", "인기순"], ["latest", "최신순"], ["priceLow", "낮은 가격순"], ["priceHigh", "높은 가격순"], ["views", "조회순"], ["rating", "별점순"]]
+          .map(([v, l]) => `<option value="${v}" ${(p.sort || "popular") === v ? "selected" : ""}>${l}</option>`).join("")}
+      </select>
     </div>
 
     ${shown.length
-      ? `<div class="score-grid">${shown.map(s => scoreCard(s, { hideVideoBadge: true })).join("")}</div>`
+      ? `<div class="score-grid">${shown.map(s => scoreCard(s)).join("")}</div>`
       : `<div class="empty">
            <p style="margin:0 0 10px;">조건에 맞는 악보가 없어요.</p>
            <button class="btn btn-small" id="go-request">이 곡 신청하기</button>
@@ -698,28 +682,10 @@ function renderListPage(el, p) {
 
   bindCards(el);
   el.querySelectorAll("[data-f-inst]").forEach(b => b.addEventListener("click", () => update({ instrument: b.dataset.fInst })));
-  el.querySelectorAll("[data-f-diff]").forEach(b => b.addEventListener("click", () => update({ difficulty: b.dataset.fDiff })));
+  el.querySelectorAll("[data-f-diff]").forEach(b => b.addEventListener("click", () => update({ difficulty: b.dataset.fDiff, subtier: "" })));
+  el.querySelectorAll("[data-f-subtier]").forEach(b => b.addEventListener("click", () => update({ subtier: b.dataset.fSubtier })));
   document.getElementById("f-video")?.addEventListener("change", (e) => update({ video: e.target.checked }));
-  el.querySelectorAll("[data-sort-quick]").forEach(b => b.addEventListener("click", () => update({ sort: b.dataset.sortQuick })));
-  el.querySelectorAll("[data-sort-dd]").forEach(b => b.addEventListener("click", () => update({ sort: b.dataset.sortDd })));
-  document.getElementById("sort-dd-btn")?.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const list = document.getElementById("sort-dd-list");
-    const isOpen = list.classList.toggle("open");
-    e.currentTarget.setAttribute("aria-expanded", isOpen ? "true" : "false");
-  });
-  if (!window.__sortDdOutsideBound) {
-    window.__sortDdOutsideBound = true;
-    document.addEventListener("click", (e) => {
-      const dd = document.getElementById("sort-dd");
-      const list = document.getElementById("sort-dd-list");
-      if (!dd || !list || !list.classList.contains("open")) return;
-      if (!dd.contains(e.target)) {
-        list.classList.remove("open");
-        document.getElementById("sort-dd-btn")?.setAttribute("aria-expanded", "false");
-      }
-    });
-  }
+  document.getElementById("f-sort")?.addEventListener("change", (e) => update({ sort: e.target.value }));
   document.getElementById("f-price")?.addEventListener("click", () => update({
     minPrice: document.getElementById("f-min").value, maxPrice: document.getElementById("f-max").value
   }));
@@ -810,6 +776,11 @@ function renderDetailPage(el, p) {
           </div>
           <p class="preview-note">미리보기는 악보 첫 ${POLICY.preview.bars}마디까지 보여요. 실제 악보 이미지는 파일 업로드가 연결되면 이 자리에 나옵니다.</p>
         </div>
+        ${s.hasVideo ? `
+          <a class="video-card" href="${esc(s.videoUrl || "#")}" target="_blank" rel="noopener">
+            <span class="video-play">▶</span>
+            <span><span class="vc-title">연주 영상 보기</span><br><span class="vc-sub">${esc(sellerName(s.sellerId))}님이 직접 연주한 영상 (새 창으로 열려요)</span></span>
+          </a>` : ""}
       </div>
 
       <div>
@@ -833,32 +804,19 @@ function renderDetailPage(el, p) {
           ${own ? "" : `<button class="btn btn-small ${following ? "" : "btn-primary"}" id="d-follow">${following ? "구독중" : "+ 구독"}</button>`}
         </div>
 
+        <table class="info-table">
+          <tr><th>악기</th><td>${esc(s.instrument)}</td></tr>
+          <tr><th>난이도</th><td>${esc(s.difficulty)}</td></tr>
+          <tr><th>파일</th><td>PDF</td></tr>
+          <tr class="meta-row"><th>등록일</th><td>${formatDate(s.approvedAt || s.createdAt)}</td></tr>
+          <tr class="meta-row"><th>조회 · 판매</th><td>${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</td></tr>
+        </table>
+
         <div class="price-big">${priceHtml(s)}</div>
         ${buyArea}
         <p class="buy-note">구매 후 ${POLICY.refund.windowDays}일 이내, 파일을 열지 않았다면 포인트로 전액 환불돼요. 구매한 악보는 마이페이지 › 내 악보함에서 언제든 다시 받을 수 있어요.</p>
       </div>
     </div>
-
-    <div class="section">
-      <div class="section-head"><h2>악보 상세 정보</h2></div>
-      <div class="spec-grid">
-        <div class="spec-item"><span class="spec-k">악기</span><span class="spec-v">${esc(s.instrument)}</span></div>
-        <div class="spec-item"><span class="spec-k">난이도</span><span class="spec-v">${esc(s.difficulty)}</span></div>
-        <div class="spec-item"><span class="spec-k">파일 형식</span><span class="spec-v">PDF</span></div>
-        ${s.tags && s.tags.length ? `<div class="spec-item"><span class="spec-k">태그</span><span class="spec-v">${s.tags.map(t => esc(t)).join(", ")}</span></div>` : ""}
-        <div class="spec-item spec-meta"><span class="spec-k">등록일</span><span class="spec-v">${formatDate(s.approvedAt || s.createdAt)}</span></div>
-        <div class="spec-item spec-meta"><span class="spec-k">조회 · 판매</span><span class="spec-v">${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</span></div>
-      </div>
-    </div>
-
-    ${s.hasVideo ? `
-    <div class="section">
-      <div class="section-head"><h2>연주 영상</h2></div>
-      <a class="video-card" href="${esc(s.videoUrl || "#")}" target="_blank" rel="noopener">
-        <span class="video-play">▶</span>
-        <span><span class="vc-title">연주 영상 보기</span><br><span class="vc-sub">${esc(sellerName(s.sellerId))}님이 직접 연주한 영상 (새 창으로 열려요)</span></span>
-      </a>
-    </div>` : ""}
 
     <div class="section">
       <div class="section-head"><h2>악보 소개</h2></div>
@@ -912,7 +870,7 @@ function renderDetailPage(el, p) {
 
   bindCards(el);
 
-  document.getElementById("d-buy")?.addEventListener("click", () => requireLogin(() => {
+  document.getElementById("d-buy")?.addEventListener("click", () => requireLogin(async () => {
     const u = getCurrentUser();
     if (hasPurchased(u.id, s.id)) { renderBuyer(); return; }
     if (u.points < effectivePrice(s)) {
@@ -920,7 +878,7 @@ function renderDetailPage(el, p) {
       goBuyer("mypage", { tab: "points", back: s.id });
       return;
     }
-    const res = purchaseScore(u.id, s.id);
+    const res = await purchaseScore(u.id, s.id);
     if (!res.ok) { toast(res.message, true); renderBuyer(); return; }
     toast(`"${s.title}" 구매 완료! 내 악보함에서 받을 수 있어요.`);
     renderBuyer();
@@ -1091,8 +1049,8 @@ function renderCartPage(el) {
     renderHeaderAuth();
   }));
   document.getElementById("cart-charge")?.addEventListener("click", () => goBuyer("mypage", { tab: "points", backCart: true }));
-  document.getElementById("cart-buy")?.addEventListener("click", () => {
-    const res = purchaseCart(user.id);
+  document.getElementById("cart-buy")?.addEventListener("click", async () => {
+    const res = await purchaseCart(user.id);
     if (!res.ok) { toast(res.message, true); renderBuyer(); return; }
     toast(`${res.count}개 악보 구매 완료 (${formatPoint(res.total)})`);
     goBuyer("mypage", { tab: "library" });
@@ -1155,14 +1113,14 @@ function renderMyPage(el, p) {
     toast("파일을 받았어요 (서버 연결 전이라 실제 파일은 아직 없어요)");
     renderBuyer();
   }));
-  el.querySelectorAll("[data-refund]").forEach(b => b.addEventListener("click", () => {
+  el.querySelectorAll("[data-refund]").forEach(b => b.addEventListener("click", async () => {
     if (b.dataset.confirm !== "1") {
       b.dataset.confirm = "1";
       b.textContent = "정말 환불할까요? 한 번 더 누르기";
       b.classList.add("btn-accent");
       return;
     }
-    const res = refundPurchase(b.dataset.refund);
+    const res = await refundPurchase(b.dataset.refund);
     if (!res.ok) { toast(res.message, true); return; }
     toast("환불했어요. 포인트가 돌아왔어요.");
     renderBuyer();
@@ -1269,7 +1227,7 @@ function renderRequestsPage(el) {
     <p class="muted" style="margin:0 0 16px;line-height:1.6;">찾는 악보가 없으면 누구나 무료로 자유롭게 올릴 수 있는 게시판이에요. 신청이 많은 곡부터 채보해서 악보로 만들어요.</p>
 
     <div class="two-col req-layout">
-      <div class="panel req-form-panel" style="display:flex;flex-direction:column;gap:8px;">
+      <div class="panel" style="display:flex;flex-direction:column;gap:8px;">
         <h2 style="margin:0 0 4px;font-size:16px;">새 곡 신청하기</h2>
         <input class="field" id="rq-title" placeholder="곡 제목" value="${esc(prefill)}">
         <input class="field" id="rq-composer" placeholder="작곡가">
@@ -1287,7 +1245,7 @@ function renderRequestsPage(el) {
         <div class="chip-row" style="margin-bottom:10px;">
           ${[["", "전체"], ...REQUEST_STATUS.map(s => [s, s]), ...(user ? [["mine", "내 신청"]] : [])].map(([v, l]) => `<button class="chip ${REQ_FILTER === v ? "active" : ""}" data-rq-filter="${v}">${l}</button>`).join("")}
         </div>
-        <div class="panel req-list-panel">
+        <div class="panel">
           ${list.length ? list.map((r, i) => {
             const joined = user && r.buyerIds.includes(user.id);
             const likedBy = r.likedBy || [];
@@ -1306,7 +1264,7 @@ function renderRequestsPage(el) {
                     <button type="button" class="btn btn-small" data-rq-like="${r.id}" style="color:${liked ? "var(--hot)" : "var(--text)"};">추천 ${likedBy.length}</button>
                     ${r.status === "완료" && r.fulfilledScoreId
                       ? `<button class="btn btn-small" data-score-id="${r.fulfilledScoreId}">악보 보기</button>`
-                      : joined ? "" : `<button class="btn btn-small" data-join="${r.id}">나도신청</button>`}
+                      : joined ? "" : `<button class="btn btn-small" data-join="${r.id}">저도 신청</button>`}
                   </div>
                 </div>
               </div>`;
