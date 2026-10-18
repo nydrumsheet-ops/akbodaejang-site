@@ -476,19 +476,21 @@ function renderHomePage(el) {
     </div>
 
     <div class="req-band">
-      <div class="section-head">
-        <h2>신청곡 순위</h2>
-        <button class="more-link" data-go="requests">신청하러 가기 ›</button>
+      <div class="req-band-inner">
+        <div class="section-head">
+          <h2>신청곡 순위</h2>
+          <button class="more-link" data-go="requests">신청하러 가기 ›</button>
+        </div>
+        ${requests.length ? requests.map((r, i) => `
+          <div class="req-item">
+            <div class="req-count"><b>${r.buyerIds.length}</b><span>신청자 수</span></div>
+            <div class="row-main" style="flex:1;">
+              <div class="row-title" style="cursor:default;">${i + 1}. ${esc(r.title)}</div>
+              <div class="row-sub">${esc(r.composer)} 작곡 · ${esc(r.singer)} · ${esc(r.instrument)}</div>
+            </div>
+            <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
+          </div>`).join("") : `<p class="muted" style="margin:0;">아직 신청곡이 없어요. 첫 번째로 신청해보세요.</p>`}
       </div>
-      ${requests.length ? requests.map((r, i) => `
-        <div class="req-item">
-          <div class="req-count"><b>${r.buyerIds.length}</b><span>신청자 수</span></div>
-          <div class="row-main" style="flex:1;">
-            <div class="row-title" style="cursor:default;">${i + 1}. ${esc(r.title)}</div>
-            <div class="row-sub">${esc(r.composer)} 작곡 · ${esc(r.singer)} · ${esc(r.instrument)}</div>
-          </div>
-          <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
-        </div>`).join("") : `<p class="muted" style="margin:0;">아직 신청곡이 없어요. 첫 번째로 신청해보세요.</p>`}
     </div>
 
     <div class="section info-banners">

@@ -430,8 +430,9 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .lvl-foot .ico{font-size:18px;color:#f26432;transition:transform .2s var(--ease)}
 .lvl-card:hover .lvl-foot .ico{transform:translateX(3px)}
 @media (max-width:760px){.lvl-band{padding:24px 16px}.lvl-grid{grid-template-columns:minmax(0,1fr)}.lvl-card{min-height:0}}
-.req-band{margin-top:48px;background:#faf7f2;border-radius:var(--radius-lg);padding:40px 48px}
-@media (max-width:760px){.req-band{padding:24px 16px}}
+.req-band{margin-top:48px;background:#faf7f2;margin-inline:calc(50% - 50vw)}
+.req-band-inner{max-width:1200px;margin:0 auto;padding:40px 24px}
+@media (max-width:760px){.req-band-inner{padding:24px 16px}}
 .mini-art{width:46px;height:46px;border-radius:var(--radius-card);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--surface-card)!important}
 .mini-art svg{width:32px;height:32px}
 .score-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:28px 20px}
