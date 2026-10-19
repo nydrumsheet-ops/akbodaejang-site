@@ -445,15 +445,16 @@ async function handleSubmitScore(sellerId) {
     return;
   }
 
-  // 미리보기 이미지는 PDF 첫 페이지에서 자동으로 만든다. 여기서 실패해도
+  // 미리보기 이미지는 PDF에서 최대 5페이지까지 자동으로 만든다(1페이지는 첫 8마디만
+  // 잘라서, 2페이지부터는 전체 페이지를 — 블러는 구매자 화면에서 입힘). 여기서 실패해도
   // 악보 등록 자체는 계속 진행한다(미리보기 이미지는 없으면 기존 가짜 그림이 대신 보인다).
   showSellerMsg(msgEl, "미리보기 이미지를 만드는 중입니다...", false);
-  let previewUrl = null;
+  let previewUrls = null;
   try {
-    const previewBlob = await generateScorePreviewImage(file);
-    if (previewBlob) {
-      const previewUpload = await uploadScorePreviewImage(sellerId, scoreId, previewBlob);
-      if (previewUpload.ok) previewUrl = previewUpload.url;
+    const previewBlobs = await generateScorePreviewImages(file, 5);
+    if (previewBlobs && previewBlobs.length) {
+      const previewUpload = await uploadScorePreviewImages(sellerId, scoreId, previewBlobs);
+      if (previewUpload.ok && previewUpload.urls.length) previewUrls = previewUpload.urls;
     }
   } catch (e) {
     console.error("[seller] 미리보기 이미지 처리 중 오류", e);
@@ -465,7 +466,7 @@ async function handleSubmitScore(sellerId) {
     hasVideo,
     videoUrl: hasVideo ? videoUrl : null,
     fileUrl: uploadResult.path,
-    previewUrl,
+    previewUrls,
     description,
     tags: SF_TAGS,
     thumbnailUrl

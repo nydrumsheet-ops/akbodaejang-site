@@ -271,6 +271,15 @@ function cartIcon() {
   </svg>`;
 }
 
+/* 상세페이지 미리보기 캐러셀에 쓸 이미지 배열을 정한다.
+   여러 장(previewUrls)이 있으면 그걸(최대 5장), 옛날 방식(previewUrl 한 장)만 있으면
+   그 한 장짜리 배열로, 둘 다 없으면 null(가짜 오선지 그림으로 대체)을 돌려준다. */
+function previewImages(s) {
+  if (Array.isArray(s.previewUrls) && s.previewUrls.length) return s.previewUrls.slice(0, 5);
+  if (s.previewUrl) return [s.previewUrl];
+  return null;
+}
+
 function pagerArrowIcon(dir) {
   const d = dir === "left" ? "M14.5 5L8 12l6.5 7" : "M9.5 5L16 12l-6.5 7";
   return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="${d}"></path></svg>`;
@@ -303,6 +312,31 @@ function renderScoreCarousel(items, cardOpts) {
       ${row}
       <button class="carousel-arrow" data-car-nav="next" aria-label="다음">${pagerArrowIcon("right")}</button>
     </div>`;
+}
+
+/* 상세페이지 미리보기 이미지가 여러 장일 때, 좌·우 화살표로 넘겨보는 기능.
+   전체 페이지를 다시 그리지 않고 이미지·블러·화살표 상태만 바꿔서 가볍게 동작한다.
+   1페이지(맨 앞)는 그대로(블러 없음), 2페이지부터는 블러 처리한다. */
+function bindPreviewCarousel(el, images) {
+  if (!images || images.length <= 1) return;
+  const box = el.querySelector(".ps-img");
+  if (!box) return;
+  const img = box.querySelector("img");
+  const prevBtn = box.querySelector('[data-preview-nav="prev"]');
+  const nextBtn = box.querySelector('[data-preview-nav="next"]');
+  const counter = box.querySelector(".preview-page-count");
+  if (!img) return;
+  let idx = 0;
+  function render() {
+    img.src = images[idx];
+    img.classList.toggle("preview-page-blur", idx > 0);
+    if (counter) counter.textContent = `${idx + 1} / ${images.length}`;
+    if (prevBtn) prevBtn.disabled = idx <= 0;
+    if (nextBtn) nextBtn.disabled = idx >= images.length - 1;
+  }
+  prevBtn?.addEventListener("click", () => { if (idx > 0) { idx--; render(); } });
+  nextBtn?.addEventListener("click", () => { if (idx < images.length - 1) { idx++; render(); } });
+  render();
 }
 
 function bindScoreCarousels(el) {
@@ -809,6 +843,8 @@ function renderDetailPage(el, p) {
   const reviews = Object.values(STATE.reviews).filter(r => r.scoreId === s.id).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const reviewed = user && reviews.some(r => r.buyerId === user.id);
 
+  const previewImgs = previewImages(s);
+
   const sameSeller = approvedScores().filter(x => x.sellerId === s.sellerId && x.id !== s.id).sort((a, b) => b.salesCount - a.salesCount).slice(0, 8);
 
   // 함께 구매한 악보: 이 악보를 산 사람들이 같이 산 다른 악보
@@ -855,13 +891,19 @@ function renderDetailPage(el, p) {
           <div class="preview-sheet">
             <div class="ps-title">${esc(s.title)}</div>
             <div class="ps-sub">${esc(s.artist)} · ${esc(s.instrument)} · arr. ${esc(sellerName(s.sellerId))}</div>
-            ${s.previewUrl
-              ? `<div class="ps-img"><img src="${esc(s.previewUrl)}" alt="${esc(s.title)} 미리보기" loading="lazy"></div>`
+            ${previewImgs
+              ? `<div class="ps-img">
+                   <img src="${esc(previewImgs[0])}" alt="${esc(s.title)} 미리보기" loading="lazy">
+                   ${previewImgs.length > 1 ? `
+                     <button class="preview-nav-arrow" data-preview-nav="prev" aria-label="이전 페이지" disabled>${pagerArrowIcon("left")}</button>
+                     <button class="preview-nav-arrow" data-preview-nav="next" aria-label="다음 페이지">${pagerArrowIcon("right")}</button>
+                     <span class="preview-page-count">1 / ${previewImgs.length}</span>` : ""}
+                 </div>`
               : `<div class="ps-svg">${sheetArt(s.title + s.id, themeOf(s.instrument).ink, 4)}</div>`}
             <div class="ps-fade"></div>
             <div class="ps-lock"><i class="ico ico-lock"></i> 첫 ${POLICY.preview.bars}마디 이후는 구매 후 볼 수 있어요</div>
           </div>
-          <p class="preview-note">${s.previewUrl
+          <p class="preview-note">${previewImgs
               ? `미리보기는 악보 첫 ${POLICY.preview.bars}마디까지 보여요.`
               : `미리보기는 악보 첫 ${POLICY.preview.bars}마디까지 보여요. 실제 악보 이미지는 파일 업로드가 연결되면 이 자리에 나옵니다.`}</p>
         </div>
@@ -964,6 +1006,7 @@ function renderDetailPage(el, p) {
 
   bindCards(el);
   bindScoreCarousels(el);
+  bindPreviewCarousel(el, previewImgs);
 
   document.getElementById("d-buy")?.addEventListener("click", () => requireLogin(async () => {
     const u = getCurrentUser();

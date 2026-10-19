@@ -237,6 +237,7 @@ function rowFromScore(s) {
     difficulty: s.difficulty, price: Math.round(s.price || 0), has_video: !!s.hasVideo,
     video_url: s.videoUrl || null, file_url: s.fileUrl || null, preview_info: s.previewInfo || null,
     preview_url: s.previewUrl || null,
+    preview_urls: Array.isArray(s.previewUrls) && s.previewUrls.length ? s.previewUrls : null,
     status: s.status, reject_reason: s.rejectReason || null, created_at: s.createdAt,
     approved_at: s.approvedAt || null, sales_count: s.salesCount || 0, view_count: s.viewCount || 0,
     description: s.description || "", tags: s.tags || [], thumbnail_url: s.thumbnailUrl || null,
@@ -248,6 +249,7 @@ function scoreFromRow(r) {
     id: r.id, sellerId: r.seller_id, title: r.title, artist: r.artist, instrument: r.instrument,
     difficulty: r.difficulty, price: r.price, hasVideo: r.has_video, videoUrl: r.video_url,
     fileUrl: r.file_url, previewInfo: r.preview_info, previewUrl: r.preview_url || null,
+    previewUrls: Array.isArray(r.preview_urls) && r.preview_urls.length ? r.preview_urls : null,
     status: r.status, rejectReason: r.reject_reason,
     createdAt: r.created_at, approvedAt: r.approved_at, salesCount: r.sales_count, viewCount: r.view_count,
     description: r.description || "", tags: r.tags || [], thumbnailUrl: r.thumbnail_url,
@@ -1316,6 +1318,94 @@ async function uploadScorePreviewImage(sellerId, scoreId, blob) {
   return { ok: true, url: data.publicUrl };
 }
 
+/* ---------- 여러 페이지 미리보기 (상세페이지 좌우 화살표 캐러셀용, 2026-10-19 추가) ----------
+   1페이지는 기존과 동일하게 "첫 8마디" 취지로 상단 일부만 잘라서 쓰고(블러 없음),
+   2페이지부터는 페이지 전체를 그대로 이미지로 만든다(블러는 구매자 화면에서 CSS로
+   입힌다 — 원본 화질을 그대로 보관해두기 위해 이미지 자체는 흐리게 만들지 않는다).
+   PDF가 아무리 길어도 최대 maxPages장까지만 만든다(저장공간·처리시간 고려). */
+async function generateScorePreviewImages(file, maxPages) {
+  maxPages = maxPages || 5;
+  if (!window.pdfjsLib) {
+    console.warn("[common] pdf.js 가 로드되지 않아 미리보기 이미지를 만들 수 없습니다.");
+    return [];
+  }
+  if (!file) return [];
+
+  // 1페이지짜리와 마찬가지로, 다른 탭으로 전환되는 등의 이유로 멈춰버릴 수 있으니
+  // 일정 시간이 지나면 포기한다. 이미 만들어진 페이지까지는 images 배열에 쌓이므로,
+  // 타임아웃이 나도 "지금까지 만든 만큼"은 그대로 쓸 수 있게 공유 배열을 반환한다.
+  const PREVIEW_TIMEOUT_MS = 60000;
+  const images = [];
+  const timeoutGuard = new Promise(resolve => setTimeout(() => resolve(images), PREVIEW_TIMEOUT_MS));
+
+  const work = (async () => {
+    try {
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const pageCount = Math.min(maxPages, pdf.numPages || 1);
+      for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const baseViewport = page.getViewport({ scale: 1 });
+        const targetWidth = 1000;
+        const scale = Math.min(2.5, targetWidth / baseViewport.width);
+        const viewport = page.getViewport({ scale });
+
+        const fullCanvas = document.createElement("canvas");
+        fullCanvas.width = Math.ceil(viewport.width);
+        fullCanvas.height = Math.ceil(viewport.height);
+        const ctx = fullCanvas.getContext("2d");
+        ctx.fillStyle = "#ffffff";
+        ctx.fillRect(0, 0, fullCanvas.width, fullCanvas.height);
+        await page.render({ canvasContext: ctx, viewport }).promise;
+
+        let sourceCanvas = fullCanvas;
+        if (pageNum === 1) {
+          const cropRatio = 0.42; // 첫 페이지 상단 42% 정도만 사용(기존 1페이지 로직과 동일)
+          const cropHeight = Math.max(1, Math.round(fullCanvas.height * cropRatio));
+          const cropCanvas = document.createElement("canvas");
+          cropCanvas.width = fullCanvas.width;
+          cropCanvas.height = cropHeight;
+          const cropCtx = cropCanvas.getContext("2d");
+          cropCtx.drawImage(fullCanvas, 0, 0, fullCanvas.width, cropHeight, 0, 0, fullCanvas.width, cropHeight);
+          sourceCanvas = cropCanvas;
+        }
+
+        const blob = await new Promise(resolve => sourceCanvas.toBlob(resolve, "image/png", 0.92));
+        if (blob) images.push(blob);
+      }
+      return images;
+    } catch (e) {
+      console.error("[common] 여러 페이지 미리보기 이미지 생성 오류", e);
+      return images;
+    }
+  })();
+
+  return Promise.race([work, timeoutGuard]);
+}
+
+/* 저장 경로 규칙: "{판매자 아이디}/{악보 아이디}-p{페이지번호}.png" — 1페이지짜리 경로
+   ({판매자 아이디}/{악보 아이디}.png)와 겹치지 않도록 "-p숫자"를 붙인다. */
+async function uploadScorePreviewImages(sellerId, scoreId, blobs) {
+  if (!blobs || !blobs.length) return { ok: false, urls: [], message: "미리보기 이미지를 만들지 못했습니다." };
+  const sb = getSb();
+  if (!sb) return { ok: false, urls: [], message: "서버 연결 준비 중입니다. 잠시 후 다시 시도해주세요." };
+
+  const urls = [];
+  for (let i = 0; i < blobs.length; i++) {
+    const path = `${sellerId}/${scoreId}-p${i + 1}.png`;
+    try {
+      const res = await sb.storage.from("previews").upload(path, blobs[i], { upsert: true, contentType: "image/png" });
+      if (res.error) { console.error("[common] 미리보기 이미지 업로드 오류", res.error); continue; }
+      const { data } = sb.storage.from("previews").getPublicUrl(path);
+      if (data && data.publicUrl) urls.push(data.publicUrl);
+    } catch (e) {
+      console.error("[common] 미리보기 이미지 업로드 오류", e);
+    }
+  }
+  if (!urls.length) return { ok: false, urls: [], message: "미리보기 이미지 업로드 중 문제가 발생했습니다." };
+  return { ok: true, urls };
+}
+
 /* 구매자가 실제로 받을 수 있는 다운로드 링크(서명된 URL, 60초간 유효)를 만든다.
    누가 받을 수 있는지는 Storage 보안 정책(RLS)이 서버에서 다시 한 번 확인한다
    (본인이 올린 판매자 / 환불 안 된 구매자 / 관리자만 가능). */
@@ -1353,6 +1443,7 @@ function submitScore(sellerId, data) {
     price: data.price, hasVideo: !!data.hasVideo,
     videoUrl: data.videoUrl || null, fileUrl: data.fileUrl || null,
     previewUrl: data.previewUrl || null,
+    previewUrls: Array.isArray(data.previewUrls) && data.previewUrls.length ? data.previewUrls : null,
     previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`,
     status: "등록", rejectReason: null, createdAt: nowISO(), approvedAt: null,
     salesCount: 0, viewCount: 0,
