@@ -1913,13 +1913,14 @@ function renderHeaderAuth() {
     </button>`;
 
   if (!user) {
+    // 2026-10-19: 헤더의 별도 "아티스트 되기" 버튼은 없앴다 — 회원가입 모달 안의
+    // "아티스트이신가요? 아티스트로 가입하기" 링크(switchLoginRole)로 이미 들어갈 수 있어서,
+    // "로그인" 버튼 하나로 통합한다. 홈 화면의 "아티스트로 시작하기" 배너·안내박스는 그대로 둔다.
     bar.innerHTML = `
       ${cartBtn}
       <button id="header-login-btn" class="auth-btn">로그인</button>
-      <button id="header-artist-btn" class="auth-btn auth-btn-primary">아티스트 되기</button>
     `;
     document.getElementById("header-login-btn")?.addEventListener("click", () => openLoginModal("buyer"));
-    document.getElementById("header-artist-btn")?.addEventListener("click", () => openLoginModal("seller"));
   } else {
     bar.innerHTML = `
       ${cartBtn}
