@@ -136,13 +136,6 @@ function sheetArt(seedText, ink, rows) {
     const top = 18 + r * 26;
     for (let l = 0; l < 5; l++) body += `<line x1="6" x2="114" y1="${top + l * 3.2}" y2="${top + l * 3.2}" stroke="#cfd5d2" stroke-width=".6"/>`;
     for (let b = 1; b < 4; b++) body += `<line x1="${6 + b * 27}" x2="${6 + b * 27}" y1="${top}" y2="${top + 12.8}" stroke="#cfd5d2" stroke-width=".6"/>`;
-    for (let k = 0; k < 9; k++) {
-      const x = 12 + k * 11.5 + rand() * 3;
-      const y = top + Math.floor(rand() * 9) * 1.6;
-      const fill = k % 4 === 0 ? ink : "#3b4240";
-      body += `<ellipse cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" rx="2.1" ry="1.5" fill="${fill}" transform="rotate(-20 ${x.toFixed(1)} ${y.toFixed(1)})"/>`;
-      body += `<line x1="${(x + 1.9).toFixed(1)}" x2="${(x + 1.9).toFixed(1)}" y1="${y.toFixed(1)}" y2="${(y - 8).toFixed(1)}" stroke="${fill}" stroke-width=".7"/>`;
-    }
   }
   return `<svg viewBox="0 0 120 ${18 + n * 26}" preserveAspectRatio="xMidYMin meet" aria-hidden="true" focusable="false">
     <rect x="30" y="5" width="60" height="3.2" rx="1.6" fill="#3b4240" opacity=".75"/>
@@ -288,13 +281,10 @@ function scoreCard(s, opts) {
         <span class="diff-badge" style="${diffBadgeStyle(s.difficulty)}">${esc(s.difficulty)}</span>
         ${s.thumbnailUrl
           ? `<img src="${esc(s.thumbnailUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
-          : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${instArt(s.instrument)}</div>`}
-        ${s.hasVideo ? `<span class="video-flag">▶ 연주영상</span>` : ""}
+          : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${esc(s.instrument)}</div>`}
+        ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶</span>` : ""}
       </div>
       <div class="card-body">
-        <div class="tags">
-          <span class="tag">${esc(s.instrument)}</span>
-        </div>
         <div class="card-seller"><span class="avatar" style="${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</div>
         <div class="card-title">${esc(s.title)}</div>
         <div class="card-artist">${esc(s.artist)}</div>
@@ -562,7 +552,7 @@ function renderPopRow() {
   if (!wrap) return;
   const list = getPopularScores(HOME_POP.period || null, HOME_POP.instrument).slice(0, 10);
   wrap.innerHTML = list.length
-    ? `<div class="score-row">${list.map((s, i) => scoreCard(s, { rank: i + 1 })).join("")}</div>`
+    ? `<div class="score-row">${list.map((s, i) => scoreCard(s, { rank: i + 1, hideVideoBadge: true })).join("")}</div>`
     : `<div class="empty">이 조건의 악보가 아직 없어요.</div>`;
   bindCards(wrap);
 }
@@ -709,7 +699,7 @@ function renderListPage(el, p) {
     </div>
 
     ${shown.length
-      ? `<div class="score-grid">${shown.map(s => scoreCard(s)).join("")}</div>`
+      ? `<div class="score-grid">${shown.map(s => scoreCard(s, { hideVideoBadge: true })).join("")}</div>`
       : `<div class="empty">
            <p style="margin:0 0 10px;">조건에 맞는 악보가 없어요.</p>
            <button class="btn btn-small" id="go-request">이 곡 신청하기</button>
