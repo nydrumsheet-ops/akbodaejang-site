@@ -717,7 +717,20 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .rank-list-grid .rank-row:nth-child(5){border-bottom:1px solid #f1ece5}
 .q-icon{width:56px;height:56px}.q-icon svg{width:34px;height:34px}
 }
-@media (prefers-reduced-motion:reduce){.paper,.q-icon,.btn,.hero-track,.info-banner{transition:none}}
+@media (prefers-reduced-motion:reduce){.paper,.q-icon,.btn,.hero-track,.info-banner,.ss-modal-overlay,.ss-modal-box{transition:none}}
+
+/* 악보 등록 성공 모달 (2026-10-19 추가, 기존 로그인 모달 스타일과는 별개의 클래스) */
+.ss-modal-overlay{display:none;position:fixed;inset:0;z-index:200;background:rgba(0,0,0,.55);align-items:center;justify-content:center;padding:16px;opacity:0;transition:opacity 180ms var(--ease)}
+.ss-modal-overlay.open{display:flex;opacity:1}
+.ss-modal-box{width:100%;max-width:360px;background:#ffffff;border:1px solid var(--border);border-radius:18px;box-shadow:0 20px 50px rgba(36,27,23,.28);padding:32px 24px 24px;text-align:center;transform:translateY(10px) scale(.97);opacity:0;transition:transform 180ms var(--ease),opacity 180ms var(--ease)}
+.ss-modal-overlay.open .ss-modal-box{transform:translateY(0) scale(1);opacity:1}
+.ss-modal-icon{width:56px;height:56px;border-radius:50%;background:var(--accent-soft);color:var(--accent);display:flex;align-items:center;justify-content:center;margin:0 auto 16px}
+.ss-modal-title{font-size:18px;font-weight:700;margin:0 0 10px;color:var(--text-primary)}
+.ss-modal-scorename{font-size:15px;font-weight:600;margin:0 0 8px;color:var(--text-primary);word-break:break-word}
+.ss-modal-desc{font-size:13px;line-height:1.6;color:var(--text-muted);margin:0 0 22px}
+.ss-modal-confirm{width:100%;padding:13px;border:none;border-radius:10px;background:var(--accent);color:var(--on-accent);font-size:15px;font-weight:600;cursor:pointer}
+.ss-modal-confirm:hover{background:var(--accent-hover)}
+@media (max-width:420px){.ss-modal-box{max-width:92vw;padding:26px 18px 20px}}
 </style>
 </head>
 <body>
@@ -819,6 +832,18 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
       <p id="setpassword-error" class="login-error"></p>
       <button id="setpassword-submit" class="login-btn-primary">비밀번호 설정</button>
     </div>
+  </div>
+</div>
+
+<div id="score-success-modal" class="ss-modal-overlay" role="dialog" aria-modal="true" aria-labelledby="ss-modal-title">
+  <div class="ss-modal-box">
+    <div class="ss-modal-icon">
+      <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+    </div>
+    <p id="ss-modal-title" class="ss-modal-title">악보 등록 완료</p>
+    <p id="ss-modal-scorename" class="ss-modal-scorename"></p>
+    <p class="ss-modal-desc">관리자 심사 후 승인되면 목록에 노출됩니다.</p>
+    <button id="ss-modal-confirm" class="ss-modal-confirm">확인</button>
   </div>
 </div>
 

@@ -1672,6 +1672,31 @@ function closeLoginModal() {
   resetLoginForm();
 }
 
+/* ---------- 악보 등록 성공 모달 (2026-10-19 추가) ----------
+   기존 로그인 모달과는 완전히 별개의 markup/CSS(.ss-modal-*)를 쓴다.
+   afterClose 로 넘긴 동작(폼으로 스크롤·포커스 이동 등)은 모달이 닫힌 직후 실행된다. */
+
+let SCORE_SUCCESS_AFTER_CLOSE = null;
+
+function showScoreSuccessModal(scoreName, afterClose) {
+  const modal = document.getElementById("score-success-modal");
+  if (!modal) return;
+  const nameEl = document.getElementById("ss-modal-scorename");
+  if (nameEl) nameEl.textContent = `"${scoreName}"`;
+  SCORE_SUCCESS_AFTER_CLOSE = typeof afterClose === "function" ? afterClose : null;
+  modal.classList.add("open");
+  document.getElementById("ss-modal-confirm")?.focus();
+}
+
+function closeScoreSuccessModal() {
+  const modal = document.getElementById("score-success-modal");
+  if (!modal || !modal.classList.contains("open")) return;
+  modal.classList.remove("open");
+  const cb = SCORE_SUCCESS_AFTER_CLOSE;
+  SCORE_SUCCESS_AFTER_CLOSE = null;
+  if (cb) cb();
+}
+
 /* 기존(비밀번호 없이 쓰던) 회원이 로그인에 실패했을 때, 지금 입력한 비밀번호로
    새 계정을 만들어서 이어붙인다. 이메일 인증 메일을 보내고, 인증을 마치면
    handleSupabaseSignedIn 이 같은 이메일의 기존 회원 데이터를 찾아 연결한다. */
@@ -2246,6 +2271,14 @@ async function initCommon() {
   document.getElementById("login-modal-close")?.addEventListener("click", closeLoginModal);
   document.getElementById("login-modal")?.addEventListener("click", (e) => {
     if (e.target.id === "login-modal") closeLoginModal();
+  });
+
+  document.getElementById("ss-modal-confirm")?.addEventListener("click", closeScoreSuccessModal);
+  document.getElementById("score-success-modal")?.addEventListener("click", (e) => {
+    if (e.target.id === "score-success-modal") closeScoreSuccessModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeScoreSuccessModal();
   });
   document.getElementById("admin-preview-link")?.addEventListener("click", (e) => {
     e.preventDefault();

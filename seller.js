@@ -482,10 +482,12 @@ async function handleSubmitScore(sellerId) {
   SF_THUMBNAIL_DATA = null;
   SF_SESSION_COUNT += 1;
   renderSeller();
-  const newMsgEl = document.getElementById("seller-form-msg");
-  showSellerMsg(newMsgEl, `"${esc(title)}" 등록되었습니다. 이어서 다음 곡을 입력해주세요.`, false);
-  document.getElementById("seller-register-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-  document.getElementById("sf-title")?.focus();
+  // 등록 성공 안내는 폼 안쪽 인라인 문구 대신 화면 중앙 모달로 표시한다 (2026-10-19 변경).
+  // 모달을 닫으면(확인 버튼/배경 클릭/ESC 공통) 그동안 폼으로 스크롤 + 다음 곡 입력을 위해 포커스를 옮긴다.
+  showScoreSuccessModal(title, () => {
+    document.getElementById("seller-register-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    document.getElementById("sf-title")?.focus();
+  });
 }
 
 function showSellerMsg(el, text, isError) {
