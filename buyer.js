@@ -876,7 +876,16 @@ function renderDetailPage(el, p) {
         <button class="btn" id="d-cart">${inCart ? "장바구니 보기" : "장바구니 담기"}</button>
         <button class="btn wish-big" id="d-wish" style="color:${wished ? "var(--hot)" : "var(--text)"};">${wished ? "♥ 찜함" : "♡ 찜"}</button>
       </div>
-      ${user ? `<p class="buy-note">보유 포인트 <b>${formatPoint(user.points)}</b>${user.points < effectivePrice(s) ? ` · <span style="color:var(--danger);">${formatPoint(effectivePrice(s) - user.points)} 부족</span>` : ""}</p>` : ""}`;
+      ${user ? `
+      <div class="buy-points">
+        <div class="buy-points-row">
+          <span class="buy-points-label">보유 포인트</span>
+          <span class="buy-points-value">${formatPoint(user.points)}</span>
+        </div>
+        ${user.points < effectivePrice(s)
+          ? `<div class="buy-points-short">${formatPoint(effectivePrice(s) - user.points)} 부족</div>`
+          : `<div class="buy-points-ok">✓ 포인트로 바로 구매할 수 있어요</div>`}
+      </div>` : ""}`;
   }
 
   el.innerHTML = `
