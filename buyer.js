@@ -271,6 +271,58 @@ function cartIcon() {
   </svg>`;
 }
 
+function pagerArrowIcon(dir) {
+  const d = dir === "left" ? "M14.5 5L8 12l6.5 7" : "M9.5 5L16 12l-6.5 7";
+  return `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false"><path d="${d}"></path></svg>`;
+}
+
+/* 페이지 번호를 최대 5개만 보여주고(현재 페이지 중심으로 창을 움직임), 더 있으면 좌우에 테두리 없는 화살표로 이동 */
+function renderPager(current, pages) {
+  const WINDOW = 5;
+  let start = Math.max(1, current - Math.floor(WINDOW / 2));
+  let end = Math.min(pages, start + WINDOW - 1);
+  start = Math.max(1, end - WINDOW + 1);
+  const nums = [];
+  for (let i = start; i <= end; i++) nums.push(i);
+  const showArrows = pages > WINDOW;
+  return `
+    <div class="pager">
+      ${showArrows ? `<button class="pager-arrow" data-page-nav="prev" aria-label="이전 페이지" ${current <= 1 ? "disabled" : ""}>${pagerArrowIcon("left")}</button>` : ""}
+      ${nums.map(n => `<button class="${n === current ? "active" : ""}" data-page="${n}">${n}</button>`).join("")}
+      ${showArrows ? `<button class="pager-arrow" data-page-nav="next" aria-label="다음 페이지" ${current >= pages ? "disabled" : ""}>${pagerArrowIcon("right")}</button>` : ""}
+    </div>`;
+}
+
+/* 상세페이지 하단 "다른 악보"/"함께 많이 산 악보" 줄: 5개 넘으면 좌우 테두리 없는 화살표로 한 화면씩 넘기기 */
+function renderScoreCarousel(items, cardOpts) {
+  const row = `<div class="score-row">${items.map(x => scoreCard(x, cardOpts)).join("")}</div>`;
+  if (items.length <= 5) return row;
+  return `
+    <div class="score-carousel">
+      <button class="carousel-arrow" data-car-nav="prev" aria-label="이전">${pagerArrowIcon("left")}</button>
+      ${row}
+      <button class="carousel-arrow" data-car-nav="next" aria-label="다음">${pagerArrowIcon("right")}</button>
+    </div>`;
+}
+
+function bindScoreCarousels(el) {
+  el.querySelectorAll(".score-carousel").forEach(car => {
+    const row = car.querySelector(".score-row");
+    const prevBtn = car.querySelector('[data-car-nav="prev"]');
+    const nextBtn = car.querySelector('[data-car-nav="next"]');
+    if (!row || !prevBtn || !nextBtn) return;
+    const updateArrows = () => {
+      const max = row.scrollWidth - row.clientWidth;
+      prevBtn.disabled = row.scrollLeft <= 2;
+      nextBtn.disabled = row.scrollLeft >= max - 2;
+    };
+    prevBtn.addEventListener("click", () => row.scrollBy({ left: -row.clientWidth, behavior: "smooth" }));
+    nextBtn.addEventListener("click", () => row.scrollBy({ left: row.clientWidth, behavior: "smooth" }));
+    row.addEventListener("scroll", updateArrows);
+    updateArrows();
+  });
+}
+
 function scoreCard(s, opts) {
   const o = opts || {};
   const r = getScoreRating(s.id);
@@ -705,7 +757,7 @@ function renderListPage(el, p) {
            <button class="btn btn-small" id="go-request">이 곡 신청하기</button>
          </div>`}
 
-    ${pages > 1 ? `<div class="pager">${Array.from({ length: pages }, (_, i) => `<button class="${i + 1 === current ? "active" : ""}" data-page="${i + 1}">${i + 1}</button>`).join("")}</div>` : ""}
+    ${pages > 1 ? renderPager(current, pages) : ""}
   `;
 
   bindCards(el);
@@ -724,6 +776,11 @@ function renderListPage(el, p) {
   });
   document.getElementById("go-request")?.addEventListener("click", () => goBuyer("requests", { prefill: p.q || "" }));
   el.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => goBuyer("list", Object.assign({}, p, { page: Number(b.dataset.page) }))));
+  el.querySelectorAll("[data-page-nav]").forEach(b => b.addEventListener("click", () => {
+    if (b.disabled) return;
+    const target = current + (b.dataset.pageNav === "prev" ? -1 : 1);
+    goBuyer("list", Object.assign({}, p, { page: Math.min(pages, Math.max(1, target)) }));
+  }));
 
   const input = document.getElementById("header-search");
   if (input && document.activeElement !== input) input.value = p.q || "";
@@ -890,18 +947,19 @@ function renderDetailPage(el, p) {
           <h2>${esc(sellerName(s.sellerId))}님의 다른 악보</h2>
           <button class="more-link" data-artist-id="${s.sellerId}">아티스트 페이지 ›</button>
         </div>
-        <div class="score-row">${sameSeller.map(x => scoreCard(x)).join("")}</div>
+        ${renderScoreCarousel(sameSeller)}
       </div>` : ""}
 
     ${together.length ? `
       <div class="section">
         <div class="section-head"><h2>함께 많이 산 악보</h2></div>
-        <div class="score-row">${together.map(x => scoreCard(x)).join("")}</div>
+        ${renderScoreCarousel(together)}
       </div>` : ""}
     </div></div>
   `;
 
   bindCards(el);
+  bindScoreCarousels(el);
 
   document.getElementById("d-buy")?.addEventListener("click", () => requireLogin(async () => {
     const u = getCurrentUser();

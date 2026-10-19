@@ -441,6 +441,13 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .mini-art svg{width:32px;height:32px}
 .score-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:28px 20px}
 .score-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(180px,210px);gap:20px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin}
+.score-carousel{display:flex;align-items:center;gap:8px}
+.score-carousel .score-row{flex:1;min-width:0;grid-auto-columns:calc((100% - 80px)/5);scrollbar-width:none}
+.score-carousel .score-row::-webkit-scrollbar{display:none}
+.score-carousel .carousel-arrow{flex:none;width:36px;height:36px;border-radius:50%;border:0;background:transparent;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text)}
+.score-carousel .carousel-arrow:hover{background:var(--surface-inset)}
+.score-carousel .carousel-arrow:disabled{opacity:.3;cursor:default}
+.score-carousel .carousel-arrow:disabled:hover{background:transparent}
 .score-card{background:transparent;border:0;border-radius:0;overflow:visible;cursor:pointer;display:flex;flex-direction:column;gap:12px}
 .thumb{position:relative;aspect-ratio:1/1;background:var(--surface-card);border-radius:var(--radius-card);overflow:hidden;transition:background-color var(--dur-fast) var(--ease)}
 .score-card:hover .thumb{background:var(--surface-inset)}
@@ -455,10 +462,9 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .rank-num.top{background:#1c1c1e;color:var(--text-inverse)}
 .video-flag{position:absolute;left:10px;top:10px;z-index:2;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:#ffffff;border:1px solid #f0eee9;border-radius:50%;color:#f07845;font-size:11px;box-shadow:var(--shadow-sm)}
 .diff-badge{position:absolute;top:8px;right:8px;z-index:2;font:700 12px/1 var(--font-text);padding:6px 10px;border-radius:var(--radius-pill);box-shadow:var(--shadow-sm)}
-.cart-btn{flex-shrink:0;width:34px;height:34px;border-radius:50%;border:none;background:#ff9855;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:var(--shadow-sm);transition:background .15s}
-.cart-btn:hover{background:linear-gradient(90deg, #ffb36b 0%, #f07845 100%)}
-.cart-btn svg{display:block;transition:stroke .15s}
-.cart-btn:hover svg{stroke:#fff4d8}
+.cart-btn{flex-shrink:0;width:34px;height:34px;border-radius:var(--radius-field);border:1px solid #D5D0CA;background:#ffffff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color 180ms ease,border-color 180ms ease}
+.cart-btn:hover{background:#F5F2EE;border-color:#B9AFA4}
+.cart-btn svg{display:block}
 .card-body{padding:0;display:flex;flex-direction:column;gap:4px;flex:1}
 .tags{display:flex;gap:4px;flex-wrap:wrap}
 .tag{font:500 11px/1 var(--font-text);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:var(--radius-pill);background:var(--surface-inset);color:var(--text)}
@@ -545,6 +551,9 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .pager button{min-width:38px;height:38px;border-radius:var(--radius-field);border:0;background:transparent;cursor:pointer;color:var(--text);font:var(--type-mono)}
 .pager button:hover{background:var(--surface-inset)}
 .pager button.active{background:var(--surface-inverse);color:var(--text-inverse)}
+.pager-arrow{display:inline-flex;align-items:center;justify-content:center}
+.pager-arrow:disabled{opacity:.3;cursor:default}
+.pager-arrow:disabled:hover{background:transparent}
 .detail-grid{display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,1fr);gap:30px;align-items:start}
 .detail-page-bleed{margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw)}
 .detail-page{background:#faf8f5;max-width:1360px;margin:0 auto;padding:0 32px;box-sizing:border-box}
@@ -686,6 +695,8 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .hero-inner{padding-inline:16px}
 .hero-slide h2{font:var(--type-display-md);line-height:calc(32px * 1.12 * var(--display-scale) + 1px)}.hero-dots{left:16px}
 .score-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}.score-row{grid-auto-columns:46%}
+.score-carousel .score-row{grid-auto-columns:46%}
+.score-carousel .carousel-arrow{width:30px;height:30px}
 .buy-row{grid-template-columns:1fr 1fr 52px}
 .detail-title{font-size:28px}
 .spec-grid{grid-template-columns:1fr}
