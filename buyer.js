@@ -1315,22 +1315,56 @@ function renderMyPage(el, p) {
     renderHeaderAuth();
   }));
 
-  // 아티스트 되기 신청
-  document.getElementById("aa-submit")?.addEventListener("click", () => {
-    const res = submitArtistApplication(user.id, {
-      artistName: document.getElementById("aa-name").value,
-      intro: document.getElementById("aa-intro").value,
-      salesPlan: document.getElementById("aa-salesplan").value,
-      contact: document.getElementById("aa-contact").value,
-      portfolioUrl: document.getElementById("aa-portfolio").value
-    });
+  // 아티스트 되기 신청 — 2026-10-20: 파일 업로드 + 이메일 도메인 선택 UI 추가
+  document.getElementById("aa-sample")?.addEventListener("change", (e) => {
+    const f = e.target.files && e.target.files[0];
+    const nameEl = document.getElementById("aa-sample-name");
+    if (nameEl) nameEl.textContent = f ? f.name : "선택된 파일 없음";
+  });
+  document.getElementById("aa-email-domain-select")?.addEventListener("change", (e) => {
+    if (e.target.value) document.getElementById("aa-email-domain").value = e.target.value;
+  });
+  document.getElementById("aa-cancel")?.addEventListener("click", () => {
+    goBuyer("mypage", { tab: "library" });
+  });
+  document.getElementById("aa-submit")?.addEventListener("click", async () => {
     const msgEl = document.getElementById("artist-apply-msg");
-    if (!res.ok) {
-      if (msgEl) { msgEl.textContent = res.message; msgEl.style.color = "var(--danger)"; }
-      return;
+    const setMsg = (text, isError) => { if (msgEl) { msgEl.textContent = text; msgEl.style.color = isError ? "var(--danger)" : "var(--text)"; } };
+
+    const fileInput = document.getElementById("aa-sample");
+    const file = fileInput && fileInput.files && fileInput.files[0];
+    const phone = [document.getElementById("aa-phone1").value, document.getElementById("aa-phone2").value, document.getElementById("aa-phone3").value]
+      .map(v => v.trim()).filter(Boolean).join("-");
+    const emailLocal = document.getElementById("aa-email-local").value.trim();
+    const emailDomain = document.getElementById("aa-email-domain").value.trim();
+    const email = emailLocal && emailDomain ? `${emailLocal}@${emailDomain}` : "";
+
+    if (!file) { setMsg("악보/MR 샘플 파일을 선택해주세요.", true); return; }
+
+    const submitBtn = document.getElementById("aa-submit");
+    submitBtn.disabled = true;
+    const originalText = submitBtn.textContent;
+    submitBtn.textContent = "업로드 중...";
+    setMsg("");
+    try {
+      const uploadRes = await uploadArtistSampleFile(user.id, file);
+      if (!uploadRes.ok) { setMsg(uploadRes.message, true); return; }
+
+      const res = submitArtistApplication(user.id, {
+        name: document.getElementById("aa-realname").value,
+        artistName: document.getElementById("aa-name").value,
+        phone,
+        email,
+        videoUrl: document.getElementById("aa-video").value,
+        sampleFileUrl: uploadRes.url
+      });
+      if (!res.ok) { setMsg(res.message, true); return; }
+      toast("아티스트 신청을 보냈어요. 심사 결과는 이 화면에서 확인할 수 있어요.");
+      renderBuyer();
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.textContent = originalText;
     }
-    toast("아티스트 신청을 보냈어요. 심사 결과는 이 화면에서 확인할 수 있어요.");
-    renderBuyer();
   });
 }
 
@@ -1411,7 +1445,8 @@ function myArtistHTML(user) {
   if (app && app.status === "심사대기") {
     return `
       <div class="panel">
-        <h2 style="margin:0 0 4px;font-size:17px;">아티스트 되기</h2>
+        ${artistStepsHTML(2)}
+        <h2 style="margin:0 0 4px;font-size:17px;">아티스트 가입</h2>
         <p class="muted" style="margin:0 0 14px;">심사 대기 중이에요. 결과가 나오면 이 화면에서 바로 확인할 수 있어요.</p>
         <div class="row-item" style="border-top:none;">
           <div class="row-main">
@@ -1426,7 +1461,8 @@ function myArtistHTML(user) {
   if (app && app.status === "거절") {
     return `
       <div class="panel">
-        <h2 style="margin:0 0 4px;font-size:17px;">아티스트 되기</h2>
+        ${artistStepsHTML(1)}
+        <h2 style="margin:0 0 4px;font-size:17px;">아티스트 가입</h2>
         <p class="muted" style="margin:0 0 4px;">아쉽지만 이번 신청은 승인되지 않았어요. 아래 사유를 참고해 다시 신청할 수 있어요.</p>
         <div style="padding:10px;margin:10px 0 16px;background:color-mix(in oklch,var(--danger) 10%,var(--card));border-radius:8px;font-size:13px;color:var(--danger);">
           거절 사유: ${esc(app.rejectReason || "사유 없음")}
@@ -1437,22 +1473,92 @@ function myArtistHTML(user) {
 
   return `
     <div class="panel">
-      <h2 style="margin:0 0 4px;font-size:17px;">아티스트 되기</h2>
+      ${artistStepsHTML(1)}
+      <h2 style="margin:0 0 4px;font-size:17px;">아티스트 가입</h2>
       <p class="muted" style="margin:0 0 14px;">아티스트로 신청하면 관리자 확인 후 이 계정으로 악보를 등록할 수 있어요.</p>
       ${artistApplyFormHTML()}
     </div>`;
 }
 
+/* 2026-10-20 추가: "01 정보 입력 > 02 가입완료" 진행 단계 표시줄. step=1 이면 아직 입력 중,
+   step=2 면 접수(심사대기)까지 끝난 상태다. */
+function artistStepsHTML(step) {
+  return `
+    <div class="aa-steps">
+      <span class="aa-step${step === 1 ? " aa-step-active" : ""}">01 정보 입력</span>
+      <span class="aa-step-sep">&gt;</span>
+      <span class="aa-step${step === 2 ? " aa-step-active" : ""}">02 가입완료</span>
+    </div>`;
+}
+
+/* 2026-10-20 디자인 변경: 신청 항목을 이름·아티스트명·휴대폰·이메일·판매자 영상·악보/MR 샘플
+   파일로 전면 교체했다(기존 활동소개·판매계획·연락처·포트폴리오링크 칸은 없앴다).
+   입력칸 테두리는 공용 .field 를 그대로 쓰지 않고 이 화면 전용 .aa-field 를 새로 둬서
+   1px solid #D5D0CA 로만 다르게 입힌다(다른 화면 입력칸에는 영향 없음). */
 function artistApplyFormHTML() {
   return `
     <div id="artist-apply-msg" style="font-size:13px;margin:0 0 10px;"></div>
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      <input class="field" id="aa-name" placeholder="아티스트명 (구매자에게 보일 이름)">
-      <textarea class="field" id="aa-intro" rows="3" placeholder="활동 소개 · 신청 사유"></textarea>
-      <textarea class="field" id="aa-salesplan" rows="3" placeholder="어떤 악보를 어떻게 제작·판매할 계획인지 소개해주세요"></textarea>
-      <input class="field" id="aa-contact" placeholder="연락처 또는 이메일">
-      <input class="field" id="aa-portfolio" placeholder="포트폴리오 링크 (선택)">
-      <button class="btn btn-primary" id="aa-submit">신청하기</button>
+    <div class="aa-form">
+      <div class="aa-row">
+        <div class="aa-label">악보/MR 샘플 *</div>
+        <div class="aa-input-wrap">
+          <div class="aa-file-row">
+            <label class="aa-file-btn" for="aa-sample">파일 선택</label>
+            <span class="aa-file-name" id="aa-sample-name">선택된 파일 없음</span>
+          </div>
+          <input type="file" id="aa-sample" accept=".pdf,.jpg,.jpeg,.mp3" style="display:none;">
+          <p class="aa-note">※ 악보샘플 1개만 업로드 // PDF, JPG, MP3 업로드 가능</p>
+        </div>
+      </div>
+      <div class="aa-row">
+        <div class="aa-label">판매자 영상 *</div>
+        <div class="aa-input-wrap">
+          <textarea class="aa-field" id="aa-video" rows="4"></textarea>
+          <p class="aa-note">※ 유튜브채널 url을 입력해주세요</p>
+        </div>
+      </div>
+      <div class="aa-row">
+        <div class="aa-label">이름 *</div>
+        <div class="aa-input-wrap"><input class="aa-field" id="aa-realname"></div>
+      </div>
+      <div class="aa-row">
+        <div class="aa-label">아티스트명 *</div>
+        <div class="aa-input-wrap"><input class="aa-field" id="aa-name" placeholder="구매자에게 보일 이름"></div>
+      </div>
+      <div class="aa-row">
+        <div class="aa-label">휴대폰 *</div>
+        <div class="aa-input-wrap">
+          <div class="aa-phone-row">
+            <input class="aa-field aa-phone-part" id="aa-phone1" maxlength="3" inputmode="numeric">
+            <span class="aa-dash">-</span>
+            <input class="aa-field aa-phone-part" id="aa-phone2" maxlength="4" inputmode="numeric">
+            <span class="aa-dash">-</span>
+            <input class="aa-field aa-phone-part" id="aa-phone3" maxlength="4" inputmode="numeric">
+            <button type="button" class="aa-verify-btn" disabled>휴대전화번호 인증</button>
+          </div>
+          <p class="aa-note">※ 지금은 별도 인증 없이 입력한 번호 그대로 접수돼요</p>
+        </div>
+      </div>
+      <div class="aa-row">
+        <div class="aa-label">이메일 *</div>
+        <div class="aa-input-wrap">
+          <div class="aa-email-row">
+            <input class="aa-field" id="aa-email-local" placeholder="이메일">
+            <span class="aa-at">@</span>
+            <input class="aa-field" id="aa-email-domain">
+            <select class="aa-field aa-email-select" id="aa-email-domain-select">
+              <option value="">직접입력</option>
+              <option value="naver.com">naver.com</option>
+              <option value="gmail.com">gmail.com</option>
+              <option value="daum.net">daum.net</option>
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="aa-btn-row">
+      <button type="button" class="aa-cancel-btn" id="aa-cancel">가입취소</button>
+      <button type="button" class="aa-submit-btn" id="aa-submit">다음단계</button>
     </div>`;
 }
 

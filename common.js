@@ -350,16 +350,16 @@ function inquiryFromRow(r) {
 /* 2026-10-19 추가: 아티스트 되기 신청 ⇄ 테이블 행 변환 */
 function rowFromArtistApplication(a) {
   return {
-    id: a.id, user_id: a.userId, artist_name: a.artistName, intro: a.intro, sales_plan: a.salesPlan,
-    contact: a.contact, portfolio_url: a.portfolioUrl || null,
+    id: a.id, user_id: a.userId, name: a.name, artist_name: a.artistName,
+    phone: a.phone, email: a.email, video_url: a.videoUrl, sample_file_url: a.sampleFileUrl || null,
     status: a.status, reject_reason: a.rejectReason || null,
     reviewed_by: a.reviewedBy || null, reviewed_at: a.reviewedAt || null, created_at: a.createdAt
   };
 }
 function artistApplicationFromRow(r) {
   return {
-    id: r.id, userId: r.user_id, artistName: r.artist_name, intro: r.intro, salesPlan: r.sales_plan,
-    contact: r.contact, portfolioUrl: r.portfolio_url,
+    id: r.id, userId: r.user_id, name: r.name, artistName: r.artist_name,
+    phone: r.phone, email: r.email, videoUrl: r.video_url, sampleFileUrl: r.sample_file_url,
     status: r.status, rejectReason: r.reject_reason,
     reviewedBy: r.reviewed_by, reviewedAt: r.reviewed_at, createdAt: r.created_at
   };
@@ -1653,13 +1653,14 @@ function submitArtistApplication(userId, data) {
   if (user.role === "seller" || user.role === "both") {
     return { ok: false, message: "이미 아티스트(판매자) 권한이 있는 계정입니다." };
   }
+  const name = (data.name || "").trim();
   const artistName = (data.artistName || "").trim();
-  const intro = (data.intro || "").trim();
-  const salesPlan = (data.salesPlan || "").trim();
-  const contact = (data.contact || "").trim();
-  const portfolioUrl = (data.portfolioUrl || "").trim();
-  if (!artistName || !intro || !salesPlan || !contact) {
-    return { ok: false, message: "아티스트명, 활동 소개, 악보 제작·판매 소개, 연락처를 모두 입력해주세요." };
+  const phone = (data.phone || "").trim();
+  const email = (data.email || "").trim();
+  const videoUrl = (data.videoUrl || "").trim();
+  const sampleFileUrl = (data.sampleFileUrl || "").trim();
+  if (!name || !artistName || !phone || !email || !videoUrl || !sampleFileUrl) {
+    return { ok: false, message: "악보/MR 샘플, 판매자 영상, 이름, 아티스트명, 휴대폰, 이메일을 모두 입력해주세요." };
   }
   const already = Object.values(STATE.artistApplications).some(a => a.userId === userId && a.status === "심사대기");
   if (already) {
@@ -1667,11 +1668,43 @@ function submitArtistApplication(userId, data) {
   }
   const id = uid("artistapp");
   STATE.artistApplications[id] = {
-    id, userId, artistName, intro, salesPlan, contact, portfolioUrl: portfolioUrl || null,
+    id, userId, name, artistName, phone, email, videoUrl, sampleFileUrl,
     status: "심사대기", rejectReason: null, reviewedBy: null, reviewedAt: null, createdAt: nowISO()
   };
   save();
   return { ok: true, applicationId: id };
+}
+
+/* 신청서의 "악보/MR 샘플" 파일 업로드 (2026-10-20 추가). 경로 규칙은 scores·previews 버킷과
+   동일하게 "{회원 아이디}/..." 로 둬서, artist-samples 버킷 RLS가 본인 폴더만 올릴 수 있게 막는다.
+   읽기는 previews 버킷처럼 공개로 열어둬서 주소만 있으면 바로 열어볼 수 있게 한다. */
+async function uploadArtistSampleFile(userId, file) {
+  if (!file) return { ok: false, message: "악보/MR 샘플 파일을 선택해주세요." };
+  const okTypes = [".pdf", ".jpg", ".jpeg", ".mp3"];
+  const ext = "." + (file.name.split(".").pop() || "").toLowerCase();
+  if (!okTypes.includes(ext)) {
+    return { ok: false, message: "PDF, JPG, MP3 파일만 업로드할 수 있습니다." };
+  }
+  const sb = getSb();
+  if (!sb) return { ok: false, message: "서버 연결 준비 중입니다. 잠시 후 다시 시도해주세요." };
+
+  const path = `${userId}/${Date.now()}${ext}`;
+  let error = null;
+  try {
+    const res = await sb.storage.from("artist-samples").upload(path, file, { upsert: true });
+    error = res.error;
+  } catch (e) {
+    error = e;
+  }
+  if (error) {
+    console.error("[common] 아티스트 신청 샘플 업로드 오류", error);
+    return { ok: false, message: "샘플 파일 업로드 중 문제가 발생했습니다." };
+  }
+  const { data } = sb.storage.from("artist-samples").getPublicUrl(path);
+  if (!data || !data.publicUrl) {
+    return { ok: false, message: "샘플 파일 주소를 가져오지 못했습니다." };
+  }
+  return { ok: true, url: data.publicUrl };
 }
 
 function getMyArtistApplications(userId) {
@@ -2226,18 +2259,22 @@ function renderHeaderAuth() {
       ${cartCount ? `<span class="badge">${cartCount}</span>` : ""}
     </button>`;
 
+  // 2026-10-20: 마이페이지까지 가지 않고 바로 신청할 수 있도록 헤더에
+  // "아티스트 가입" 글자 링크를 다시 노출한다(로그인/프로필 버튼 바로 옆).
+  // 이미 아티스트(판매자)인 회원에게는 필요 없는 링크라 role === "buyer" 일 때만 보여준다.
+  const artistLink = `<button id="header-artist-link">아티스트 가입</button>`;
+
   if (!user) {
-    // 2026-10-19: 헤더의 별도 "아티스트 되기" 버튼은 없앴다 — "로그인" 버튼 하나로 통합한다.
-    // 홈 화면의 "아티스트로 시작하기" 배너·안내박스는 그대로 두되, 이제 로그인 후 마이페이지의
-    // 아티스트 되기 신청 화면으로 안내한다(startArtist, buyer.js).
     bar.innerHTML = `
       ${cartBtn}
+      ${artistLink}
       <button id="header-login-btn" class="auth-btn">로그인</button>
     `;
     document.getElementById("header-login-btn")?.addEventListener("click", () => openLoginModal("buyer"));
   } else {
     bar.innerHTML = `
       ${cartBtn}
+      ${user.role === "buyer" ? artistLink : ""}
       <button id="header-my-btn" class="icon-btn" aria-label="마이페이지">
         <span class="icon-btn-glyph"><i class="ico ico-user"></i></span><span class="icon-btn-label">${esc(user.name)}님 · ${formatPoint(user.points)}</span>
       </button>
@@ -2248,6 +2285,9 @@ function renderHeaderAuth() {
       if (typeof goBuyer === "function") goBuyer("mypage");
     });
   }
+  document.getElementById("header-artist-link")?.addEventListener("click", () => {
+    if (typeof startArtist === "function") startArtist();
+  });
 
   document.getElementById("header-cart-btn")?.addEventListener("click", () => {
     requireLogin(() => { if (typeof goBuyer === "function") goBuyer("cart"); });
