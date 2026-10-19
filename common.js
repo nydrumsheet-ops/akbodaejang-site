@@ -15,6 +15,18 @@
      안 되고 서버의 전용 함수(RPC: rpc_purchase_score / rpc_refund_purchase)를
      통해 처리한다. 이 두 함수는 비동기(async)로 바뀌었고, 이걸 부르는
      buyer.js 쪽 버튼 3곳에만 await가 추가되어 있다.
+
+   2026-10-19 추가: 아티스트 되기 신청 → 관리자 승인/거절 시스템.
+   - 기존에는 회원가입 시 "아티스트로 가입하기"를 누르거나, 로그인한 구매자가
+     "아티스트로 시작하기"를 누르면 즉시(심사 없이) 판매자 권한이 붙었다.
+     이걸 완전히 없애고, artist_applications 테이블에 신청을 넣고 관리자가
+     승인/거절하는 절차로 바꿨다(Phase 1: 신청서 제출·상태 표시·데이터 계층,
+     Phase 2: admin.js의 승인/거절 화면 — 아직 작업 전).
+   - 동시에, 악보 등록 심사(등록→심사중→승인/반려)도 없앴다. submitScore()는
+     이제 등록 즉시 "승인" 상태로 저장된다. approveScore/rejectScore 함수와
+     SCORE_STATUS 상수는, admin.js의 "악보 심사" 탭이 아직 이 함수들을 쓰고
+     있어서(Phase 2에서 그 탭을 통째로 지울 예정) 일단 남겨뒀다 — 이제 새로
+     등록되는 악보는 전부 "승인" 상태라 이 탭에 새 항목이 쌓이진 않는다.
    ============================================================ */
 
 const STORAGE_KEY = "madi.store.v1"; // 공유 서버에서 못 받아올 때 쓰는 이 브라우저용 백업 캐시
@@ -120,17 +132,19 @@ function difficultyGroup(d) {
 }
 /* 카테고리(초급/중급/고급) 안에서 보여줄 세부 단계 목록. 초급 카테고리는 세부 단계가 없다. */
 const DIFFICULTY_SUBTIERS = { "초급": [], "중급": ["초중급", "중급"], "고급": ["프로", "고급"] };
-const SCORE_STATUS = ["등록", "심사중", "승인", "반려"];
+const SCORE_STATUS = ["등록", "심사중", "승인", "반려"]; // 2026-10-19: 악보 등록 심사는 폐지됐지만, admin.js Phase 2 정리 전까지 상수는 남겨둔다
 const WITHDRAW_STATUS = ["요청", "지급완료"];
 const REQUEST_STATUS = ["접수", "채보중", "완료"];
 const INQUIRY_STATUS = ["답변대기", "답변완료"];
 const INQUIRY_CATEGORIES = ["결제·포인트", "환불", "악보·심사", "정산", "계정", "기타"];
+/* 2026-10-19 추가: 아티스트 되기 신청 상태 */
+const ARTIST_APP_STATUS = ["심사대기", "승인", "거절"];
 
 let STATE = null;
 let STATE_BASELINE = null; // 직전 load()/save() 성공 시점의 STATE 스냅샷 — save()가 이것과 비교해서 바뀐 것만 찾는다
 let CURRENT_USER_ID = null;
 let CURRENT_VIEW = "buyer";
-let PENDING_ROLE = "buyer"; // 회원가입 폼이 지금 어떤 역할로 맞춰져 있는지. 기본값은 구매자
+let PENDING_ROLE = "buyer"; // 2026-10-19: 회원가입은 이제 항상 구매자로만 가입한다(아티스트 전용 가입 경로 폐지). 값은 항상 "buyer".
 let AFTER_LOGIN = null;     // 로그인 모달을 띄운 동작 (로그인 끝나면 이어서 실행)
 let SB_CLIENT = null;       // Supabase 클라이언트 (지연 생성, 로그인·테이블 읽기/쓰기 전부 이걸로 한다)
 
@@ -185,7 +199,7 @@ function getSb() {
    화면(buyer.js 등)이 보는 STATE 모양(camelCase, 중첩 구조)은 예전 그대로 유지하고,
    실제 테이블 칼럼(snake_case)과 이 함수들로만 주고받는다. */
 
-const COLLECTIONS = ["users", "scores", "purchases", "requests", "charges", "withdrawals", "reviews", "inquiries"];
+const COLLECTIONS = ["users", "scores", "purchases", "requests", "charges", "withdrawals", "reviews", "inquiries", "artistApplications"];
 
 function emptyState() {
   const s = {};
@@ -333,12 +347,30 @@ function inquiryFromRow(r) {
   };
 }
 
+/* 2026-10-19 추가: 아티스트 되기 신청 ⇄ 테이블 행 변환 */
+function rowFromArtistApplication(a) {
+  return {
+    id: a.id, user_id: a.userId, artist_name: a.artistName, intro: a.intro, sales_plan: a.salesPlan,
+    contact: a.contact, portfolio_url: a.portfolioUrl || null,
+    status: a.status, reject_reason: a.rejectReason || null,
+    reviewed_by: a.reviewedBy || null, reviewed_at: a.reviewedAt || null, created_at: a.createdAt
+  };
+}
+function artistApplicationFromRow(r) {
+  return {
+    id: r.id, userId: r.user_id, artistName: r.artist_name, intro: r.intro, salesPlan: r.sales_plan,
+    contact: r.contact, portfolioUrl: r.portfolio_url,
+    status: r.status, rejectReason: r.reject_reason,
+    reviewedBy: r.reviewed_by, reviewedAt: r.reviewed_at, createdAt: r.created_at
+  };
+}
+
 /* ---------- 불러오기 (12개 테이블 → 화면용 STATE 조립) ---------- */
 
 async function loadFromSupabaseTables() {
   const sb = getSb();
   if (!sb) return null;
-  const [uR, sR, pR, rR, cR, wR, rvR, iR, phR, rbR, rlR] = await Promise.all([
+  const [uR, sR, pR, rR, cR, wR, rvR, iR, phR, rbR, rlR, aaR] = await Promise.all([
     sb.from("users").select("*"),
     sb.from("scores").select("*"),
     sb.from("purchases").select("*"),
@@ -349,9 +381,10 @@ async function loadFromSupabaseTables() {
     sb.from("inquiries").select("*"),
     sb.from("point_history").select("*").order("at"),
     sb.from("request_buyers").select("*").order("joined_at"),
-    sb.from("request_likes").select("*").order("liked_at")
+    sb.from("request_likes").select("*").order("liked_at"),
+    sb.from("artist_applications").select("*")
   ]);
-  for (const r of [uR, sR, pR, rR, cR, wR, rvR, iR, phR, rbR, rlR]) {
+  for (const r of [uR, sR, pR, rR, cR, wR, rvR, iR, phR, rbR, rlR, aaR]) {
     if (r.error) throw r.error;
   }
 
@@ -364,6 +397,7 @@ async function loadFromSupabaseTables() {
   for (const row of wR.data) state.withdrawals[row.id] = withdrawalFromRow(row);
   for (const row of rvR.data) state.reviews[row.id] = reviewFromRow(row);
   for (const row of iR.data) state.inquiries[row.id] = inquiryFromRow(row);
+  for (const row of aaR.data) state.artistApplications[row.id] = artistApplicationFromRow(row);
 
   for (const row of phR.data) {
     const u = state.users[row.user_id];
@@ -551,6 +585,7 @@ async function syncToSupabase() {
   await tryStep("withdrawals 저장", () => upsertChanged(sb, "withdrawals", base.withdrawals, STATE.withdrawals, rowFromWithdrawal));
   await tryStep("reviews 저장", () => upsertChanged(sb, "reviews", base.reviews, STATE.reviews, rowFromReview));
   await tryStep("inquiries 저장", () => upsertChanged(sb, "inquiries", base.inquiries, STATE.inquiries, rowFromInquiry));
+  await tryStep("아티스트 신청 저장", () => upsertChanged(sb, "artist_applications", base.artistApplications, STATE.artistApplications, rowFromArtistApplication));
 
   await tryStep("포인트내역 추가", () => insertNewPointHistory(sb, base.users, STATE.users));
   await tryStep("신청곡 참여자 추가", () => insertNewRequestBuyers(sb, base.requests, STATE.requests));
@@ -672,7 +707,7 @@ function seedDemoData() {
     scoreIds.push(id);
   }
 
-  // 심사 대기 예시 2개
+  // 심사 대기 예시 2개 (2026-10-19: 악보 심사 자체는 폐지됐지만, 데모 데이터는 과거 상태 예시로 남겨둔다)
   for (const [title, instrument] of [["데모 심사대기 드럼 악보", "드럼"], ["데모 심사대기 기타 악보", "기타"]]) {
     const id = uid("score");
     STATE.scores[id] = {
@@ -1430,6 +1465,8 @@ async function getScoreDownloadUrl(scoreId) {
   return { ok: true, url: data.signedUrl };
 }
 
+/* 2026-10-19 변경: 악보 등록 심사(등록→심사중→승인/반려)를 폐지했다.
+   등록하면 바로 "승인" 상태가 되어 즉시 목록에 노출된다. */
 function submitScore(sellerId, data) {
   const scoreId = data.id || uid("score");
   const tags = Array.isArray(data.tags)
@@ -1445,7 +1482,7 @@ function submitScore(sellerId, data) {
     previewUrl: data.previewUrl || null,
     previewUrls: Array.isArray(data.previewUrls) && data.previewUrls.length ? data.previewUrls : null,
     previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`,
-    status: "등록", rejectReason: null, createdAt: nowISO(), approvedAt: null,
+    status: "승인", rejectReason: null, createdAt: nowISO(), approvedAt: nowISO(),
     salesCount: 0, viewCount: 0,
     description: (data.description || "").trim(),
     tags,
@@ -1456,6 +1493,8 @@ function submitScore(sellerId, data) {
   return { ok: true, scoreId };
 }
 
+/* 2026-10-19: 악보 등록 심사가 폐지되어 더 이상 새 악보에는 쓰이지 않는다.
+   admin.js의 "악보 심사" 탭이 Phase 2에서 지워지기 전까지는 호환을 위해 남겨둔다. */
 function approveScore(scoreId) {
   const score = STATE.scores[scoreId];
   if (!score) return { ok: false, message: "악보를 찾을 수 없습니다." };
@@ -1601,33 +1640,99 @@ function fulfillRequest(requestId, scoreId) {
 }
 
 /* ============================================================
+   아티스트 되기 신청 (2026-10-19 추가)
+   일반 회원(role === "buyer")이 아티스트 신청서를 내면 "심사대기" 상태로 쌓이고,
+   관리자가 승인하면 becomeSeller()를 조용히 호출해 그 자리에서 판매자 권한을 붙이고
+   신청한 아티스트명을 판매자 활동명(displayName)으로 그대로 연결한다. 거절되면
+   사유와 함께 다시 신청할 수 있다(과거 신청 기록은 지우지 않고 그대로 둔다).
+   ============================================================ */
+
+function submitArtistApplication(userId, data) {
+  const user = STATE.users[userId];
+  if (!user) return { ok: false, message: "사용자를 찾을 수 없습니다." };
+  if (user.role === "seller" || user.role === "both") {
+    return { ok: false, message: "이미 아티스트(판매자) 권한이 있는 계정입니다." };
+  }
+  const artistName = (data.artistName || "").trim();
+  const intro = (data.intro || "").trim();
+  const salesPlan = (data.salesPlan || "").trim();
+  const contact = (data.contact || "").trim();
+  const portfolioUrl = (data.portfolioUrl || "").trim();
+  if (!artistName || !intro || !salesPlan || !contact) {
+    return { ok: false, message: "아티스트명, 활동 소개, 악보 제작·판매 소개, 연락처를 모두 입력해주세요." };
+  }
+  const already = Object.values(STATE.artistApplications).some(a => a.userId === userId && a.status === "심사대기");
+  if (already) {
+    return { ok: false, message: "이미 심사 대기 중인 신청이 있습니다." };
+  }
+  const id = uid("artistapp");
+  STATE.artistApplications[id] = {
+    id, userId, artistName, intro, salesPlan, contact, portfolioUrl: portfolioUrl || null,
+    status: "심사대기", rejectReason: null, reviewedBy: null, reviewedAt: null, createdAt: nowISO()
+  };
+  save();
+  return { ok: true, applicationId: id };
+}
+
+function getMyArtistApplications(userId) {
+  return Object.values(STATE.artistApplications)
+    .filter(a => a.userId === userId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function getLatestArtistApplication(userId) {
+  return getMyArtistApplications(userId)[0] || null;
+}
+
+/* 관리자 화면(admin.js, Phase 2)에서 쓸 전체 신청 목록 조회. filter.status 로 상태별로 걸러본다. */
+function getArtistApplications(filter) {
+  let list = Object.values(STATE.artistApplications);
+  if (filter && filter.status) list = list.filter(a => a.status === filter.status);
+  return list.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+}
+
+function approveArtistApplication(appId, adminId) {
+  const app = STATE.artistApplications[appId];
+  if (!app) return { ok: false, message: "신청을 찾을 수 없습니다." };
+  if (app.status !== "심사대기") return { ok: false, message: "이미 처리된 신청입니다." };
+  const user = STATE.users[app.userId];
+  if (!user) return { ok: false, message: "신청자 계정을 찾을 수 없습니다." };
+  app.status = "승인";
+  app.reviewedBy = adminId || null;
+  app.reviewedAt = nowISO();
+  app.rejectReason = null;
+  becomeSeller(user, { silent: true, displayName: app.artistName }); // becomeSeller 내부에서 save() 까지 처리한다
+  return { ok: true };
+}
+
+function rejectArtistApplication(appId, adminId, reason) {
+  const app = STATE.artistApplications[appId];
+  if (!app) return { ok: false, message: "신청을 찾을 수 없습니다." };
+  if (app.status !== "심사대기") return { ok: false, message: "이미 처리된 신청입니다." };
+  const why = (reason || "").trim();
+  if (!why) return { ok: false, message: "거절 사유를 입력해주세요." };
+  app.status = "거절";
+  app.rejectReason = why;
+  app.reviewedBy = adminId || null;
+  app.reviewedAt = nowISO();
+  save();
+  return { ok: true };
+}
+
+/* ============================================================
    로그인 / 회원가입 / 비밀번호 재설정 — Supabase Auth 사용
    기존(이름+이메일만 쓰던) 회원은 처음 로그인을 시도하면 자동으로
    "비밀번호 설정" 절차로 안내되고, 메일 인증을 마치면 기존 데이터
    (포인트·구매내역 등)를 그대로 이어서 쓰게 된다.
+
+   2026-10-19 변경: 회원가입은 이제 항상 "구매자"로만 가입한다. 예전에는
+   회원가입 모달에서 "아티스트로 가입하기"를 눌러 바로 판매자 권한을 받을 수
+   있었지만, 이제 아티스트가 되려면 가입 후 마이페이지 › 아티스트 되기에서
+   신청하고 관리자 승인을 거쳐야 한다.
    ============================================================ */
 
 function findUserByEmail(email) {
   return Object.values(STATE.users).find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
-}
-
-function updateLoginRoleUI() {
-  const sub = document.getElementById("signup-role-sub");
-  const switchLink = document.getElementById("role-switch-link");
-  if (PENDING_ROLE === "seller") {
-    if (sub) sub.textContent = "아티스트로 가입합니다.";
-    if (switchLink) switchLink.innerHTML = `구매자이신가요? <b>구매자로 가입하기</b>`;
-  } else {
-    if (sub) sub.textContent = "구매자로 가입합니다.";
-    if (switchLink) switchLink.innerHTML = `아티스트이신가요? <b>아티스트로 가입하기</b>`;
-  }
-}
-
-function switchLoginRole() {
-  PENDING_ROLE = PENDING_ROLE === "seller" ? "buyer" : "seller";
-  updateLoginRoleUI();
-  const errorEl = document.getElementById("signup-error");
-  if (errorEl) errorEl.textContent = "";
 }
 
 function showLoginPane(pane) {
@@ -1639,7 +1744,6 @@ function showLoginPane(pane) {
 
 function resetLoginForm() {
   PENDING_ROLE = "buyer";
-  updateLoginRoleUI();
   showLoginPane("login");
   for (const id of ["login-email", "login-password", "signup-name", "signup-email", "signup-password", "signup-password2", "forgot-email", "setpassword-new", "setpassword-new2"]) {
     const el = document.getElementById(id);
@@ -1652,18 +1756,15 @@ function resetLoginForm() {
 }
 
 /* 로그인은 화면을 막지 않는다. 계정이 필요한 버튼을 누르는 순간에만
-   이 모달이 뜨고, afterLogin 으로 넘긴 동작은 로그인 직후 이어서 실행된다. */
-
+   이 모달이 뜨고, afterLogin 으로 넘긴 동작은 로그인 직후 이어서 실행된다.
+   2026-10-19: role 인자는 더 이상 "아티스트로 가입" 분기를 타지 않는다(항상 로그인 탭으로 연다) —
+   호출부 호환을 위해 인자 자체는 남겨뒀다. */
 function openLoginModal(role, afterLogin) {
   resetLoginForm();
-  PENDING_ROLE = role === "seller" ? "seller" : "buyer";
-  updateLoginRoleUI();
   AFTER_LOGIN = typeof afterLogin === "function" ? afterLogin : null;
-  if (role === "seller") showLoginPane("signup");
   document.getElementById("login-modal")?.classList.add("open");
   setTimeout(() => {
-    const target = role === "seller" ? "signup-name" : "login-email";
-    document.getElementById(target)?.focus();
+    document.getElementById("login-email")?.focus();
   }, 30);
 }
 
@@ -1809,7 +1910,7 @@ async function submitSignup() {
   }
 
   try {
-    localStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify({ email, name, role: PENDING_ROLE }));
+    localStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify({ email, name, role: "buyer" }));
   } catch (e) { /* 저장이 막힌 브라우저에서는 그냥 넘어간다 (기본값 buyer 로 가입된다) */ }
 
   closeLoginModal();
@@ -1944,19 +2045,27 @@ function requireLogin(action) {
   openLoginModal("buyer", action);
 }
 
-/* 이미 로그인한 회원(구매자)이 "아티스트로 시작하기"를 눌렀을 때,
-   새로 회원가입을 받지 않고 지금 쓰던 계정 그대로 판매자 권한을 더해준다. */
-function becomeSeller(user) {
+/* 이미 로그인한 회원에게 판매자(아티스트) 권한을 붙인다.
+   2026-10-19 변경: 더 이상 버튼 한 번으로 아무 때나 호출되지 않는다 — 아티스트 되기 신청이
+   관리자에게 승인됐을 때(approveArtistApplication)만 이 함수가 불린다. opts.silent 가 true면
+   화면 전환·안내 토스트 없이 조용히 권한만 붙이고(관리자 화면에서 호출할 때 쓴다),
+   opts.displayName 을 주면 신청한 아티스트명을 그대로 판매자 활동명으로 쓴다. */
+function becomeSeller(user, opts) {
+  const o = opts || {};
   if (user.role !== "seller" && user.role !== "both") user.role = "both";
   if (!user.sellerInfo) {
-    user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: user.name, settleBalance: 0, displayName: user.name };
+    user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: user.name, settleBalance: 0, displayName: o.displayName || user.name };
+  } else if (o.displayName) {
+    user.sellerInfo.displayName = o.displayName;
   } else if (typeof user.sellerInfo.displayName !== "string" || !user.sellerInfo.displayName.trim()) {
     user.sellerInfo.displayName = user.name;
   }
   save();
-  showView("seller");
-  window.scrollTo({ top: 0 });
-  toast("아티스트 등록이 완료됐어요! 이제 이 계정으로 악보를 등록할 수 있어요.");
+  if (!o.silent) {
+    showView("seller");
+    window.scrollTo({ top: 0 });
+    toast("아티스트 등록이 완료됐어요! 이제 이 계정으로 악보를 등록할 수 있어요.");
+  }
 }
 
 /* 구매자에게 보이는 판매자 활동명을 바꾼다. 가입할 때 적은 실명과 달라도 되고,
@@ -2118,9 +2227,9 @@ function renderHeaderAuth() {
     </button>`;
 
   if (!user) {
-    // 2026-10-19: 헤더의 별도 "아티스트 되기" 버튼은 없앴다 — 회원가입 모달 안의
-    // "아티스트이신가요? 아티스트로 가입하기" 링크(switchLoginRole)로 이미 들어갈 수 있어서,
-    // "로그인" 버튼 하나로 통합한다. 홈 화면의 "아티스트로 시작하기" 배너·안내박스는 그대로 둔다.
+    // 2026-10-19: 헤더의 별도 "아티스트 되기" 버튼은 없앴다 — "로그인" 버튼 하나로 통합한다.
+    // 홈 화면의 "아티스트로 시작하기" 배너·안내박스는 그대로 두되, 이제 로그인 후 마이페이지의
+    // 아티스트 되기 신청 화면으로 안내한다(startArtist, buyer.js).
     bar.innerHTML = `
       ${cartBtn}
       <button id="header-login-btn" class="auth-btn">로그인</button>
@@ -2249,11 +2358,6 @@ async function initCommon() {
 
   initSupabaseAuth();
 
-  updateLoginRoleUI();
-  document.getElementById("role-switch-link")?.addEventListener("click", (e) => {
-    e.preventDefault();
-    switchLoginRole();
-  });
   document.getElementById("login-submit")?.addEventListener("click", submitLogin);
   document.getElementById("login-password")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitLogin(); });
   document.getElementById("signup-submit")?.addEventListener("click", submitSignup);

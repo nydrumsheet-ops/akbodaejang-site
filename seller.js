@@ -5,6 +5,7 @@
    화면 6개 완성: 아티스트 프로필 / 악보등록 / 내 악보·심사상태 / 판매현황·적립금 / 정산·자동지급 / 고객 문의
    (2026-10-01 결정: 출금 신청 없음. 적립금이 기준 이상이면 매달 지급일에 자동 입금)
    (2026-10-13 추가: 구매자에게 보이는 활동명을 실명과 따로 둘 수 있는 "아티스트 프로필" 패널)
+   (2026-10-19 변경: 악보 등록 심사(관리자 승인) 폐지 — 등록하면 바로 노출된다는 안내 문구로 수정)
    ============================================================ */
 
 let SF_TAGS = []; // 악보 등록 폼에서 지금 입력 중인 태그 (제출 성공해야 비움, 최대 5개)
@@ -64,7 +65,7 @@ function renderSeller() {
 
     <div id="seller-register-panel" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">악보 등록</h2>
-      <p style="margin:0 0 4px;font-size:13px;color:var(--muted);">등록한 악보는 관리자 심사 후 승인되면 목록에 노출됩니다. 여러 곡을 올릴 땐 등록 후 이 폼이 비워진 채 그대로 이어서 다음 곡을 입력하면 돼요.</p>
+      <p style="margin:0 0 4px;font-size:13px;color:var(--muted);">등록한 악보는 바로 목록에 노출됩니다. 여러 곡을 올릴 땐 등록 후 이 폼이 비워진 채 그대로 이어서 다음 곡을 입력하면 돼요.</p>
       ${SF_SESSION_COUNT > 0 ? `<p style="margin:0 0 14px;font-size:12px;color:var(--primary-dark);font-weight:600;">이번 접속에서 ${SF_SESSION_COUNT}곡 등록했어요.</p>` : `<div style="margin-bottom:18px;"></div>`}
 
       <div id="seller-form-msg" style="font-size:13px;margin:0 0 12px;"></div>

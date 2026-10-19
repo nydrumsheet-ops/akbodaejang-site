@@ -3,8 +3,13 @@
    "구매자/" 모드(또는 총괄/)에서 작업합니다.
 
    페이지: 홈 / 악보 목록(검색·필터) / 악보 상세 / 아티스트 / 장바구니 /
-          마이페이지(내 악보함·포인트·찜·구독·최근 본) / 신청곡 / 고객센터(FAQ·1:1 문의)
+          마이페이지(내 악보함·포인트·아티스트 되기·찜·구독·최근 본) / 신청곡 / 고객센터(FAQ·1:1 문의)
    계정이 필요한 버튼은 requireLogin() 으로 감싸서, 로그인 후 하던 일을 이어간다.
+
+   2026-10-19 추가: "아티스트 되기"는 더 이상 버튼 한 번으로 즉시 판매자가 되지 않는다.
+   마이페이지의 "아티스트 되기" 탭에서 신청서를 내고, 관리자 승인을 거쳐야 한다
+   (common.js의 submitArtistApplication/getLatestArtistApplication, admin.js Phase 2에서
+   승인·거절 화면 작업 예정). startArtist()는 이제 그 탭으로 안내만 한다.
    ============================================================ */
 
 let BUYER_ROUTE = { page: "home", params: {} };
@@ -27,7 +32,7 @@ const FAQ_LIST = [
   { id: "f3", cat: "환불", q: "환불은 어떻게 하나요?",
     a: () => `구매 후 ${POLICY.refund.windowDays}일 이내, 파일을 한 번도 받지 않았다면 마이페이지 › 내 악보함에서 환불 버튼으로 포인트 전액 환불돼요. 한 번이라도 다운로드했다면 환불이 안 돼요.` },
   { id: "f4", cat: "악보·심사", q: "악보 등록하면 언제 노출되나요?",
-    a: () => `등록 즉시 관리자 심사로 넘어가고, 승인되면 바로 악보 목록에 노출돼요. 반려되면 사유와 함께 돌아오고, 고쳐서 다시 등록하면 돼요.` },
+    a: () => `판매자가 악보를 등록하면 바로 목록에 노출돼요. 궁금한 점이 있으면 고객센터 1:1 문의로 알려주세요.` },
   { id: "f5", cat: "악보·심사", q: "수수료는 얼마인가요?",
     a: () => `수수료는 ${Math.round(POLICY.commission.rate * 100)}%예요. 나머지는 전부 판매자 몫이에요.` },
   { id: "f6", cat: "정산", q: "정산은 언제 들어오나요?",
@@ -626,11 +631,14 @@ function renderHomePage(el) {
   });
 }
 
+/* 2026-10-19 변경: 더 이상 버튼 한 번으로 즉시 판매자가 되지 않는다.
+   이미 아티스트(판매자)면 판매자 센터로, 아니면 로그인 여부와 상관없이
+   마이페이지의 "아티스트 되기" 신청 탭으로 안내한다(로그인 전이면 로그인 후 그 탭으로). */
 function startArtist() {
   const user = getCurrentUser();
   if (user && (user.role === "seller" || user.role === "both")) { showView("seller"); window.scrollTo({ top: 0 }); return; }
-  if (user) { becomeSeller(user); return; }
-  openLoginModal("seller");
+  if (user) { goBuyer("mypage", { tab: "artist" }); return; }
+  requireLogin(() => goBuyer("mypage", { tab: "artist" }));
 }
 
 function renderPopRow() {
@@ -1216,10 +1224,14 @@ function renderMyPage(el, p) {
     return;
   }
   const tab = p.tab || "library";
-  const tabs = [["library", "내 악보함"], ["points", "포인트 · 충전"], ["wish", `찜한 악보 ${user.wishlist.length}`], ["following", `구독 아티스트 ${user.following.length}`], ["recent", "최근 본 악보"]];
+  // 2026-10-19 추가: "아티스트 되기" 탭은 아직 판매자가 아닌 회원(role === "buyer")에게만 보여준다.
+  const tabs = [["library", "내 악보함"], ["points", "포인트 · 충전"]];
+  if (user.role === "buyer") tabs.push(["artist", "아티스트 되기"]);
+  tabs.push(["wish", `찜한 악보 ${user.wishlist.length}`], ["following", `구독 아티스트 ${user.following.length}`], ["recent", "최근 본 악보"]);
 
   let body = "";
   if (tab === "points") body = myPointsHTML(user, p);
+  else if (tab === "artist") body = myArtistHTML(user);
   else if (tab === "wish") {
     const list = user.wishlist.map(id => STATE.scores[id]).filter(s => s && s.status === "승인");
     body = list.length ? `<div class="score-grid">${list.map(s => scoreCard(s)).join("")}</div>` : `<div class="empty">찜한 악보가 없어요. 악보 카드의 ♡를 눌러 담아보세요.</div>`;
@@ -1302,6 +1314,24 @@ function renderMyPage(el, p) {
     renderBuyer();
     renderHeaderAuth();
   }));
+
+  // 아티스트 되기 신청
+  document.getElementById("aa-submit")?.addEventListener("click", () => {
+    const res = submitArtistApplication(user.id, {
+      artistName: document.getElementById("aa-name").value,
+      intro: document.getElementById("aa-intro").value,
+      salesPlan: document.getElementById("aa-salesplan").value,
+      contact: document.getElementById("aa-contact").value,
+      portfolioUrl: document.getElementById("aa-portfolio").value
+    });
+    const msgEl = document.getElementById("artist-apply-msg");
+    if (!res.ok) {
+      if (msgEl) { msgEl.textContent = res.message; msgEl.style.color = "var(--danger)"; }
+      return;
+    }
+    toast("아티스트 신청을 보냈어요. 심사 결과는 이 화면에서 확인할 수 있어요.");
+    renderBuyer();
+  });
 }
 
 function myLibraryHTML(user) {
@@ -1367,6 +1397,63 @@ function myPointsHTML(user, p) {
         </div>`).join("") : `<p class="muted" style="margin:0;">아직 내역이 없어요.</p>`}
     </div>
   `;
+}
+
+/* ============================================================
+   아티스트 되기 (2026-10-19 추가)
+   마이페이지 › 아티스트 되기 탭의 내용. 신청 내역이 없거나 지난번에 거절됐으면
+   신청 폼을 보여주고, 심사 대기 중이면 상태만 보여준다(재신청 불가).
+   ============================================================ */
+
+function myArtistHTML(user) {
+  const app = getLatestArtistApplication(user.id);
+
+  if (app && app.status === "심사대기") {
+    return `
+      <div class="panel">
+        <h2 style="margin:0 0 4px;font-size:17px;">아티스트 되기</h2>
+        <p class="muted" style="margin:0 0 14px;">심사 대기 중이에요. 결과가 나오면 이 화면에서 바로 확인할 수 있어요.</p>
+        <div class="row-item" style="border-top:none;">
+          <div class="row-main">
+            <div class="row-title" style="cursor:default;">${esc(app.artistName)}</div>
+            <div class="row-sub">신청일 ${formatDate(app.createdAt)}</div>
+          </div>
+          <span class="status-pill" style="background:#f6e7c4;color:#7a5410;">심사대기</span>
+        </div>
+      </div>`;
+  }
+
+  if (app && app.status === "거절") {
+    return `
+      <div class="panel">
+        <h2 style="margin:0 0 4px;font-size:17px;">아티스트 되기</h2>
+        <p class="muted" style="margin:0 0 4px;">아쉽지만 이번 신청은 승인되지 않았어요. 아래 사유를 참고해 다시 신청할 수 있어요.</p>
+        <div style="padding:10px;margin:10px 0 16px;background:color-mix(in oklch,var(--danger) 10%,var(--card));border-radius:8px;font-size:13px;color:var(--danger);">
+          거절 사유: ${esc(app.rejectReason || "사유 없음")}
+        </div>
+        ${artistApplyFormHTML()}
+      </div>`;
+  }
+
+  return `
+    <div class="panel">
+      <h2 style="margin:0 0 4px;font-size:17px;">아티스트 되기</h2>
+      <p class="muted" style="margin:0 0 14px;">아티스트로 신청하면 관리자 확인 후 이 계정으로 악보를 등록할 수 있어요.</p>
+      ${artistApplyFormHTML()}
+    </div>`;
+}
+
+function artistApplyFormHTML() {
+  return `
+    <div id="artist-apply-msg" style="font-size:13px;margin:0 0 10px;"></div>
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <input class="field" id="aa-name" placeholder="아티스트명 (구매자에게 보일 이름)">
+      <textarea class="field" id="aa-intro" rows="3" placeholder="활동 소개 · 신청 사유"></textarea>
+      <textarea class="field" id="aa-salesplan" rows="3" placeholder="어떤 악보를 어떻게 제작·판매할 계획인지 소개해주세요"></textarea>
+      <input class="field" id="aa-contact" placeholder="연락처 또는 이메일">
+      <input class="field" id="aa-portfolio" placeholder="포트폴리오 링크 (선택)">
+      <button class="btn btn-primary" id="aa-submit">신청하기</button>
+    </div>`;
 }
 
 /* ============================================================
