@@ -1715,7 +1715,7 @@ const SCORE_PDF_MAPPING_REVIEW = [
   {id:"score_mvd75i7n_r57iog",file:"조이 - 안녕 (Hard).pdf",title:"안녕 (Hello)",artist:"조이 (JOY)",diff:"고급",conf:0.0},
   {id:"score_mvd75i7o_c9e7p8",file:"원어스 - 월하미인_프로.pdf",title:"월하미인 (月下美人 _ LUNA)",artist:"ONEUS(원어스)",diff:"고급",conf:0.42},
   {id:"score_mvd75i7n_tlz221",file:"우즈 - Smashing Concrete_고급_0001.pdf",title:"Smashing Concrete",artist:"WOODZ",diff:"고급",conf:0.443},
-  {id:"score_mvd75i7n_2l9teq",file:null,title:"밤하늘의 별을(더 리슨 5)",artist:"허각, 켄(KEN), 권진아, ASH ISLAND, BIG Naughty(서동현), 방예담, 전상근, #안녕",diff:"고급",conf:0}
+  {id:"score_mvd75i7n_2l9teq",file:"더 리슨 5 - 밤하늘의 별을_고급.pdf",title:"밤하늘의 별을(더 리슨 5)",artist:"허각, 켄(KEN), 권진아, ASH ISLAND, BIG Naughty(서동현), 방예담, 전상근, #안녕",diff:"고급",conf:1}
 ];
 
 let ADMIN_PDF_RUNNING = false;
