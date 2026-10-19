@@ -445,12 +445,27 @@ async function handleSubmitScore(sellerId) {
     return;
   }
 
+  // 미리보기 이미지는 PDF 첫 페이지에서 자동으로 만든다. 여기서 실패해도
+  // 악보 등록 자체는 계속 진행한다(미리보기 이미지는 없으면 기존 가짜 그림이 대신 보인다).
+  showSellerMsg(msgEl, "미리보기 이미지를 만드는 중입니다...", false);
+  let previewUrl = null;
+  try {
+    const previewBlob = await generateScorePreviewImage(file);
+    if (previewBlob) {
+      const previewUpload = await uploadScorePreviewImage(sellerId, scoreId, previewBlob);
+      if (previewUpload.ok) previewUrl = previewUpload.url;
+    }
+  } catch (e) {
+    console.error("[seller] 미리보기 이미지 처리 중 오류", e);
+  }
+
   const result = submitScore(sellerId, {
     id: scoreId,
     title, artist, instrument, difficulty, price,
     hasVideo,
     videoUrl: hasVideo ? videoUrl : null,
     fileUrl: uploadResult.path,
+    previewUrl,
     description,
     tags: SF_TAGS,
     thumbnailUrl

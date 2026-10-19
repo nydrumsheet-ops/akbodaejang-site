@@ -855,11 +855,15 @@ function renderDetailPage(el, p) {
           <div class="preview-sheet">
             <div class="ps-title">${esc(s.title)}</div>
             <div class="ps-sub">${esc(s.artist)} · ${esc(s.instrument)} · arr. ${esc(sellerName(s.sellerId))}</div>
-            <div class="ps-svg">${sheetArt(s.title + s.id, themeOf(s.instrument).ink, 4)}</div>
+            ${s.previewUrl
+              ? `<div class="ps-img"><img src="${esc(s.previewUrl)}" alt="${esc(s.title)} 미리보기" loading="lazy"></div>`
+              : `<div class="ps-svg">${sheetArt(s.title + s.id, themeOf(s.instrument).ink, 4)}</div>`}
             <div class="ps-fade"></div>
             <div class="ps-lock"><i class="ico ico-lock"></i> 첫 ${POLICY.preview.bars}마디 이후는 구매 후 볼 수 있어요</div>
           </div>
-          <p class="preview-note">미리보기는 악보 첫 ${POLICY.preview.bars}마디까지 보여요. 실제 악보 이미지는 파일 업로드가 연결되면 이 자리에 나옵니다.</p>
+          <p class="preview-note">${s.previewUrl
+              ? `미리보기는 악보 첫 ${POLICY.preview.bars}마디까지 보여요.`
+              : `미리보기는 악보 첫 ${POLICY.preview.bars}마디까지 보여요. 실제 악보 이미지는 파일 업로드가 연결되면 이 자리에 나옵니다.`}</p>
         </div>
         ${s.hasVideo ? `
           <a class="video-card" href="${esc(s.videoUrl || "#")}" target="_blank" rel="noopener">

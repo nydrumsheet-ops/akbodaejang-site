@@ -236,6 +236,7 @@ function rowFromScore(s) {
     id: s.id, seller_id: s.sellerId, title: s.title, artist: s.artist, instrument: s.instrument,
     difficulty: s.difficulty, price: Math.round(s.price || 0), has_video: !!s.hasVideo,
     video_url: s.videoUrl || null, file_url: s.fileUrl || null, preview_info: s.previewInfo || null,
+    preview_url: s.previewUrl || null,
     status: s.status, reject_reason: s.rejectReason || null, created_at: s.createdAt,
     approved_at: s.approvedAt || null, sales_count: s.salesCount || 0, view_count: s.viewCount || 0,
     description: s.description || "", tags: s.tags || [], thumbnail_url: s.thumbnailUrl || null,
@@ -246,7 +247,8 @@ function scoreFromRow(r) {
   return {
     id: r.id, sellerId: r.seller_id, title: r.title, artist: r.artist, instrument: r.instrument,
     difficulty: r.difficulty, price: r.price, hasVideo: r.has_video, videoUrl: r.video_url,
-    fileUrl: r.file_url, previewInfo: r.preview_info, status: r.status, rejectReason: r.reject_reason,
+    fileUrl: r.file_url, previewInfo: r.preview_info, previewUrl: r.preview_url || null,
+    status: r.status, rejectReason: r.reject_reason,
     createdAt: r.created_at, approvedAt: r.approved_at, salesCount: r.sales_count, viewCount: r.view_count,
     description: r.description || "", tags: r.tags || [], thumbnailUrl: r.thumbnail_url,
     discount: (r.discount_rate != null && r.discount_start && r.discount_end)
@@ -1228,6 +1230,81 @@ async function uploadScoreFile(sellerId, scoreId, file) {
   return { ok: true, path };
 }
 
+/* ---------- 악보 미리보기 이미지 (PDF 첫 페이지 → PNG, 2026-10-19 추가) ----------
+   판매자가 PDF를 올리면, 그 PDF의 첫 페이지 상단 일부를 이미지로 떠서 미리보기용으로
+   별도 저장한다. 구매자 상세 화면에서는 이 이미지가 있으면 그걸 보여주고,
+   없으면(아직 이 기능 전에 등록된 악보) 기존 가짜 오선지 그림을 그대로 보여준다.
+   pdf.js 가 로드되어 있지 않거나 실패하면 null 을 반환하며, 이 경우 등록 자체는
+   계속 진행된다(미리보기 이미지는 선택 사항, 필수 아님). */
+async function generateScorePreviewImage(file) {
+  if (!window.pdfjsLib) {
+    console.warn("[common] pdf.js 가 로드되지 않아 미리보기 이미지를 만들 수 없습니다.");
+    return null;
+  }
+  if (!file) return null;
+  try {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    const page = await pdf.getPage(1);
+    // 화면에서 보기 좋은 해상도로 렌더링(너무 크면 용량이 커지므로 적당히 제한)
+    const baseViewport = page.getViewport({ scale: 1 });
+    const targetWidth = 1000;
+    const scale = Math.min(2.5, targetWidth / baseViewport.width);
+    const viewport = page.getViewport({ scale });
+
+    const fullCanvas = document.createElement("canvas");
+    fullCanvas.width = Math.ceil(viewport.width);
+    fullCanvas.height = Math.ceil(viewport.height);
+    const ctx = fullCanvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, fullCanvas.width, fullCanvas.height);
+    await page.render({ canvasContext: ctx, viewport }).promise;
+
+    // "첫 N마디 미리보기" 취지에 맞춰, 첫 페이지 전체가 아니라 상단 일부만 자른다.
+    const cropRatio = 0.42; // 첫 페이지 상단 42% 정도만 사용
+    const cropHeight = Math.max(1, Math.round(fullCanvas.height * cropRatio));
+    const cropCanvas = document.createElement("canvas");
+    cropCanvas.width = fullCanvas.width;
+    cropCanvas.height = cropHeight;
+    const cropCtx = cropCanvas.getContext("2d");
+    cropCtx.drawImage(fullCanvas, 0, 0, fullCanvas.width, cropHeight, 0, 0, fullCanvas.width, cropHeight);
+
+    const blob = await new Promise(resolve => cropCanvas.toBlob(resolve, "image/png", 0.92));
+    if (!blob) return null;
+    return blob;
+  } catch (e) {
+    console.error("[common] 미리보기 이미지 생성 오류", e);
+    return null;
+  }
+}
+
+/* 저장 경로 규칙: "{판매자 아이디}/{악보 아이디}.png" — scores 버킷과 동일한 방식으로
+   판매자 본인 소유만 쓸 수 있게 RLS 가 경로를 본다. previews 버킷은 공개 읽기이므로
+   구매 전 손님도 바로 볼 수 있다. */
+async function uploadScorePreviewImage(sellerId, scoreId, blob) {
+  if (!blob) return { ok: false, message: "미리보기 이미지를 만들지 못했습니다." };
+  const sb = getSb();
+  if (!sb) return { ok: false, message: "서버 연결 준비 중입니다. 잠시 후 다시 시도해주세요." };
+
+  const path = `${sellerId}/${scoreId}.png`;
+  let error = null;
+  try {
+    const res = await sb.storage.from("previews").upload(path, blob, { upsert: true, contentType: "image/png" });
+    error = res.error;
+  } catch (e) {
+    error = e;
+  }
+  if (error) {
+    console.error("[common] 미리보기 이미지 업로드 오류", error);
+    return { ok: false, message: "미리보기 이미지 업로드 중 문제가 발생했습니다." };
+  }
+  const { data } = sb.storage.from("previews").getPublicUrl(path);
+  if (!data || !data.publicUrl) {
+    return { ok: false, message: "미리보기 이미지 주소를 가져오지 못했습니다." };
+  }
+  return { ok: true, url: data.publicUrl };
+}
+
 /* 구매자가 실제로 받을 수 있는 다운로드 링크(서명된 URL, 60초간 유효)를 만든다.
    누가 받을 수 있는지는 Storage 보안 정책(RLS)이 서버에서 다시 한 번 확인한다
    (본인이 올린 판매자 / 환불 안 된 구매자 / 관리자만 가능). */
@@ -1264,6 +1341,7 @@ function submitScore(sellerId, data) {
     title: data.title, artist: data.artist, instrument: data.instrument, difficulty,
     price: data.price, hasVideo: !!data.hasVideo,
     videoUrl: data.videoUrl || null, fileUrl: data.fileUrl || null,
+    previewUrl: data.previewUrl || null,
     previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`,
     status: "등록", rejectReason: null, createdAt: nowISO(), approvedAt: null,
     salesCount: 0, viewCount: 0,
