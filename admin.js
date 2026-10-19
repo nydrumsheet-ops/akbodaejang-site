@@ -27,6 +27,8 @@ function renderAdmin() {
   const openInquiries = Object.values(STATE.inquiries).filter(q => q.status !== "답변완료").length;
   const payout = getPayoutBatch();
   const pdfSt = pdfMappingStatus();
+  const pdfSt2 = pdfMappingStatus2();
+  const pdfStR = reviewMappingStatus();
   const tabs = [
     ["metrics", "운영지표", ""],
     ["review", "악보 심사", pendingReview],
@@ -34,7 +36,7 @@ function renderAdmin() {
     ["requests", "신청곡", openRequests],
     ["inquiries", "문의 관리", openInquiries],
     ["members", "회원관리", ""],
-    ["pdfupload", "PDF 일괄 업로드", pdfSt.remaining],
+    ["pdfupload", "PDF 일괄 업로드", pdfSt.remaining + pdfSt2.remaining + pdfStR.remaining],
     ["demo", "데모 데이터", ""]
   ];
 
@@ -1481,12 +1483,249 @@ const SCORE_PDF_MAPPING = [
   {id:"score_mvd75i7m_3kmd8a",file:"Vaundy - 呼び声(부르는 소리, 요비고에)_고급.pdf"}
 ];
 
+/* ============================================================
+   PDF 추가 매칭 업로드 (2026-10-19 추가)
+   2026-10-18 지난 매칭 작업 이후, 반진영님이 직접 검토해서 확정해둔 매칭표
+   (매칭검토표(수정).numbers)를 기준으로 다시 정리한 것이다. 이 중:
+   - SCORE_PDF_MAPPING_CONFIRM: 확실하다고 판단된 매칭인데, 위 524곡 자동매칭
+     때는 2등 후보와 점수 차이가 충분히 크지 않다는 이유로 빠졌던 128곡.
+     524곡과 똑같은 방식(자동, 확인 없이 바로 업로드)으로 처리해도 안전하다.
+   - SCORE_PDF_MAPPING_REVIEW: 제목이 비슷한 다른 곡과 섞이는 등 확신도가 낮아
+     사람이 직접 봐야 하는 79곡(그중 1곡은 폴더에 파일 자체가 없음). 체크박스로
+     직접 고른 것만, 미리보기로 맞는 파일인지 확인한 뒤 업로드한다.
+   ============================================================ */
+
+const SCORE_PDF_MAPPING_CONFIRM = [
+  {id:"score_mvd75i7m_459dgj",file:"Mrs.GREEN APPLE - 나라는 것_고급.pdf"},
+  {id:"score_mvd75i7m_124gap",file:"보라미유 - 있잖아_중급.pdf"},
+  {id:"score_mvd75i7o_voxtqz",file:"유다빈밴드 - 좋지 아니한가_고급.pdf"},
+  {id:"score_mvd75i7o_nzabok",file:"HEBI - 늘_고급.pdf"},
+  {id:"score_mvd75i7n_6e0zf6",file:"서문탁 - 형_고급.pdf"},
+  {id:"score_mvd75i7l_w6xz3d",file:"대성 - Last girl _중급.pdf"},
+  {id:"score_mvd75i7n_ooy992",file:"Avril Lavigne - Young & Dumb_고급.pdf"},
+  {id:"score_mvd75i7n_y1zw0k",file:"LUCY - 다급해져 (Feat. Wonstein)_고급.pdf"},
+  {id:"score_mvd75i7o_3qdqm3",file:"유다빈밴드 - 오늘은 잠에 들 거예요_고급.pdf"},
+  {id:"score_mvd75i7l_831pki",file:"DAY6 - 겨울이 간다 Goodbye Winter_중급.pdf"},
+  {id:"score_mvd75i7o_9cy5fs",file:"원위 - 한 여름 밤 유성우_고급.pdf"},
+  {id:"score_mvd75i7k_3x0scm",file:"이적 - 혼자였다_초급.pdf"},
+  {id:"score_mvd75i7o_699cxg",file:"QWER - 내 이름 맑음_고급.pdf"},
+  {id:"score_mvd75i7n_cf0xi1",file:"비비 (BIBI) - 밤새_고급.pdf_qr.pdf"},
+  {id:"score_mvd75i7n_sk5mmz",file:"마크툽 - 시작의 아이_고급.pdf"},
+  {id:"score_mvd75i7o_emnzbf",file:"원위 - 일방통행_프로.pdf"},
+  {id:"score_mvd75i7o_zgyh37",file:"Benson Boone - Beautiful Things_프로.pdf"},
+  {id:"score_mvd75i7l_xlxcv5",file:"Coldplay - WE PRAY_중급.pdf"},
+  {id:"score_mvd75i7m_z9oio8",file:"ROSE & Bruno Mars - APT_중급.pdf"},
+  {id:"score_mvd75i7m_rox9np",file:"순순희 - 그대가 내 안에 박혔다_중급.pdf"},
+  {id:"score_mvd75i7n_q4kei6",file:"QWER - D-Day_고급.pdf"},
+  {id:"score_mvd75i7k_061n0q",file:"에스쿱스X민규 - 5, 4, 3_초급.pdf"},
+  {id:"score_mvd75i7l_qkw6we",file:"[중급4] ROSÉ - new trick.pdf"},
+  {id:"score_mvd75i7n_qxfyaq",file:"Mariah Carey - Santaclaus is Coming To Town_고급.pdf"},
+  {id:"score_mvd75i7o_yn2vtn",file:"원위 - 베로니카의 섬_프로.pdf"},
+  {id:"score_mvd75i7o_hjs8sv",file:"QWER - OVERDRIVE_프로.pdf"},
+  {id:"score_mvd75i7o_88yjuk",file:"10CM - Monday Is Coming_프로.pdf"},
+  {id:"score_mvd75i7l_g9eii5",file:"LUCY - 같이 가자_중급.pdf"},
+  {id:"score_mvd75i7l_6ndu7p",file:"Ed Sheern - Azizam_중급.pdf"},
+  {id:"score_mvd75i7l_c6p9fd",file:"The Rose - O_중급.pdf"},
+  {id:"score_mvd75i7l_ibvv4e",file:"DAY6 -끝났지_중급.pdf"},
+  {id:"score_mvd75i7m_0eawn0",file:"송필근 - 숙녀에게_중급.pdf"},
+  {id:"score_mvd75i7n_5d7idp",file:"잔나비- 모든 소년 소녀들 2 ,무지개_고급.pdf"},
+  {id:"score_mvd75i7o_19iet6",file:"유다빈밴드-오늘이야_고급.pdf"},
+  {id:"score_mvd75i7l_2jou50",file:"잔나비 - 사랑의이름으로_중급.pdf"},
+  {id:"score_mvd75i7o_oco0pt",file:"10cm - 너에게 닿기를_고급.pdf"},
+  {id:"score_mvd75i7m_pozyf3",file:"한해 문세윤 - 비행기_고급.pdf"},
+  {id:"score_mvd75i7m_l1f29s",file:"서인국&정은지 - 커플_중급.pdf"},
+  {id:"score_mvd75i7o_bhbp3f",file:"HUNTRIX - How It's Done_프로.pdf"},
+  {id:"score_mvd75i7n_oiym7e",file:"Huntrix- Golden_고급.pdf"},
+  {id:"score_mvd75i7m_1jg6wa",file:"쏜애플 - 로마네스크_중급.pdf"},
+  {id:"score_mvd75i7l_3yz14w",file:"미도와 파라솔 - 아마추어_초중급.pdf"},
+  {id:"score_mvd75i7o_uo0z27",file:"음율 - 환상주의_프로.pdf"},
+  {id:"score_mvd75i7o_u8w5l3",file:"YOUNHA 윤하 - Skybound_프로.pdf"},
+  {id:"score_mvd75i7l_0v8iq4",file:"원필 - 행운을 빌어줘_중급.pdf"},
+  {id:"score_mvd75i7l_qaxh18",file:"I.O.I 아이오아이 - Suddenly_초중급.pdf"},
+  {id:"score_mvd75i7m_53zbsa",file:"김경호 - 사랑과 우정사이_중급.pdf"},
+  {id:"score_mvd75i7n_8myabf",file:"도영 - 깊은 잠_고급.pdf"},
+  {id:"score_mvd75i7n_o164po",file:"도영 - 소네트_고급.pdf"},
+  {id:"score_mvd75i7n_pf1c0q",file:"충주지씨 - 밀크쉐이크_고급.pdf"},
+  {id:"score_mvd75i7l_yqyr94",file:"김재중 - 내 남은 사랑을 위해_중급.pdf"},
+  {id:"score_mvd75i7m_hdqzkh",file:"이수현 - 푸른 산호초 (Blue Lagoon (Korean Ver.))_고급.pdf"},
+  {id:"score_mvd75i7n_ef56l6",file:"먼데이키즈, 이이경 - 운명_고급.pdf"},
+  {id:"score_mvd75i7o_u3wsyf",file:"자우림 - MY GIRL_프로.pdf"},
+  {id:"score_mvd75i7o_tsrtdv",file:"이창섭 - 겁쟁이_고급.pdf"},
+  {id:"score_mvd75i7l_z7y43a",file:"코요태 - 우리의 꿈_중급.pdf"},
+  {id:"score_mvd75i7l_e970kt",file:"하현상 - Odyssey_중급.pdf"},
+  {id:"score_mvd75i7m_9xgh2l",file:"먼데이 키즈 - 연_고급.pdf"},
+  {id:"score_mvd75i7n_japngm",file:"AxMxP (에이엠피) - 너는 나를 시인으로 만들어_고급.pdf"},
+  {id:"score_mvd75i7m_wp50rd",file:"원위- 너의 우주는_중급.pdf"},
+  {id:"score_mvd75i7m_grl0hu",file:"DAY6 - 행복했던 날들이었다_중급.pdf"},
+  {id:"score_mvd75i7l_gvnpwc",file:"이수현 - 푸른 산호초 (Blue Lagoon (Korean Ver.))_초중급(easy).pdf"},
+  {id:"score_mvd75i7l_utqo31",file:"[중급5] 로이킴 - Sparkle (신곡, 5).pdf"},
+  {id:"score_mvd75i7n_thib4a",file:"TREASURE - 고마워_고급.pdf"},
+  {id:"score_mvd75i7n_fi14ak",file:"박다혜 - 시작의 아이_고급.pdf"},
+  {id:"score_mvd75i7o_ghr5ea",file:"유다빈밴드 - 불_고급.pdf"},
+  {id:"score_mvd75i7l_igdbhx",file:"Young Kai - Blue_초중급.pdf"},
+  {id:"score_mvd75i7n_cfsaq8",file:"잔나비 - 아윌다이포유x3_고급.pdf"},
+  {id:"score_mvd75i7m_m4nmbq",file:"CNBLUE (씨엔블루) - 그러나 꽃이었다_고급.pdf"},
+  {id:"score_mvd75i7n_42ryj1",file:"JISOO X ZAYN - EYES CLOSED_고급.pdf"},
+  {id:"score_mvd75i7o_7gt1p6",file:"이예은,아샤트리,전건호 - My Love_고급.pdf"},
+  {id:"score_mvd75i7o_d079s3",file:"원위 - 꿈속에서 놓친 너, 옅은 잠결에 흐르길_프로.pdf"},
+  {id:"score_mvd75i7n_l58at3",file:"화사 - Good Goodbye (with. Duomo)_고급.pdf"},
+  {id:"score_mvd75i7n_jl67wv",file:"Shakira - Zoo_고급.pdf"},
+  {id:"score_mvd75i7l_4seezc",file:"한로로 (HANRORO) - 00_중급.pdf"},
+  {id:"score_mvd75i7l_ub0i3v",file:"Mrs. GREEN APPLE - Lilac_중급_0001.pdf"},
+  {id:"score_mvd75i7o_v3d471",file:"Young K & 원필 (DAY6) - Go Beyond_프로.pdf"},
+  {id:"score_mvd75i7l_ron2bw",file:"이수현 - 푸른 산호초 (Blue Lagoon (Korean Ver.))_중급(easy2).pdf"},
+  {id:"score_mvd75i7o_izxqvu",file:"윤하(YOUNHA) - 염라_프로.pdf"},
+  {id:"score_mvd75i7m_j2nhzi",file:"Stray Kids - Topline_고급.pdf"},
+  {id:"score_mvd75i7m_jmczau",file:"잔나비(Jannabi) - 사랑하긴 했었나요_고급.pdf"},
+  {id:"score_mvd75i7m_pv8m59",file:"원필(WONPIL) - Piano_고급.pdf"},
+  {id:"score_mvd75i7m_wtu9xp",file:"원필(WONPIL) - 사랑병동_고급.pdf"},
+  {id:"score_mvd75i7l_lg747y",file:"태연 - 인사_중급.pdf"},
+  {id:"score_mvd75i7l_1bn4iy",file:"허각 - 떠나보낼 준비해 둘것 그랬어_중급.pdf"},
+  {id:"score_mvd75i7o_kj8icj",file:"Xdinary Heroes - 금지된 사랑_프로.pdf"},
+  {id:"score_mvd75i7m_iuqn9c",file:"조째즈 - 모르시나요_중급.pdf"},
+  {id:"score_mvd75i7n_s8x6h2",file:"도영 - 쏟아져오는 바람처럼 눈부시게 너란 빛이 비추더라_고급.pdf"},
+  {id:"score_mvd75i7o_k4wqkj",file:"리그 오브 레전드 - 꽃의 바램_프로.pdf"},
+  {id:"score_mvd75i7o_r31cdh",file:"Lucy - 개화_프로.pdf"},
+  {id:"score_mvd75i7k_8w1e7i",file:"[초중급3] 한로로 (HANRORO) - 재 (Ashes).pdf"},
+  {id:"score_mvd75i7k_8ltge1",file:"[초중급4] 노브레인 (No Brain) & 성진 (DAY6) & 도운 (DAY6) - 넌 내게 반했어.pdf"},
+  {id:"score_mvd75i7m_9bxx40",file:"엔플라잉 - 뫼비우스_고급.pdf"},
+  {id:"score_mvd75i7m_70p5ux",file:"원위 - 추억의 소각장_중급.pdf"},
+  {id:"score_mvd75i7m_2t7v9c",file:"유다빈 - 언젠가는_중급.pdf"},
+  {id:"score_mvd75i7m_fr0llv",file:"ONEWE (원위) - GRAVITY_고급.pdf"},
+  {id:"score_mvd75i7o_gfexgn",file:"원위 - 별 헤는 밤_고급.pdf"},
+  {id:"score_mvd75i7n_5nn1cb",file:"이준영 - 나였으면_고급.pdf"},
+  {id:"score_mvd75i7n_h4dswl",file:"HUNTRIX - Free_고급.pdf"},
+  {id:"score_mvd75i7n_89e4hb",file:"원위 - 미로_고급.pdf"},
+  {id:"score_mvd75i7n_otf3hp",file:"DAY6 -  Lovin' the Christmas_고급.pdf"},
+  {id:"score_mvd75i7o_mavhpr",file:"Xdinary Heroes - BBB_프로.pdf"},
+  {id:"score_mvd75i7l_kzvs93",file:"Lil Nas X - STAR WALKIN_중급.pdf"},
+  {id:"score_mvd75i7l_m1c8ia",file:"율 - 아니라고 말해요_중급.pdf"},
+  {id:"score_mvd75i7n_95r12b",file:"FTISLAND - 행복 이론_고급.pdf"},
+  {id:"score_mvd75i7m_66bt7k",file:"정은지 서인국 - All For You_중급.pdf"},
+  {id:"score_mvd75i7o_62nnx7",file:"seramikarutitan - 에어맨이 쓰러지지 않아_프로.pdf"},
+  {id:"score_mvd75i7m_s8gqkf",file:"[고급7] 로이킴 - Sparkle (신곡, 7).pdf"},
+  {id:"score_mvd75i7o_4rafac",file:"유다빈밴드 - 바람_가사_고급.pdf"},
+  {id:"score_mvd75i7n_u9izk9",file:"이영현 - 연_고급.pdf"},
+  {id:"score_mvd75i7n_re4wfl",file:"Xdinary Heroes - 나를 깨워줘_고급.pdf"},
+  {id:"score_mvd75i7n_ahljp6",file:"도영 - Sand Box_고급.pdf"},
+  {id:"score_mvd75i7n_qr1yef",file:"잔나비-She_고급.pdf"},
+  {id:"score_mvd75i7l_9x6g3l",file:"고추잠자리-작은 봄_중급.pdf"},
+  {id:"score_mvd75i7m_8pkw4w",file:"Official髭男dism - Make Me Wonder_고급.pdf"},
+  {id:"score_mvd75i7l_u1d6pr",file:"잔나비 - 모든 소년 소녀들 1 _ 버드맨_중급.pdf"},
+  {id:"score_mvd75i7n_n7we4e",file:"아샤트리,이예은,전건호- 그래 늦지 않았어_고급.pdf"},
+  {id:"score_mvd75i7k_qldpn7",file:"[초급2] 황가람 - 나는 반딧불.pdf"},
+  {id:"score_mvd75i7l_cwybjs",file:"DAY6(데이식스)-예뻤어_초중급(easy).pdf"},
+  {id:"score_mvd75i7o_nu2nu1",file:"음율 - 반비례_프로.pdf"},
+  {id:"score_mvd75i7o_vwjxbd",file:"켄(KEN) · 영재 (YOUNGJAE) · 후이 · 최상엽 - 오래된 노래_프로.pdf"},
+  {id:"score_mvd75i7l_t2jjv5",file:"[중급6] 노브레인 (No Brain) & 성진 (DAY6) & 도운 (DAY6) - 넌 내게 반했어.pdf"},
+  {id:"score_mvd75i7n_3y8tdb",file:"주호 - 러브스케치_고급.pdf"},
+  {id:"score_mvd75i7m_oz0nhi",file:"고추잠자리 - 너라는 별_중급.pdf"},
+  {id:"score_mvd75i7n_o07wxp",file:"원위 - 숨바꼭질_고급.pdf"},
+  {id:"score_mvd75i7o_6lgiu8",file:"Dragon Pony - 모스부호_고급.pdf"},
+  {id:"score_mvd75i7o_zmjhal",file:"ONNWE - 바다에 적신 햇무리 반지_프로.pdf"},
+  {id:"score_mvd75i7m_83qpv4",file:"브로큰 발렌타인 - 알루미늄_중급.pdf"}
+];
+
+const SCORE_PDF_MAPPING_REVIEW = [
+  {id:"score_mvd75i7l_d4adtw",file:"Guns N Roses - Don't Cry_가사.pdf",title:"Don't Cry",artist:"Guns N' Roses",diff:"중급",conf:0.535},
+  {id:"score_mvd75i7n_6vxnpf",file:"7, 고급 American Idiot - Green Day.pdf",title:"American Idiot",artist:"Green Day",diff:"고급",conf:0.538},
+  {id:"score_mvd75i7n_9soao7",file:"TXT - Beautiful Strangers_고급.pdf",title:"Beautiful Strangers",artist:"투모로우바이투게더",diff:"고급",conf:0.6},
+  {id:"score_mvd75i7l_kydw6p",file:"JEONGYEON, JIHYO, CHAEYOUNG - TAKEDOWN_중급.pdf",title:"TAKEDOWN",artist:"HUNTR/X (헌트릭스)",diff:"중급",conf:0.512},
+  {id:"score_mvd75i7n_3ouv03",file:"도경수 - Do you remember_고급.pdf",title:"놀이터 (Do you remember?)",artist:"도경수(D.O.)",diff:"고급",conf:0.6},
+  {id:"score_mvd75i7k_cfpd5r",file:"남규리 - Still, I Like You(그래도 좋아해요)_초급.pdf",title:"그래도 좋아해요(Still, I Like You)",artist:"남규리",diff:"초급",conf:0.6},
+  {id:"score_mvd75i7m_vtn7eu",file:"Dragon Pony (드래곤포니) - Deneb (데네브)_고급.pdf",title:"데네브",artist:"Dragon Pony (드래곤포니)",diff:"고급",conf:0.6},
+  {id:"score_mvd75i7m_l6adyi",file:"아카네리제 - 페스타(festa)_중급.pdf",title:"Festa!(페스타!)",artist:"아카네 리제 (Akane Lize)",diff:"중급",conf:0.6},
+  {id:"score_mvd75i7l_txrbcd",file:"윤하(YOUNHA) - Seasonal Crime_중급 쉬운악보.pdf",title:"계절범죄",artist:"윤하(YOUNHA)",diff:"중급",conf:0.6},
+  {id:"score_mvd75i7m_koai58",file:"N.Flying (엔플라잉) 환절기 (換節期)_고급_0001.pdf",title:"환절기(換節期)",artist:"N.Flying (엔플라잉)",diff:"고급",conf:0.6},
+  {id:"score_mvd75i7m_ppqzfn",file:"HYNN(박혜원) - Title Role(주인공 연습)_고급.pdf",title:"주인공 연습",artist:"HYNN(박혜원)",diff:"고급",conf:0.6},
+  {id:"score_mvd75i7m_rmhod6",file:"G-DRAGON - HOME SWEET HOME.pdf",title:"HOME SWEET HOME (feat. 태양, 대성)",artist:"G-DRAGON (지드래곤)",diff:"중급",conf:0.525},
+  {id:"score_mvd75i7o_w3zyb1",file:"원위 - Rise Again (오래된 음악가의 추억 (Rise Again))_가사.pdf",title:"오래된 음악가의 추억 (Rise Again)",artist:"원위 (ONEWE)",diff:"고급",conf:0.6},
+  {id:"score_mvd75i7m_t4mejw",file:"루시 - 잠깨_중급.pdf",title:"잠깨 (Wakey Wakey)",artist:"LUCY (루시)",diff:"중급",conf:0.6},
+  {id:"score_mvd75i7m_js62hr",file:"YOUNHA(윤하) - Sub Character_고급_0001.pdf",title:"Sub Character",artist:"윤하",diff:"고급",conf:0.708},
+  {id:"score_mvd75i7o_0tlm5y",file:"QWER - 청춘서약_고급.pdf",title:"Youth Promise (청춘서약)",artist:"QWER",diff:"고급",conf:0.645},
+  {id:"score_mvd75i7o_zur47k",file:"멜로망스 - Surprise(아무 날의 서프라이즈)_프로.pdf",title:"아무 날의 서프라이즈",artist:"멜로망스",diff:"고급",conf:0.6},
+  {id:"score_mvd75i7l_xuksrf",file:"장범준 - lilac_중급 쉬운악보.pdf",title:"라일락(lilac)",artist:"장범준",diff:"중급",conf:0.6},
+  {id:"score_mvd75i7l_om2kva",file:"원우 - 톰보이(tomboy)_중급.pdf",title:"TOMBOY (원곡:혁오)",artist:"원우",diff:"중급",conf:0.6},
+  {id:"score_mvd75i7n_a8x7sq",file:"Vince - CHA CHA CHA_고급.pdf",title:"차차차 (feat. G-DRAGON)",artist:"Vince",diff:"고급",conf:0.6},
+  {id:"score_mvd75i7m_1b8ae7",file:"BTS (방탄소년단) 'SWIM with Jin (Alternative Rock Remix)_고급_0001.pdf",title:"SWIM with Jin (Alternative Rock Remix)",artist:"BTS (방탄소년단)",diff:"고급",conf:0.84},
+  {id:"score_mvd75i7m_49ckva",file:"이승윤 - Uhbububu (어버버버)_고급.pdf",title:"어버버버",artist:"이승윤",diff:"고급",conf:0.6},
+  {id:"score_mvd75i7l_yzl6ha",file:"HANRORO (한로로) - 도망_중급.pdf",title:"도망",artist:"한로로 (HANRORO)",diff:"중급",conf:0.6},
+  {id:"score_mvd75i7o_o2wsmn",file:"Hawaii Five-0 Theme - Brian Tyler · Keith Power_프로.pdf",title:"Hawaii Five-0 Theme",artist:"Brian Tyler & Keith Power",diff:"고급",conf:0.505},
+  {id:"score_mvd75i7l_g1d1vw",file:"이승윤 - Uhbububu (어버버버)_중급.pdf",title:"어버버버",artist:"이승윤",diff:"중급",conf:0.6},
+  {id:"score_mvd75i7n_5d7vg3",file:"한동근 - Rainbow_고급.pdf",title:"레인보우 (Rainbow)",artist:"한동근",diff:"고급",conf:0.6},
+  {id:"score_mvd75i7l_ju8urt",file:"Mrs. GREEN APPLE - 바람과 마을_중급_0001.pdf",title:"風と町 (바람과 마을)",artist:"Mrs. GREEN APPLE(미세스 그린 애플)",diff:"중급",conf:0.6},
+  {id:"score_mvd75i7l_9hkf30",file:"10CM - Hush of Sunset(노을)_중급.pdf",title:"노을(Hush of Sunset)",artist:"10CM",diff:"중급",conf:0.6},
+  {id:"score_mvd75i7m_ehr9f9",file:"장범준 - lilac_고급.pdf",title:"라일락(lilac)",artist:"장범준",diff:"고급",conf:0.6},
+  {id:"score_mvd75i7l_bmxi5j",file:"MJ (써니사이드), 순순희 (지환) - 사랑한다 feat. 미유 (Mew)_중급.pdf",title:"사랑해요 (Feat.미유 (Mew))",artist:"MJ (써니사이드), 순순희(지환)",diff:"중급",conf:0.729},
+  {id:"score_mvd75i7o_kjpj51",file:"Xdinary Heroes FiRE (My Sweet Misery)_가사.pdf",title:"FiRE (My Sweet Misery)",artist:"Xdinary Heroes (엑스디너리 히어로즈)",diff:"고급",conf:0.656},
+  {id:"score_mvd75i7o_4w58kf",file:"FT아일랜드 - Drowning_프로.pdf",title:"Drowning (원곡 : WOODZ)",artist:"FTISLAND (FT아일랜드)",diff:"고급",conf:0.655},
+  {id:"score_mvd75i7k_9nhnfx",file:"아이유 - 내 손을 잡아_고급.pdf",title:"Never Ending Story",artist:"아이유",diff:"초급",conf:0.45},
+  {id:"score_mvd75i7n_t7zebq",file:"SUNMI(선미) -  BLUE!_고급_000.pdf",title:"BLUE!",artist:"선미",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7n_jwro87",file:"권진아 - 너의 또 다른 이름_고급.pdf",title:"너의 또다른 이름 (Your Other Name)",artist:"권진아",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7l_2m8io7",file:"FT아일랜드 - Reason_중급.pdf",title:"理由 (Reason)",artist:"FTISLAND (FT아일랜드)",diff:"중급",conf:0.0},
+  {id:"score_mvd75i7n_v4ge2i",file:"치즈 - 그렇게 됐어 (feat. Young K)_가사_0001.pdf",title:"그렇게 됐어 (feat. Young K (DAY6))",artist:"CHEEZE (치즈)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7o_avh3qa",file:"우리동네 음악대장 - 하여가_프로.pdf",title:"하여가 (何如歌) (우리 동네 음악대장)",artist:"하현우 (국카스텐)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7l_8aljmn",file:"보라미유 - TO THE SEA (바다 가자)_초중급.pdf",title:"바다가자 (TO THE SEA)",artist:"보라미유",diff:"초급",conf:0.45},
+  {id:"score_mvd75i7k_837dp9",file:"우즈 - Falling_초급.pdf",title:"Falling (Feat. Young K (DAY6))",artist:"WOODZ",diff:"초급",conf:0.0},
+  {id:"score_mvd75i7n_4k0w4w",file:"7, 고급 (여자)아이들 - 나는 아픈 건 딱 질색이니까_0001.pdf",title:"나는 아픈 건 딱 질색이니까",artist:"i-dle (아이들)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7m_vnux05",file:"ROSE - Toxic Till The End_가사_0001.pdf",title:"toxic till the end",artist:"로제 (ROSÉ)",diff:"중급",conf:0.0},
+  {id:"score_mvd75i7m_ahw03w",file:"[고급7] N.Flying - Our Ending.pdf",title:"아는 결말(Our Ending)",artist:"엔플라잉(N.Flying)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7l_in8yb4",file:"CHANGMO (창모) - If I Had Time_중급.pdf",title:"If I Had Time",artist:"창모 (CHANGMO)",diff:"중급",conf:0.0},
+  {id:"score_mvd75i7n_lkphp5",file:"FT아일랜드 - 정답_고급.pdf",title:"정답(Expected)",artist:"FTISLAND (FT아일랜드)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7n_blet7d",file:"엔플라잉 - Still You_고급.pdf",title:"아직도 난 그대를 좋아해요 (Still You)",artist:"엔플라잉 (N.Flying)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7n_sk0yii",file:"우즈 - I'll Never Love Again_고급.pdf",title:"I'll Never Love Again",artist:"WOODZ",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7o_aihdid",file:"바운디(Vaundy) - 괴수의 꽃노래(怪獣の花唄)_프로.pdf",title:"怪獣の花唄 (괴수의 꽃노래)",artist:"Vaundy (바운디)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7o_6nyl2h",file:"CNBLUE - 人生賛歌(인생찬가)_프로.pdf",title:"인생찬가 人生賛歌",artist:"CNBLUE (씨엔블루)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7m_8ejywu",file:"서문탁 - 사랑 결코 시들지 않는_0001.pdf",title:"사랑, 결코 시들지 않는… (Love never dies…)",artist:"서문탁",diff:"중급",conf:0.0},
+  {id:"score_mvd75i7m_922svt",file:"디셈버 - 심_고급.pdf",title:"심(心)",artist:"DK(디셈버)",diff:"고급",conf:0.45},
+  {id:"score_mvd75i7m_n6fktn",file:"하이키 - 건물속에 피어난 장미_고급_0001.pdf",title:"건물 사이에 피어난 장미",artist:"H1KEY(하이키)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7n_br8sic",file:"N.Flying -  Everlasting_고급.pdf",title:"만년설 (Everlasting)",artist:"엔플라잉 (N.Flying)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7l_do31pd",file:"정승환 - 하루만 더_가사.pdf",title:"하루만 더 (One More Day)",artist:"정승환 Jung Seung Hwan",diff:"초급",conf:0.0},
+  {id:"score_mvd75i7m_ejuepc",file:"PEPPERTONES(페퍼톤스) - Riders(라이더스)_고급.pdf",title:"Riders(라이더스)",artist:"페퍼톤스(PEPPERTONES)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7l_ju90t4",file:"ILLIT(아일릿) - Almond Chocolate(아몬드 초콜릿)_초중급.pdf",title:"Almond Chocolate (아몬드 초콜릿)",artist:"아일릿(ILLIT)",diff:"초급",conf:0.0},
+  {id:"score_mvd75i7l_gpmukk",file:"IU - 바이, 썸머_중급.pdf",title:"바이, 썸머 (Bye, Summer)",artist:"아이유",diff:"중급",conf:0.412},
+  {id:"score_mvd75i7o_p02j0x",file:"G-DRAGON - TOO BAD_고급.pdf",title:"TOO BAD (feat. Anderson .Paak)",artist:"G-DRAGON (지드래곤)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7l_mnl6nb",file:"범진-인사.pdf",title:"인사",artist:"범진",diff:"중급",conf:0.0},
+  {id:"score_mvd75i7n_vf48jt",file:"7, 고급 너드커넥션 - 그대만 있다면_0001.pdf",title:"그대만 있다면 (여름날 우리 X 너드커넥션 (Nerd Connection))",artist:"너드커넥션 (Nerd Connection)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7m_jx7brv",file:"G-DRAGON - TOO BAD_고급.pdf",title:"TOO BAD – Alan Walker Remix",artist:"G-DRAGON, Anderson .Paak, Alan Walker",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7o_cwnjv8",file:"WING - 도파민_프로.pdf",title:"Dopamine",artist:"윙(WING)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7n_l1hzuu",file:"영케이 - 베스트 송_고급.pdf",title:"베스트 송",artist:"Young K (DAY6)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7m_jpx4i3",file:"윤하(YOUNHA) - Seasonal Crime_고급_0001.pdf",title:"계절범죄",artist:"윤하(YOUNHA)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7m_2nfavc",file:"노아주다 - 힙합보단 사랑 사랑보단 돈_고급_0001.pdf",title:"힙합보단 사랑, 사랑보단 돈 (Feat. 베이식)",artist:"노아주다 (noahjooda)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7n_ip8o5r",file:"멋진헛간 - 오대천왕2(정형돈,밴드 혁오)_고급.pdf",title:"멋진헛간",artist:"오대천왕 (정형돈, 밴드 혁오)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7l_76eqmg",file:"[중급5] N.Flying - Our Ending.pdf",title:"아는 결말(Our Ending)",artist:"엔플라잉(N.Flying)",diff:"중급",conf:0.0},
+  {id:"score_mvd75i7n_uan98j",file:"(여자)아이들 - Tomboy (Hard).pdf",title:"TOMBOY",artist:"i-dle (아이들)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7n_fa7qak",file:"이창섭 - 365 Days_고급.pdf",title:"365일 (원곡 : 알리)",artist:"이창섭",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7o_kithp7",file:"Vernon Solo - Shining Star_프로.pdf",title:"Shining Star (Vernon Solo)",artist:"세븐틴 (SEVENTEEN)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7n_7n5eje",file:"2.나상현씨밴드-여름빛_.pdf",title:"여름빛",artist:"나상현씨밴드",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7l_vc91n9",file:"원위 - 관람차_고급.pdf",title:"관람차",artist:"원위(ONEWE)",diff:"중급",conf:0.0},
+  {id:"score_mvd75i7n_glsvdn",file:"나윤권 & 도경수 - 나였으면_고급.pdf",title:"나였으면",artist:"나윤권, 도경수(D.O.)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7k_di5ncd",file:"회상 - 정경호.pdf",title:"회상",artist:"정경호",diff:"초급",conf:0.0},
+  {id:"score_mvd75i7n_m8ym3e",file:"SEVENTEEN (세븐틴)  - THUNDER_고급.pdf",title:"THUNDER",artist:"세븐틴 (SEVENTEEN)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7n_r57iog",file:"조이 - 안녕 (Hard).pdf",title:"안녕 (Hello)",artist:"조이 (JOY)",diff:"고급",conf:0.0},
+  {id:"score_mvd75i7o_c9e7p8",file:"원어스 - 월하미인_프로.pdf",title:"월하미인 (月下美人 _ LUNA)",artist:"ONEUS(원어스)",diff:"고급",conf:0.42},
+  {id:"score_mvd75i7n_tlz221",file:"우즈 - Smashing Concrete_고급_0001.pdf",title:"Smashing Concrete",artist:"WOODZ",diff:"고급",conf:0.443},
+  {id:"score_mvd75i7n_2l9teq",file:null,title:"밤하늘의 별을(더 리슨 5)",artist:"허각, 켄(KEN), 권진아, ASH ISLAND, BIG Naughty(서동현), 방예담, 전상근, #안녕",diff:"고급",conf:0}
+];
+
 let ADMIN_PDF_RUNNING = false;
 let ADMIN_PDF_STOP = false;
 let ADMIN_PDF_DONE = 0;
 let ADMIN_PDF_OK = 0;
 let ADMIN_PDF_FAIL = 0;
 let ADMIN_PDF_LOG = []; // { file, ok, message }
+
+let ADMIN_PDF2_RUNNING = false;
+let ADMIN_PDF2_STOP = false;
+let ADMIN_PDF2_DONE = 0;
+let ADMIN_PDF2_OK = 0;
+let ADMIN_PDF2_FAIL = 0;
+let ADMIN_PDF2_LOG = [];
+
+let ADMIN_REVIEW_FOLDER = null;        // Map<정규화된 파일명, File> — "검토 필요" 섹션에서 고른 폴더
+let ADMIN_REVIEW_CHECKED = new Set();  // 업로드하기로 체크해둔 악보 id
+let ADMIN_REVIEW_RUNNING = false;
+let ADMIN_REVIEW_LOG = [];
 
 function pdfMappingStatus() {
   let done = 0;
@@ -1510,7 +1749,7 @@ function renderAdminPdfUpload(body) {
       </p>
       <div style="padding:12px;border-radius:10px;background:var(--band);font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
         이름이 너무 달라 자동으로 맞추지 못한 악보, 또는 폴더 안에 파일 자체가 없는 악보는
-        이 목록에 들어있지 않습니다(사람이 다시 확인해야 할 134곡, 파일을 못 찾은 74곡은 별도).
+        이 목록에 들어있지 않습니다 — 그런 악보는 아래 "추가 매칭"·"검토 필요" 섹션에서 처리합니다.
         이미 연결된 악보는 다시 눌러도 건너뛰니, 중간에 멈췄다가 같은 폴더로 다시 시작해도 안전합니다.
       </div>
       <input type="file" id="admin-pdf-folder-input" webkitdirectory directory multiple style="display:none;">
@@ -1522,7 +1761,11 @@ function renderAdminPdfUpload(body) {
       </div>
       <div id="admin-pdf-progress" style="margin-top:14px;"></div>
       <div id="admin-pdf-log" style="margin-top:10px;max-height:320px;overflow-y:auto;font-size:12px;"></div>
-    </div>`;
+    </div>
+
+    ${renderAdminPdfConfirmHTML()}
+    ${renderAdminReviewHTML()}
+  `;
 
   document.getElementById("admin-pdf-pick-btn")?.addEventListener("click", () => {
     document.getElementById("admin-pdf-folder-input")?.click();
@@ -1537,6 +1780,8 @@ function renderAdminPdfUpload(body) {
   });
 
   renderAdminPdfProgress();
+  wireAdminPdfConfirm();
+  wireAdminReview();
 }
 
 function renderAdminPdfProgress() {
@@ -1608,4 +1853,286 @@ async function runBulkPdfUpload(files) {
   ADMIN_PDF_RUNNING = false;
   renderAdmin();
   if (typeof toast === "function") toast(`PDF 업로드 완료: 성공 ${ADMIN_PDF_OK}건 · 실패 ${ADMIN_PDF_FAIL}건`);
+}
+
+/* ---------- 추가 매칭 — 확실한 매칭 128곡 (524곡과 같은 방식, 자동 업로드) ---------- */
+
+function pdfMappingStatus2() {
+  let done = 0;
+  for (const m of SCORE_PDF_MAPPING_CONFIRM) {
+    const s = STATE.scores[m.id];
+    if (s && s.fileUrl) done++;
+  }
+  return { total: SCORE_PDF_MAPPING_CONFIRM.length, done, remaining: SCORE_PDF_MAPPING_CONFIRM.length - done };
+}
+
+function renderAdminPdfConfirmHTML() {
+  const st = pdfMappingStatus2();
+  return `
+    <div style="${ADMIN_PANEL}">
+      <h3 style="margin:0 0 4px;font-size:15px;">추가 매칭 — 확실한 매칭 ${st.total}곡</h3>
+      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.6;">
+        반진영님이 직접 검토해서 확정해준 매칭표 중, 위 524곡에는 없었지만 추가로 확실하다고 판단된 ${st.total}곡입니다.
+        위와 똑같이 "판매용 악보" 폴더를 고르면 바로 업로드돼요. 지금까지 연결됨: <b>${st.done} / ${st.total}</b>곡
+      </p>
+      <input type="file" id="admin-pdf2-folder-input" webkitdirectory directory multiple style="display:none;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button id="admin-pdf2-pick-btn" class="btn btn-primary" ${ADMIN_PDF2_RUNNING ? "disabled" : ""}>
+          ${ADMIN_PDF2_RUNNING ? "업로드 진행 중..." : `"판매용 악보" 폴더 선택해서 업로드 시작`}
+        </button>
+        ${ADMIN_PDF2_RUNNING ? `<button id="admin-pdf2-stop-btn" style="padding:9px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">중단</button>` : ""}
+      </div>
+      <div id="admin-pdf2-progress" style="margin-top:14px;"></div>
+      <div id="admin-pdf2-log" style="margin-top:10px;max-height:280px;overflow-y:auto;font-size:12px;"></div>
+    </div>`;
+}
+
+function wireAdminPdfConfirm() {
+  document.getElementById("admin-pdf2-pick-btn")?.addEventListener("click", () => {
+    document.getElementById("admin-pdf2-folder-input")?.click();
+  });
+  document.getElementById("admin-pdf2-folder-input")?.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    runBulkPdfUploadConfirm(files);
+  });
+  document.getElementById("admin-pdf2-stop-btn")?.addEventListener("click", () => {
+    ADMIN_PDF2_STOP = true;
+  });
+  renderAdminPdfConfirmProgress();
+}
+
+function renderAdminPdfConfirmProgress() {
+  const progEl = document.getElementById("admin-pdf2-progress");
+  const logEl = document.getElementById("admin-pdf2-log");
+  if (!progEl || !logEl) return;
+  const total = SCORE_PDF_MAPPING_CONFIRM.length;
+  const pct = total ? Math.round((ADMIN_PDF2_DONE / total) * 100) : 0;
+  progEl.innerHTML = (ADMIN_PDF2_RUNNING || ADMIN_PDF2_DONE > 0) ? `
+    <div style="font-size:13px;margin-bottom:6px;">${ADMIN_PDF2_DONE} / ${total} 처리됨 · 성공 ${ADMIN_PDF2_OK} · 실패 ${ADMIN_PDF2_FAIL}</div>
+    <div style="height:8px;border-radius:4px;background:var(--band);"><div style="height:8px;border-radius:4px;background:var(--primary);width:${pct}%;"></div></div>
+  ` : "";
+  const recent = ADMIN_PDF2_LOG.slice(-200).slice().reverse();
+  logEl.innerHTML = recent.map(r => `
+    <div style="padding:4px 0;border-top:1px solid var(--border);color:${r.ok ? "var(--text)" : "var(--danger)"};">
+      ${r.ok ? "✓" : "✗"} ${esc(r.file)}${r.ok ? "" : ` — ${esc(r.message || "")}`}
+    </div>`).join("");
+}
+
+async function runBulkPdfUploadConfirm(files) {
+  if (ADMIN_PDF2_RUNNING) return;
+  ADMIN_PDF2_RUNNING = true;
+  ADMIN_PDF2_STOP = false;
+  ADMIN_PDF2_DONE = 0; ADMIN_PDF2_OK = 0; ADMIN_PDF2_FAIL = 0; ADMIN_PDF2_LOG = [];
+  renderAdmin();
+
+  const byName = new Map();
+  for (const f of files) {
+    const name = (f.name || "").normalize("NFC");
+    byName.set(name, f);
+  }
+
+  for (const m of SCORE_PDF_MAPPING_CONFIRM) {
+    if (ADMIN_PDF2_STOP) break;
+    const score = STATE.scores[m.id];
+    if (!score) {
+      ADMIN_PDF2_LOG.push({ file: m.file, ok: false, message: "악보를 찾을 수 없음(삭제됨?)" });
+      ADMIN_PDF2_FAIL++; ADMIN_PDF2_DONE++;
+      continue;
+    }
+    if (score.fileUrl) {
+      ADMIN_PDF2_DONE++; ADMIN_PDF2_OK++;
+      continue;
+    }
+    const wanted = m.file.normalize("NFC");
+    const file = byName.get(wanted);
+    if (!file) {
+      ADMIN_PDF2_LOG.push({ file: m.file, ok: false, message: "선택한 폴더에서 이 파일명을 찾지 못함" });
+      ADMIN_PDF2_FAIL++; ADMIN_PDF2_DONE++;
+      if (ADMIN_PDF2_DONE % 10 === 0) renderAdminPdfConfirmProgress();
+      continue;
+    }
+    const res = await uploadScoreFile(SCORE_PDF_SELLER_ID, m.id, file);
+    if (res.ok) {
+      score.fileUrl = res.path;
+      ADMIN_PDF2_OK++;
+      ADMIN_PDF2_LOG.push({ file: m.file, ok: true });
+    } else {
+      ADMIN_PDF2_FAIL++;
+      ADMIN_PDF2_LOG.push({ file: m.file, ok: false, message: res.message });
+    }
+    ADMIN_PDF2_DONE++;
+    if (ADMIN_PDF2_DONE % 5 === 0) renderAdminPdfConfirmProgress();
+  }
+
+  save();
+  ADMIN_PDF2_RUNNING = false;
+  renderAdmin();
+  if (typeof toast === "function") toast(`추가 매칭 업로드 완료: 성공 ${ADMIN_PDF2_OK}건 · 실패 ${ADMIN_PDF2_FAIL}건`);
+}
+
+/* ---------- 검토 필요 79곡 — 사람이 직접 확인하고 고른 것만 업로드 ---------- */
+
+function reviewMappingStatus() {
+  let done = 0, noFile = 0;
+  for (const m of SCORE_PDF_MAPPING_REVIEW) {
+    const s = STATE.scores[m.id];
+    if (s && s.fileUrl) done++;
+    else if (!m.file) noFile++;
+  }
+  return { total: SCORE_PDF_MAPPING_REVIEW.length, done, noFile, remaining: SCORE_PDF_MAPPING_REVIEW.length - done - noFile };
+}
+
+function confRank(conf) {
+  if (conf >= 0.7) return { label: "비교적 확실", color: "var(--primary-dark)", bg: "var(--primary-soft)" };
+  if (conf >= 0.5) return { label: "애매함", color: "#8a6420", bg: "#fff6df" };
+  return { label: "확신도 낮음", color: "var(--danger)", bg: "#fdecec" };
+}
+
+function renderAdminReviewHTML() {
+  const st = reviewMappingStatus();
+  const rows = SCORE_PDF_MAPPING_REVIEW.filter(m => {
+    const s = STATE.scores[m.id];
+    return !(s && s.fileUrl);
+  });
+
+  const folderInfo = ADMIN_REVIEW_FOLDER
+    ? `<span style="color:var(--primary-dark);">✓ 폴더 선택됨 (${ADMIN_REVIEW_FOLDER.size}개 파일)</span>`
+    : `<span style="color:var(--muted);">폴더를 먼저 선택해야 미리보기·업로드를 할 수 있어요</span>`;
+
+  const rowsHTML = rows.map(m => {
+    const noFile = !m.file;
+    const rank = confRank(m.conf);
+    const checked = ADMIN_REVIEW_CHECKED.has(m.id);
+    let fileEntry = null;
+    if (ADMIN_REVIEW_FOLDER && m.file) fileEntry = ADMIN_REVIEW_FOLDER.get(m.file.normalize("NFC"));
+    return `
+      <div style="padding:12px;border-radius:12px;border:1px solid var(--border);margin-bottom:8px;background:${checked ? "var(--primary-soft)" : "var(--card)"};">
+        <div style="display:flex;gap:10px;align-items:flex-start;">
+          <input type="checkbox" data-review-check="${m.id}" ${checked ? "checked" : ""} ${noFile ? "disabled" : ""}
+            style="margin-top:4px;width:16px;height:16px;flex-shrink:0;">
+          <div style="flex:1;min-width:0;">
+            <div style="font-size:13px;font-weight:700;">${esc(m.title)}</div>
+            <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(m.artist)} · ${esc(m.diff)} (DB 기준)</div>
+            <div style="margin-top:6px;font-size:12px;">
+              후보 파일: ${noFile ? `<b style="color:var(--danger);">폴더에 해당 파일이 없음 — 반진영님이 직접 올려야 해요</b>` : `<b>${esc(m.file)}</b>`}
+              ${!noFile ? `<span style="margin-left:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;color:${rank.color};background:${rank.bg};">${rank.label} (${Math.round(m.conf * 100)}%)</span>` : ""}
+            </div>
+          </div>
+          <button data-review-preview="${m.id}" class="btn btn-small" ${(noFile || !fileEntry) ? "disabled" : ""}>
+            미리보기
+          </button>
+        </div>
+      </div>`;
+  }).join("");
+
+  return `
+    <div style="${ADMIN_PANEL}">
+      <h3 style="margin:0 0 4px;font-size:15px;">검토 필요 — 사람이 확인해야 하는 ${st.total}곡</h3>
+      <p style="margin:0 0 10px;font-size:13px;color:var(--muted);line-height:1.6;">
+        제목이 비슷한 다른 곡과 섞이는 등 확신도가 낮아 자동으로 올리지 않은 곡들이에요. 폴더를 선택한 뒤
+        "미리보기"로 실제 PDF 첫 장을 열어 맞는 곡인지 확인하고, 맞으면 체크한 다음 아래 버튼으로 올리세요.
+        틀린 파일이면 체크하지 말고 넘어가면 돼요(나중에 따로 처리). 지금까지 연결됨: <b>${st.done} / ${st.total}</b>곡
+        ${st.noFile ? ` · 폴더에 파일 자체가 없는 곡 ${st.noFile}곡은 체크할 수 없어요(아래 목록 맨 위 빨간 글씨 참고)` : ""}
+      </p>
+      <input type="file" id="admin-review-folder-input" webkitdirectory directory multiple style="display:none;">
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
+        <button id="admin-review-pick-btn" class="btn ${ADMIN_REVIEW_FOLDER ? "" : "btn-primary"}">
+          ${ADMIN_REVIEW_FOLDER ? "폴더 다시 선택" : `"판매용 악보" 폴더 선택`}
+        </button>
+        ${folderInfo}
+      </div>
+      ${rows.length === 0
+        ? `<p style="font-size:13px;color:var(--muted);margin:0;">남은 검토 대상이 없어요. 전부 처리됐습니다.</p>`
+        : rowsHTML}
+      ${rows.length ? `
+        <button id="admin-review-upload-btn" class="btn btn-primary" style="margin-top:8px;" ${(ADMIN_REVIEW_RUNNING || !ADMIN_REVIEW_FOLDER || ADMIN_REVIEW_CHECKED.size === 0) ? "disabled" : ""}>
+          ${ADMIN_REVIEW_RUNNING ? "업로드 중..." : `체크한 ${ADMIN_REVIEW_CHECKED.size}곡 업로드`}
+        </button>` : ""}
+      <div id="admin-review-log" style="margin-top:10px;max-height:280px;overflow-y:auto;font-size:12px;"></div>
+    </div>`;
+}
+
+function wireAdminReview() {
+  document.getElementById("admin-review-pick-btn")?.addEventListener("click", () => {
+    document.getElementById("admin-review-folder-input")?.click();
+  });
+  document.getElementById("admin-review-folder-input")?.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    const map = new Map();
+    for (const f of files) map.set((f.name || "").normalize("NFC"), f);
+    ADMIN_REVIEW_FOLDER = map;
+    renderAdmin();
+  });
+  document.querySelectorAll("[data-review-check]").forEach(el => el.addEventListener("change", (e) => {
+    const id = el.dataset.reviewCheck;
+    if (e.target.checked) ADMIN_REVIEW_CHECKED.add(id);
+    else ADMIN_REVIEW_CHECKED.delete(id);
+    renderAdmin();
+  }));
+  document.querySelectorAll("[data-review-preview]").forEach(el => el.addEventListener("click", () => {
+    const id = el.dataset.reviewPreview;
+    const m = SCORE_PDF_MAPPING_REVIEW.find(x => x.id === id);
+    if (!m || !m.file || !ADMIN_REVIEW_FOLDER) return;
+    const file = ADMIN_REVIEW_FOLDER.get(m.file.normalize("NFC"));
+    if (!file) return;
+    const url = URL.createObjectURL(file);
+    window.open(url, "_blank");
+  }));
+  document.getElementById("admin-review-upload-btn")?.addEventListener("click", () => {
+    runReviewUpload();
+  });
+  renderAdminReviewProgress();
+}
+
+function renderAdminReviewProgress() {
+  const logEl = document.getElementById("admin-review-log");
+  if (!logEl) return;
+  const recent = ADMIN_REVIEW_LOG.slice(-200).slice().reverse();
+  logEl.innerHTML = recent.map(r => `
+    <div style="padding:4px 0;border-top:1px solid var(--border);color:${r.ok ? "var(--text)" : "var(--danger)"};">
+      ${r.ok ? "✓" : "✗"} ${esc(r.file)}${r.ok ? "" : ` — ${esc(r.message || "")}`}
+    </div>`).join("");
+}
+
+async function runReviewUpload() {
+  if (ADMIN_REVIEW_RUNNING || !ADMIN_REVIEW_FOLDER) return;
+  const ids = Array.from(ADMIN_REVIEW_CHECKED);
+  if (ids.length === 0) return;
+  ADMIN_REVIEW_RUNNING = true;
+  ADMIN_REVIEW_LOG = [];
+  renderAdmin();
+
+  let ok = 0, fail = 0;
+  for (const id of ids) {
+    const m = SCORE_PDF_MAPPING_REVIEW.find(x => x.id === id);
+    const score = STATE.scores[id];
+    if (!m || !score || !m.file) {
+      ADMIN_REVIEW_LOG.push({ file: m ? m.file : id, ok: false, message: "악보 또는 파일 정보를 찾을 수 없음" });
+      fail++;
+      continue;
+    }
+    const file = ADMIN_REVIEW_FOLDER.get(m.file.normalize("NFC"));
+    if (!file) {
+      ADMIN_REVIEW_LOG.push({ file: m.file, ok: false, message: "선택한 폴더에서 이 파일명을 찾지 못함" });
+      fail++;
+      continue;
+    }
+    const res = await uploadScoreFile(SCORE_PDF_SELLER_ID, m.id, file);
+    if (res.ok) {
+      score.fileUrl = res.path;
+      ADMIN_REVIEW_LOG.push({ file: m.file, ok: true });
+      ok++;
+    } else {
+      ADMIN_REVIEW_LOG.push({ file: m.file, ok: false, message: res.message });
+      fail++;
+    }
+  }
+
+  save();
+  ADMIN_REVIEW_CHECKED.clear();
+  ADMIN_REVIEW_RUNNING = false;
+  renderAdmin();
+  if (typeof toast === "function") toast(`검토 업로드 완료: 성공 ${ok}건 · 실패 ${fail}건`);
 }
