@@ -41,11 +41,15 @@ function renderAdmin() {
   ];
 
   el.innerHTML = `
-    <div class="chip-row" style="margin-bottom:16px;gap:8px;">
-      ${tabs.map(([k, label, n]) => `
-        <button class="chip ${ADMIN_TAB === k ? "active" : ""}" data-admin-tab="${k}" style="padding:9px 14px;font-size:13px;">
-          ${label}${n ? ` <b style="margin-left:4px;">${n}</b>` : ""}
-        </button>`).join("")}
+    <div style="display:flex;align-items:center;gap:6px;margin-bottom:16px;">
+      <button id="admin-tabs-left" class="btn btn-small" style="flex-shrink:0;padding:6px 9px;" aria-label="탭 왼쪽으로 이동">‹</button>
+      <div class="chip-row" id="admin-tabs-row" style="margin-bottom:0;gap:8px;flex:1;min-width:0;">
+        ${tabs.map(([k, label, n]) => `
+          <button class="chip ${ADMIN_TAB === k ? "active" : ""}" data-admin-tab="${k}" style="padding:9px 14px;font-size:13px;flex-shrink:0;">
+            ${label}${n ? ` <b style="margin-left:4px;">${n}</b>` : ""}
+          </button>`).join("")}
+      </div>
+      <button id="admin-tabs-right" class="btn btn-small" style="flex-shrink:0;padding:6px 9px;" aria-label="탭 오른쪽으로 이동">›</button>
     </div>
     <div id="admin-tab-body"></div>
   `;
@@ -53,6 +57,12 @@ function renderAdmin() {
     ADMIN_TAB = b.dataset.adminTab;
     renderAdmin();
   }));
+  document.getElementById("admin-tabs-left")?.addEventListener("click", () => {
+    document.getElementById("admin-tabs-row")?.scrollBy({ left: -160, behavior: "smooth" });
+  });
+  document.getElementById("admin-tabs-right")?.addEventListener("click", () => {
+    document.getElementById("admin-tabs-row")?.scrollBy({ left: 160, behavior: "smooth" });
+  });
 
   const body = document.getElementById("admin-tab-body");
 
