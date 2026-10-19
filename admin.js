@@ -1704,7 +1704,6 @@ const SCORE_PDF_MAPPING_REVIEW = [
   {id:"score_mvd75i7m_2nfavc",file:"노아주다 - 힙합보단 사랑 사랑보단 돈_고급_0001.pdf",title:"힙합보단 사랑, 사랑보단 돈 (Feat. 베이식)",artist:"노아주다 (noahjooda)",diff:"고급",conf:0.0},
   {id:"score_mvd75i7n_ip8o5r",file:"멋진헛간 - 오대천왕2(정형돈,밴드 혁오)_고급.pdf",title:"멋진헛간",artist:"오대천왕 (정형돈, 밴드 혁오)",diff:"고급",conf:0.0},
   {id:"score_mvd75i7l_76eqmg",file:"[중급5] N.Flying - Our Ending.pdf",title:"아는 결말(Our Ending)",artist:"엔플라잉(N.Flying)",diff:"중급",conf:0.0},
-  {id:"score_mvd75i7n_uan98j",file:"(여자)아이들 - Tomboy (Hard).pdf",title:"TOMBOY",artist:"i-dle (아이들)",diff:"고급",conf:0.0},
   {id:"score_mvd75i7n_fa7qak",file:"이창섭 - 365 Days_고급.pdf",title:"365일 (원곡 : 알리)",artist:"이창섭",diff:"고급",conf:0.0},
   {id:"score_mvd75i7o_kithp7",file:"Vernon Solo - Shining Star_프로.pdf",title:"Shining Star (Vernon Solo)",artist:"세븐틴 (SEVENTEEN)",diff:"고급",conf:0.0},
   {id:"score_mvd75i7n_7n5eje",file:"2.나상현씨밴드-여름빛_.pdf",title:"여름빛",artist:"나상현씨밴드",diff:"고급",conf:0.0},
