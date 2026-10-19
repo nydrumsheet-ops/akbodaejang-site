@@ -2053,6 +2053,30 @@ function renderAdminReviewHTML() {
     </div>`;
 }
 
+function showPdfPreviewModal(url, title) {
+  const old = document.getElementById("pdf-preview-modal");
+  if (old) old.remove();
+  const overlay = document.createElement("div");
+  overlay.id = "pdf-preview-modal";
+  overlay.style.cssText = "position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.6);display:flex;flex-direction:column;align-items:center;padding:16px;";
+  overlay.innerHTML = `
+    <div style="width:100%;max-width:900px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="color:#fff;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(title || "미리보기")}</div>
+      <button id="pdf-preview-close" class="btn btn-small" style="flex-shrink:0;margin-left:12px;">닫기</button>
+    </div>
+    <iframe src="${url}" style="width:100%;max-width:900px;flex:1;background:#fff;border:none;border-radius:8px;"></iframe>
+  `;
+  document.body.appendChild(overlay);
+  const cleanup = () => {
+    overlay.remove();
+    try { URL.revokeObjectURL(url); } catch (e) {}
+  };
+  document.getElementById("pdf-preview-close").addEventListener("click", cleanup);
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) cleanup();
+  });
+}
+
 function wireAdminReview() {
   document.getElementById("admin-review-pick-btn")?.addEventListener("click", () => {
     document.getElementById("admin-review-folder-input")?.click();
@@ -2078,7 +2102,7 @@ function wireAdminReview() {
     const file = ADMIN_REVIEW_FOLDER.get(m.file.normalize("NFC"));
     if (!file) return;
     const url = URL.createObjectURL(file);
-    window.open(url, "_blank");
+    showPdfPreviewModal(url, m.title || m.file);
   }));
   document.getElementById("admin-review-upload-btn")?.addEventListener("click", () => {
     runReviewUpload();
