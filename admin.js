@@ -1849,6 +1849,7 @@ async function runBulkPdfUpload(files) {
     const res = await uploadScoreFile(SCORE_PDF_SELLER_ID, m.id, file);
     if (res.ok) {
       score.fileUrl = res.path;
+      if (/_프로(_\d+)?\.pdf$/i.test(wanted)) score.difficulty = "프로";
       ADMIN_PDF_OK++;
       ADMIN_PDF_LOG.push({ file: m.file, ok: true });
     } else {
@@ -1965,6 +1966,7 @@ async function runBulkPdfUploadConfirm(files) {
     const res = await uploadScoreFile(SCORE_PDF_SELLER_ID, m.id, file);
     if (res.ok) {
       score.fileUrl = res.path;
+      if (/_프로(_\d+)?\.pdf$/i.test(wanted)) score.difficulty = "프로";
       ADMIN_PDF2_OK++;
       ADMIN_PDF2_LOG.push({ file: m.file, ok: true });
     } else {
@@ -2156,6 +2158,9 @@ async function runReviewUpload() {
     const res = await uploadScoreFile(SCORE_PDF_SELLER_ID, m.id, file);
     if (res.ok) {
       score.fileUrl = res.path;
+      // 파일명에 "_프로"가 붙어있으면(예: "...곡명_프로.pdf") 난이도를 세부 5단계의 "프로"로 맞춘다.
+      // (2026-10-19: 중급=초중급/중급, 고급=프로/고급 으로 나누기로 한 결정 반영)
+      if (/_프로(_\d+)?\.pdf$/i.test(m.file.normalize("NFC"))) score.difficulty = "프로";
       ADMIN_REVIEW_LOG.push({ file: m.file, ok: true });
       ok++;
     } else {
