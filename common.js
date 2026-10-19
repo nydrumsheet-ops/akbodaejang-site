@@ -1242,40 +1242,51 @@ async function generateScorePreviewImage(file) {
     return null;
   }
   if (!file) return null;
-  try {
-    const buf = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
-    const page = await pdf.getPage(1);
-    // 화면에서 보기 좋은 해상도로 렌더링(너무 크면 용량이 커지므로 적당히 제한)
-    const baseViewport = page.getViewport({ scale: 1 });
-    const targetWidth = 1000;
-    const scale = Math.min(2.5, targetWidth / baseViewport.width);
-    const viewport = page.getViewport({ scale });
 
-    const fullCanvas = document.createElement("canvas");
-    fullCanvas.width = Math.ceil(viewport.width);
-    fullCanvas.height = Math.ceil(viewport.height);
-    const ctx = fullCanvas.getContext("2d");
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, fullCanvas.width, fullCanvas.height);
-    await page.render({ canvasContext: ctx, viewport }).promise;
+  // 판매자가 등록 중에 다른 탭으로 전환하면 브라우저가 렌더링을 멈춰둬서
+  // page.render()가 끝나지 않고 계속 멈춰 있을 수 있다(실제로 테스트 중 확인됨).
+  // 그 경우에도 등록 자체가 막히면 안 되므로, 일정 시간이 지나면 포기하고
+  // null을 돌려줘서 기존 가짜 오선지 그림으로 자연스럽게 넘어가게 한다.
+  const PREVIEW_TIMEOUT_MS = 20000;
+  const timeoutGuard = new Promise(resolve => setTimeout(() => resolve(null), PREVIEW_TIMEOUT_MS));
 
-    // "첫 N마디 미리보기" 취지에 맞춰, 첫 페이지 전체가 아니라 상단 일부만 자른다.
-    const cropRatio = 0.42; // 첫 페이지 상단 42% 정도만 사용
-    const cropHeight = Math.max(1, Math.round(fullCanvas.height * cropRatio));
-    const cropCanvas = document.createElement("canvas");
-    cropCanvas.width = fullCanvas.width;
-    cropCanvas.height = cropHeight;
-    const cropCtx = cropCanvas.getContext("2d");
-    cropCtx.drawImage(fullCanvas, 0, 0, fullCanvas.width, cropHeight, 0, 0, fullCanvas.width, cropHeight);
+  const work = (async () => {
+    try {
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const page = await pdf.getPage(1);
+      // 화면에서 보기 좋은 해상도로 렌더링(너무 크면 용량이 커지므로 적당히 제한)
+      const baseViewport = page.getViewport({ scale: 1 });
+      const targetWidth = 1000;
+      const scale = Math.min(2.5, targetWidth / baseViewport.width);
+      const viewport = page.getViewport({ scale });
 
-    const blob = await new Promise(resolve => cropCanvas.toBlob(resolve, "image/png", 0.92));
-    if (!blob) return null;
-    return blob;
-  } catch (e) {
-    console.error("[common] 미리보기 이미지 생성 오류", e);
-    return null;
-  }
+      const fullCanvas = document.createElement("canvas");
+      fullCanvas.width = Math.ceil(viewport.width);
+      fullCanvas.height = Math.ceil(viewport.height);
+      const ctx = fullCanvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, fullCanvas.width, fullCanvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      // "첫 N마디 미리보기" 취지에 맞춰, 첫 페이지 전체가 아니라 상단 일부만 자른다.
+      const cropRatio = 0.42; // 첫 페이지 상단 42% 정도만 사용
+      const cropHeight = Math.max(1, Math.round(fullCanvas.height * cropRatio));
+      const cropCanvas = document.createElement("canvas");
+      cropCanvas.width = fullCanvas.width;
+      cropCanvas.height = cropHeight;
+      const cropCtx = cropCanvas.getContext("2d");
+      cropCtx.drawImage(fullCanvas, 0, 0, fullCanvas.width, cropHeight, 0, 0, fullCanvas.width, cropHeight);
+
+      const blob = await new Promise(resolve => cropCanvas.toBlob(resolve, "image/png", 0.92));
+      return blob || null;
+    } catch (e) {
+      console.error("[common] 미리보기 이미지 생성 오류", e);
+      return null;
+    }
+  })();
+
+  return Promise.race([work, timeoutGuard]);
 }
 
 /* 저장 경로 규칙: "{판매자 아이디}/{악보 아이디}.png" — scores 버킷과 동일한 방식으로
