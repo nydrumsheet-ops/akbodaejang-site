@@ -258,16 +258,34 @@ function priceHtml(s) {
     + `<span>${formatPoint(effectivePrice(s))}</span>`;
 }
 
+const DIFF_BADGE_COLORS = {
+  "입문": { bg: "#ecfcff", border: "#87eaff", fg: "#41c0ff" },
+  "초급": { bg: "#ecfcff", border: "#87eaff", fg: "#41c0ff" },
+  "초중급": { bg: "#ecfcff", border: "#87eaff", fg: "#41c0ff" },
+  "중급": { bg: "#fffaec", border: "#ffb932", fg: "#ffb525" },
+  "프로": { bg: "#ffeeee", border: "#ff7d7d", fg: "#ff7272" },
+  "상급": { bg: "#ffeeee", border: "#ff7d7d", fg: "#ff7272" },
+  "고급": { bg: "#ffeeee", border: "#ff7d7d", fg: "#ff7272" }
+};
+function diffBadgeStyle(difficulty) {
+  const c = DIFF_BADGE_COLORS[difficulty] || DIFF_BADGE_COLORS["초급"];
+  return `background:${c.bg};border:1px solid ${c.border};color:${c.fg};`;
+}
+function cartIcon() {
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+    <circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle>
+    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+  </svg>`;
+}
+
 function scoreCard(s, opts) {
   const o = opts || {};
-  const user = getCurrentUser();
-  const wished = user && user.wishlist.includes(s.id);
   const r = getScoreRating(s.id);
   return `
     <div class="score-card" data-score-id="${s.id}">
       <div class="thumb" style="--tint:${themeOf(s.instrument).tint};--ink:${themeOf(s.instrument).ink};">
         ${o.rank ? `<span class="rank-num ${o.rank <= 3 ? "top" : ""}">${o.rank}</span>` : ""}
-        <button type="button" class="wish-btn ${wished ? "on" : ""}" data-wish="${s.id}" aria-label="찜하기">${wished ? "♥" : "♡"}</button>
+        <span class="diff-badge" style="${diffBadgeStyle(s.difficulty)}">${esc(s.difficulty)}</span>
         ${s.thumbnailUrl
           ? `<img src="${esc(s.thumbnailUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
           : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${instArt(s.instrument)}</div>`}
@@ -276,14 +294,16 @@ function scoreCard(s, opts) {
       <div class="card-body">
         <div class="tags">
           <span class="tag">${esc(s.instrument)}</span>
-          <span class="tag tag-diff">${esc(s.difficulty)}</span>
         </div>
+        <div class="card-seller"><span class="avatar" style="${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</div>
         <div class="card-title">${esc(s.title)}</div>
         <div class="card-artist">${esc(s.artist)}</div>
-        <div class="card-seller"><span class="avatar" style="${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</div>
         <div class="card-foot">
-          <span class="price">${priceHtml(s)}</span>
-          ${r.count ? `<span class="rating"><b>★</b> ${r.avg} (${r.count})</span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
+          <button type="button" class="cart-btn" data-cart="${s.id}" aria-label="장바구니 담기">${cartIcon()}</button>
+          <div class="card-foot-right">
+            ${r.count ? `<span class="rating"><b>★</b> ${r.avg} (${r.count})</span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
+            <span class="price">${priceHtml(s)}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -301,6 +321,20 @@ function bindCards(root) {
         if (!res.ok) { toast(res.message, true); return; }
         toast(res.added ? "찜 목록에 담았어요" : "찜을 해제했어요");
         renderBuyer();
+        renderHeaderAuth();
+      });
+    });
+  });
+  root.querySelectorAll("[data-cart]").forEach(btn => {
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const id = btn.dataset.cart;
+      requireLogin(() => {
+        const u = getCurrentUser();
+        if (u.cart.includes(id)) { goBuyer("cart"); return; }
+        const res = addToCart(u.id, id);
+        if (!res.ok) { toast(res.message, true); return; }
+        toast("장바구니에 담았어요");
         renderHeaderAuth();
       });
     });
@@ -434,21 +468,22 @@ function renderHomePage(el) {
         <button class="more-link" data-go="list:sort:latest">더 보기 ›</button>
       </div>
       ${latest.length ? `
-        <div class="table-wrap">
-          <table class="list-table">
-            <thead><tr><th>노래 제목</th><th class="hide-m">가수</th><th>아티스트</th><th>악기</th><th class="hide-m">난이도</th><th style="text-align:right;">가격</th></tr></thead>
-            <tbody>
-              ${latest.map(s => `
-                <tr data-score-id="${s.id}">
-                  <td><b>${esc(s.title)}</b> ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);">▶ 영상</span>` : ""}</td>
-                  <td class="hide-m muted">${esc(s.artist)}</td>
-                  <td><span data-artist-id="${s.sellerId}" style="cursor:pointer;text-decoration:underline;text-underline-offset:3px;">${esc(sellerName(s.sellerId))}</span></td>
-                  <td>${esc(s.instrument)}</td>
-                  <td class="hide-m">${esc(s.difficulty)}</td>
-                  <td style="text-align:right;font-weight:700;white-space:nowrap;">${priceHtml(s)}</td>
-                </tr>`).join("")}
-            </tbody>
-          </table>
+        <div class="latest-section">
+          <div class="rank-list-grid">
+            ${latest.map((s, i) => `
+              <div class="rank-row" data-score-id="${s.id}">
+                <span class="rank-order">${i + 1}</span>
+                <span class="rank-thumb" style="--tint:${themeOf(s.instrument).tint};">
+                  ${s.thumbnailUrl
+                    ? `<img src="${esc(s.thumbnailUrl)}" alt="" onerror="this.style.display='none';">`
+                    : instArt(s.instrument)}
+                </span>
+                <div class="rank-info">
+                  <div class="rank-title">${esc(s.title)}</div>
+                  <div class="rank-sub">${esc(s.artist)} · ${esc(s.instrument)}</div>
+                </div>
+              </div>`).join("")}
+          </div>
         </div>` : `<div class="empty">아직 등록된 악보가 없어요.</div>`}
     </div>
 
