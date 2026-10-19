@@ -99,7 +99,7 @@ function renderAdmin() {
             ["2", "채보 진행", `신청 많은 순으로 위에 보여요.<br>신청곡을 눌러 열고 "채보중"을 누르세요.<br>구매자 신청곡 화면에도 상태가 바로 바뀌어 보여요.`],
             ["3", "작업 완료", `판매자가 그 곡을 등록하고 심사에서 승인되면,<br>신청곡을 열어 그 악보를 고르고 "작업 완료"를 누르세요.<br>구매자 신청곡 화면에 완료로 표시되고, 신청자도<br>다른 구매자와 동일하게 정가로 구매할 수 있어요.`]
           ].map(([n, t, d]) => `
-            <div style="padding:14px;border-radius:12px;background:var(--band);">
+            <div style="padding:14px;border-radius:12px;background:#f5f2ee;">
               <div style="font-size:12px;font-weight:800;color:var(--primary);">STEP ${n}</div>
               <div style="font-weight:700;margin:4px 0;">${t}</div>
               <div style="font-size:12px;color:var(--muted);line-height:1.6;">${d}</div>
@@ -353,7 +353,7 @@ function renderAdminMembers(body) {
       <div id="admin-admins-msg" style="font-size:13px;margin:0 0 10px;"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
         <input id="admin-admin-email" class="field" type="email" style="flex:1;min-width:220px;" placeholder="등록할 관리자 이메일">
-        <button id="admin-admin-add" class="btn btn-primary">등록</button>
+        <button id="admin-admin-add" class="btn btn-primary" style="background:#da7f54;border-color:#da7f54;border-radius:11px;">등록</button>
       </div>
       <div>
         ${adminEmails.map(e => {
@@ -580,7 +580,7 @@ function renderAdminRequests() {
   listEl.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px;">
       ${[["접수", count("접수")], ["채보중", count("채보중")], ["완료", count("완료")], ["신청한 사람(누적)", `${people}명`]].map(([l, v]) => `
-        <div style="padding:12px;border-radius:12px;background:var(--band);">
+        <div style="padding:12px;border-radius:12px;background:#f5f2ee;">
           <div style="font-size:11px;color:var(--muted);">${l}</div>
           <div style="font-size:18px;font-weight:800;margin-top:2px;">${v}</div>
         </div>`).join("")}
@@ -865,12 +865,12 @@ function renderAdminPayoutBatch() {
     wrap.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:0 0 8px;">다음 지급일(${dateText})에 지급할 판매자가 아직 없어요.</p>`;
   } else {
     wrap.innerHTML = `
-      <div style="padding:12px;border-radius:10px;background:var(--band);margin-bottom:10px;font-size:13px;">
+      <div style="padding:12px;border-radius:10px;background:#f5f2ee;margin-bottom:10px;font-size:13px;">
         다음 지급일 <b>${dateText}</b> · 대상 <b>${batch.items.length}명</b> · 합계 <b>${formatWon(batch.total)}</b>
       </div>
       <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;">
         <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr style="background:var(--band);color:var(--muted);text-align:left;">
+          <thead><tr style="background:#f5f2ee;color:var(--muted);text-align:left;">
             <th style="padding:8px 10px;font-weight:600;">판매자</th>
             <th style="padding:8px 10px;font-weight:600;">은행 · 계좌</th>
             <th style="padding:8px 10px;font-weight:600;">예금주</th>
@@ -1757,14 +1757,14 @@ function renderAdminPdfUpload(body) {
         그 폴더를 통째로 고를 수 있고, 이름이 맞는 파일만 하나씩 업로드해서 악보에 연결합니다.<br>
         지금까지 연결됨: <b>${st.done} / ${st.total}</b>곡
       </p>
-      <div style="padding:12px;border-radius:10px;background:var(--band);font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
+      <div style="padding:12px;border-radius:10px;background:#f5f2ee;font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
         이름이 너무 달라 자동으로 맞추지 못한 악보, 또는 폴더 안에 파일 자체가 없는 악보는
         이 목록에 들어있지 않습니다 — 그런 악보는 아래 "추가 매칭"·"검토 필요" 섹션에서 처리합니다.
         이미 연결된 악보는 다시 눌러도 건너뛰니, 중간에 멈췄다가 같은 폴더로 다시 시작해도 안전합니다.
       </div>
       <input type="file" id="admin-pdf-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <button id="admin-pdf-pick-btn" class="btn btn-primary" ${ADMIN_PDF_RUNNING ? "disabled" : ""}>
+        <button id="admin-pdf-pick-btn" class="btn btn-primary" style="border-radius:12px;background:#da7f54;border-color:#da7f54;" ${ADMIN_PDF_RUNNING ? "disabled" : ""}>
           ${ADMIN_PDF_RUNNING ? "업로드 진행 중..." : `"판매용 악보" 폴더 선택해서 업로드 시작`}
         </button>
         ${ADMIN_PDF_RUNNING ? `<button id="admin-pdf-stop-btn" style="padding:9px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">중단</button>` : ""}
@@ -1888,7 +1888,7 @@ function renderAdminPdfConfirmHTML() {
       </p>
       <input type="file" id="admin-pdf2-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <button id="admin-pdf2-pick-btn" class="btn btn-primary" ${ADMIN_PDF2_RUNNING ? "disabled" : ""}>
+        <button id="admin-pdf2-pick-btn" class="btn btn-primary" style="border-radius:12px;background:#da7f54;border-color:#da7f54;" ${ADMIN_PDF2_RUNNING ? "disabled" : ""}>
           ${ADMIN_PDF2_RUNNING ? "업로드 진행 중..." : `"판매용 악보" 폴더 선택해서 업로드 시작`}
         </button>
         ${ADMIN_PDF2_RUNNING ? `<button id="admin-pdf2-stop-btn" style="padding:9px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">중단</button>` : ""}
@@ -2058,7 +2058,7 @@ function renderAdminReviewHTML() {
         ? `<p style="font-size:13px;color:var(--muted);margin:0;">남은 검토 대상이 없어요. 전부 처리됐습니다.</p>`
         : rowsHTML}
       ${rows.length ? `
-        <button id="admin-review-upload-btn" class="btn btn-primary" style="margin-top:8px;" ${(ADMIN_REVIEW_RUNNING || !ADMIN_REVIEW_FOLDER || ADMIN_REVIEW_CHECKED.size === 0) ? "disabled" : ""}>
+        <button id="admin-review-upload-btn" class="btn btn-primary" style="margin-top:8px;border-radius:12px;background:#da7f54;border-color:#da7f54;" ${(ADMIN_REVIEW_RUNNING || !ADMIN_REVIEW_FOLDER || ADMIN_REVIEW_CHECKED.size === 0) ? "disabled" : ""}>
           ${ADMIN_REVIEW_RUNNING ? "업로드 중..." : `체크한 ${ADMIN_REVIEW_CHECKED.size}곡 업로드`}
         </button>` : ""}
       <div id="admin-review-log" style="margin-top:10px;max-height:280px;overflow-y:auto;font-size:12px;"></div>
@@ -2074,7 +2074,7 @@ function showPdfPreviewModal(url, title) {
   overlay.innerHTML = `
     <div style="width:100%;max-width:900px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <div style="color:#fff;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(title || "미리보기")}</div>
-      <button id="pdf-preview-close" class="btn btn-small" style="flex-shrink:0;margin-left:12px;">닫기</button>
+      <button id="pdf-preview-close" aria-label="닫기" style="flex-shrink:0;margin-left:12px;width:36px;height:36px;padding:0;border-radius:50%;border:1px solid #d5d0ca;background:transparent;color:#d5d0ca;font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
     </div>
     <iframe src="${url}" style="width:100%;max-width:900px;flex:1;background:#fff;border:none;border-radius:8px;"></iframe>
   `;

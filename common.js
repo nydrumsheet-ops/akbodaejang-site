@@ -1928,7 +1928,7 @@ function renderHeaderAuth() {
         <span class="icon-btn-glyph"><i class="ico ico-user"></i></span><span class="icon-btn-label">${esc(user.name)}님 · ${formatPoint(user.points)}</span>
       </button>
       <button id="logout-btn" class="auth-btn">로그아웃</button>
-      ${user.isAdmin ? `<button id="header-admin-btn" class="auth-btn">관리자</button>` : ""}
+      ${user.isAdmin ? `<button id="header-admin-btn" class="auth-btn">관리자 페이지</button>` : ""}
     `;
     document.getElementById("header-my-btn")?.addEventListener("click", () => {
       if (typeof goBuyer === "function") goBuyer("mypage");
