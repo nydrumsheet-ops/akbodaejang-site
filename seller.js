@@ -16,6 +16,8 @@ let SELLER_TREND_INST = "";      // 신청곡 트렌드 악기 필터, "" = 전�
 let SELLER_TREND_SORT = "requests"; // "requests"(신청 많은 순) | "likes"(좋아요 많은 순) | "latest"(최근 순)
 let SELLER_TREND_STATUS = "";    // "" = 전체, 그 외엔 REQUEST_STATUS 값
 let SF_SESSION_COUNT = 0;        // 이번 접속(새로고침 전까지)에서 연속으로 등록한 곡 수 (2026-10-18 대량 등록 개선 추가)
+let SELLER_MYSCORES_PAGE = 1;    // "내 악보 · 심사상태" 목록 페이지 (2026-10-20 추가)
+const SELLER_MYSCORES_PAGE_SIZE = 10; // 한 페이지에 10개씩 (buyer.js의 PAGE_SIZE와는 별개 — 이름 겹치지 않게 분리)
 
 function renderSeller() {
   const el = document.getElementById("view-seller");
@@ -482,6 +484,7 @@ async function handleSubmitScore(sellerId) {
   SF_TAGS = [];
   SF_THUMBNAIL_DATA = null;
   SF_SESSION_COUNT += 1;
+  SELLER_MYSCORES_PAGE = 1; // 새로 등록한 악보가 맨 위(최신순)라서 1페이지로 돌아가야 바로 보인다
   renderSeller();
   // 등록 성공 안내는 폼 안쪽 인라인 문구 대신 화면 중앙 모달로 표시한다 (2026-10-19 변경).
   // 모달을 닫으면(확인 버튼/배경 클릭/ESC 공통) 그동안 폼으로 스크롤 + 다음 곡 입력을 위해 포커스를 옮긴다.
@@ -519,7 +522,14 @@ function renderMyScores(sellerId) {
     return;
   }
 
-  wrap.innerHTML = myScores.map(s => {
+  // 2026-10-20 추가: 10개씩 페이지로 나눠서 보여주고, 그 이상은 buyer.js의 테두리 없는
+  // 화살표 페이지네이션(renderPager/pagerArrowIcon, store.pager CSS 재사용)으로 넘겨본다.
+  const pages = Math.max(1, Math.ceil(myScores.length / SELLER_MYSCORES_PAGE_SIZE));
+  const current = Math.min(Math.max(1, SELLER_MYSCORES_PAGE), pages);
+  SELLER_MYSCORES_PAGE = current;
+  const shown = myScores.slice((current - 1) * SELLER_MYSCORES_PAGE_SIZE, current * SELLER_MYSCORES_PAGE_SIZE);
+
+  wrap.innerHTML = shown.map(s => {
     const color = SCORE_STATUS_COLOR[s.status] || "#625950";
     const videoBadge = s.hasVideo
       ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:var(--primary-dark);font-size:11px;">${videoIconArt(12)} 영상</span>`
@@ -551,8 +561,17 @@ function renderMyScores(sellerId) {
         ${discountBlock}
       </div>
     `;
-  }).join("");
+  }).join("") + (pages > 1 ? renderPager(current, pages) : "");
 
+  wrap.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => {
+    SELLER_MYSCORES_PAGE = Number(b.dataset.page);
+    renderMyScores(sellerId);
+  }));
+  wrap.querySelectorAll("[data-page-nav]").forEach(b => b.addEventListener("click", () => {
+    if (b.disabled) return;
+    SELLER_MYSCORES_PAGE = current + (b.dataset.pageNav === "prev" ? -1 : 1);
+    renderMyScores(sellerId);
+  }));
   wrap.querySelectorAll("[data-disc-toggle]").forEach(b => b.addEventListener("click", () => {
     const id = b.dataset.discToggle;
     SELLER_DISCOUNT_OPEN = SELLER_DISCOUNT_OPEN === id ? null : id;
