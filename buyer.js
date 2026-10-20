@@ -29,8 +29,12 @@ const FAQ_LIST = [
     a: () => `마이페이지 › 포인트 메뉴에서 ${POLICY.chargeTiers.map(t => formatWon(t.amount)).join(" / ")} 중 골라 충전해요. 1P는 ${POLICY.point.unit}원이고, 충전한 포인트는 ${POLICY.point.expiryYears}년 동안 쓸 수 있어요.` },
   { id: "f2", cat: "결제·포인트", q: "충전하면 보너스가 붙나요?",
     a: () => `충전 금액에 따라 ${POLICY.chargeTiers.filter(t => t.bonus > 0).map(t => `${formatWon(t.amount)} 이상 ${Math.round(t.bonus * 100)}%`).join(", ")} 보너스가 붙어요. 첫 충전은 ${Math.round(POLICY.firstChargeBonus * 100)}% 보너스와 티어 보너스 중 더 큰 쪽이 적용돼요.` },
+  // 2026-10-20 추가(mydrumsheet.com FAQ 이전): 악보 구매 환불과는 별개로, 아직 쓰지 않은
+  // 충전 포인트 자체의 환불 정책. POLICY.chargeRefund.windowDays 참고.
+  { id: "f11", cat: "결제·포인트", q: "충전한 포인트도 환불되나요?",
+    a: () => `네, 아직 쓰지 않은 충전 포인트는 충전일로부터 ${POLICY.chargeRefund.windowDays}일 이내면 환불할 수 있어요. 고객센터 1:1 문의로 신청해주세요. (악보를 구매한 뒤의 환불은 아래 "환불은 어떻게 하나요?" 항목을 참고해주세요.)` },
   { id: "f3", cat: "환불", q: "환불은 어떻게 하나요?",
-    a: () => `구매 후 ${POLICY.refund.windowDays}일 이내, 파일을 한 번도 받지 않았다면 마이페이지 › 내 악보함에서 환불 버튼으로 포인트 전액 환불돼요. 한 번이라도 다운로드했다면 환불이 안 돼요.` },
+    a: () => `구매 후 ${POLICY.refund.windowDays}일 이내, 파일을 한 번도 받지 않았다면 마이페이지 › 내 악보함에서 환불 버튼으로 포인트 전액 환불돼요. 악보는 전자 PDF 파일이라 한 번이라도 다운로드했다면 환불이 안 돼요.` },
   { id: "f4", cat: "악보·심사", q: "악보 등록하면 언제 노출되나요?",
     a: () => `판매자가 악보를 등록하면 바로 목록에 노출돼요. 궁금한 점이 있으면 고객센터 1:1 문의로 알려주세요.` },
   { id: "f5", cat: "악보·심사", q: "수수료는 얼마인가요?",
@@ -39,8 +43,15 @@ const FAQ_LIST = [
     a: () => `출금 신청은 따로 안 해요. 적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이고 정산 계좌가 등록돼 있으면, 매달 ${POLICY.settlement.payoutDay}일에 자동으로 입금돼요.` },
   { id: "f7", cat: "계정", q: "비밀번호는 어떻게 바꾸나요?",
     a: () => `지금은 이름과 이메일만으로 로그인하는 시험 버전이라 비밀번호가 없어요. 정식 오픈 전에 추가될 예정이에요.` },
+  // 2026-10-20 추가(mydrumsheet.com FAQ 이전): 중복 이메일 가입 제한은 Supabase Auth 공통 동작이라
+  // 이 사이트에도 그대로 적용된다.
+  { id: "f9", cat: "계정", q: "회원가입이 안 돼요. 왜 그런가요?",
+    a: () => `같은 이메일 주소로는 중복 가입이 안 돼요. 가입하려는 이메일이 이미 다른 계정에서 쓰이고 있다면, 다른 이메일 주소로 다시 시도해보세요.` },
   { id: "f8", cat: "기타", q: "신청곡은 어떻게 신청하나요?",
-    a: () => `스토어 › 신청곡에서 곡 제목·작곡가·가수·악기를 적으면 무료로 올라가요. 신청이 많은 곡부터 채보해서 악보로 만들어요. 완성되면 신청하신 분께도 따로 드리지 않고, 다른 구매자와 똑같이 구매하실 수 있어요.` }
+    a: () => `스토어 › 신청곡에서 곡 제목·작곡가·가수·악기를 적으면 무료로 올라가요. 신청이 많은 곡부터 채보해서 악보로 만들어요. 완성되면 신청하신 분께도 따로 드리지 않고, 다른 구매자와 똑같이 구매하실 수 있어요.` },
+  // 2026-10-20 추가(mydrumsheet.com FAQ 이전): PDF 다운로드·열람 관련 기술 문의.
+  { id: "f10", cat: "기타", q: "PDF 파일을 받았는데 악보가 안 열려요.",
+    a: () => `쓰고 계신 PDF 뷰어 프로그램에 문제가 있을 수 있어요. Chrome 브라우저로 파일을 다시 받아보시면 대부분 바로 열려요.` }
 ];
 
 const INSTRUMENT_ICON = {
@@ -221,6 +232,8 @@ function updateMenuHighlight() {
     else if (params.instrument && !params.video) key = params.instrument;
     else if (params.sort === "latest" && !params.q && !params.instrument) key = "new";
   }
+  // 2026-10-20 추가: 헤더의 "FAQ" 메뉴는 고객센터 화면의 "자주 묻는 질문" 탭으로 연결된다.
+  else if (page === "support" && (!params.tab || params.tab === "faq")) key = "faq";
   setActiveMenu(key);
 }
 

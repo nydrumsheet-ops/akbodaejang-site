@@ -113,6 +113,12 @@ const POLICY = {
   refund: {
     windowDays: 7
   },
+  // 2026-10-20 추가: "악보 구매 환불"(위 refund, 파일 미열람 조건부)과는 별개로,
+  // 아직 쓰지 않은 "충전 포인트 자체"의 환불 정책. 사용자 확인 받아 확정함(공통규칙.md 참고).
+  // 신청은 1:1 문의로 받고, 실제 처리는 관리자가 adjustPoints()로 수동 차감+환불 처리한다(별도 버튼 없음).
+  chargeRefund: {
+    windowDays: 7
+  },
   preview: {
     bars: 8
   }
@@ -2387,6 +2393,7 @@ function initHeaderSearch() {
       else if (m === "video") goBuyer("list", { video: true });
       else if (m === "requests") goBuyer("requests");
       else if (m === "new") goBuyer("list", { sort: "latest" });
+      else if (m === "faq") goBuyer("support", { tab: "faq" });
       else goBuyer("list", { instrument: m });
     });
   });
