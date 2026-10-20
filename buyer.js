@@ -573,7 +573,7 @@ function renderHomePage(el) {
               <tr>
                 <th>곡 정보</th>
                 <th class="hide-m">아티스트</th>
-                <th class="hide-m">악기</th>
+                <th>악기</th>
                 <th>난이도</th>
                 <th class="hide-m">조회수</th>
                 <th>가격</th>
@@ -584,7 +584,7 @@ function renderHomePage(el) {
                 <tr data-score-id="${s.id}">
                   <td>${esc(s.title)}</td>
                   <td class="hide-m"><span style="display:flex;align-items:center;gap:8px;"><span class="avatar" style="width:26px;height:26px;font-size:11px;flex-shrink:0;${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</span></td>
-                  <td class="hide-m">${esc(s.instrument)}</td>
+                  <td>${esc(s.instrument)}</td>
                   <td>${esc(s.difficulty)}</td>
                   <td class="hide-m">${s.viewCount.toLocaleString("ko-KR")}</td>
                   <td>${priceHtml(s)}</td>
