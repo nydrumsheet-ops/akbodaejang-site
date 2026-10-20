@@ -566,22 +566,30 @@ function renderHomePage(el) {
         <button class="more-link" data-go="list:sort:latest">더 보기 ›</button>
       </div>
       ${latest.length ? `
-        <div class="latest-section">
-          <div class="rank-list-grid">
-            ${latest.map((s, i) => `
-              <div class="rank-row" data-score-id="${s.id}">
-                <span class="rank-order">${i + 1}</span>
-                <span class="rank-thumb" style="--tint:${themeOf(s.instrument).tint};">
-                  ${s.thumbnailUrl
-                    ? `<img src="${esc(s.thumbnailUrl)}" alt="" onerror="this.style.display='none';">`
-                    : instArt(s.instrument)}
-                </span>
-                <div class="rank-info">
-                  <div class="rank-title">${esc(s.title)}</div>
-                  <div class="rank-sub">${esc(s.artist)} · ${esc(s.instrument)}</div>
-                </div>
-              </div>`).join("")}
-          </div>
+        <div class="table-wrap">
+          <table class="list-table">
+            <thead>
+              <tr>
+                <th>곡 정보</th>
+                <th class="hide-m">아티스트</th>
+                <th class="hide-m">악기</th>
+                <th>난이도</th>
+                <th class="hide-m">조회수</th>
+                <th>가격</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${latest.map(s => `
+                <tr data-score-id="${s.id}">
+                  <td>${esc(s.title)}</td>
+                  <td class="hide-m"><span style="display:flex;align-items:center;gap:8px;"><span class="avatar" style="width:26px;height:26px;font-size:11px;flex-shrink:0;${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</span></td>
+                  <td class="hide-m">${esc(s.instrument)}</td>
+                  <td>${esc(s.difficulty)}</td>
+                  <td class="hide-m">${s.viewCount.toLocaleString("ko-KR")}</td>
+                  <td>${priceHtml(s)}</td>
+                </tr>`).join("")}
+            </tbody>
+          </table>
         </div>` : `<div class="empty">아직 등록된 악보가 없어요.</div>`}
     </div>
 
