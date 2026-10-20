@@ -2283,7 +2283,7 @@ function renderHeaderAuth() {
   const cartCount = user ? user.cart.length : 0;
   const cartBtn = `
     <button id="header-cart-btn" class="icon-btn" aria-label="장바구니">
-      <span class="icon-btn-glyph"><i class="ico ico-cart"></i></span><span class="icon-btn-label">장바구니</span>
+      <span class="icon-btn-glyph"><i class="ico ico-cart"></i></span>
       ${cartCount ? `<span class="badge">${cartCount}</span>` : ""}
     </button>`;
 
