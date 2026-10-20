@@ -7,6 +7,8 @@
    ============================================================ */
 
 let ADMIN_REJECT_TARGET_ID = null;
+let ADMIN_ARTIST_REJECT_TARGET_ID = null;   // 2026-10-20 추가: 아티스트 신청 관리 탭의 거절 대상(악보 심사용 변수와 분리)
+let ADMIN_ARTIST_FILTER = "심사대기";        // 2026-10-20 추가: 아티스트 신청 관리 상태 필터
 let ADMIN_TAB = "metrics";
 let ADMIN_METRIC_DAYS = 30;          // 운영지표 기간: 1(오늘) / 7 / 30 / 0(전체)
 let ADMIN_MEMBER_QUERY = "";
@@ -25,6 +27,7 @@ function renderAdmin() {
   const pendingReview = Object.values(STATE.scores).filter(s => s.status === "등록" || s.status === "심사중").length;
   const openRequests = Object.values(STATE.requests).filter(r => r.status !== "완료").length;
   const openInquiries = Object.values(STATE.inquiries).filter(q => q.status !== "답변완료").length;
+  const pendingArtistApps = getArtistApplications({ status: "심사대기" }).length;
   const payout = getPayoutBatch();
   const pdfSt = pdfMappingStatus();
   const pdfSt2 = pdfMappingStatus2();
@@ -32,6 +35,7 @@ function renderAdmin() {
   const tabs = [
     ["metrics", "운영지표", ""],
     ["review", "악보 심사", pendingReview],
+    ["artistapps", "아티스트 신청 관리", pendingArtistApps],
     ["payout", "정산 지급", payout.items.length],
     ["requests", "신청곡", openRequests],
     ["inquiries", "문의 관리", openInquiries],
@@ -75,6 +79,8 @@ function renderAdmin() {
         <div id="admin-review-list"></div>
       </div>`;
     renderAdminReviewList();
+  } else if (ADMIN_TAB === "artistapps") {
+    renderAdminArtistApps(body);
   } else if (ADMIN_TAB === "payout") {
     body.innerHTML = `
       <div style="${ADMIN_PANEL}">
@@ -846,6 +852,140 @@ function renderAdminReviewList() {
     cancelBtn.addEventListener("click", () => {
       ADMIN_REJECT_TARGET_ID = null;
       renderAdminReviewList();
+    });
+  }
+}
+
+/* ---------- 아티스트 신청 관리 (2026-10-20 추가, Phase 2) ----------
+   buyer.js 마이페이지에서 들어온 "아티스트 가입" 신청을 승인/거절한다.
+   승인하면 common.js의 approveArtistApplication → becomeSeller(silent)가 호출되어
+   그 회원이 바로 판매자 권한을 받고, 신청서의 아티스트명이 활동명으로 들어간다. */
+
+function renderAdminArtistApps(body) {
+  body.innerHTML = `
+    <div style="${ADMIN_PANEL}">
+      <h2 style="margin:0 0 4px;font-size:17px;">아티스트 신청 관리</h2>
+      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);">마이페이지에서 들어온 아티스트 가입 신청을 승인하거나 거절합니다. 거절 시 사유가 신청자에게 전달됩니다.</p>
+      <div class="chip-row" id="admin-artistapp-filter" style="margin-bottom:12px;">
+        ${["심사대기", "승인", "거절"].map(s => `
+          <button class="chip ${ADMIN_ARTIST_FILTER === s ? "active" : ""}" data-artistapp-filter="${s}" style="padding:8px 12px;font-size:12px;">${s}</button>
+        `).join("")}
+      </div>
+      <div id="admin-artistapp-msg" style="font-size:13px;margin:0 0 10px;"></div>
+      <div id="admin-artistapp-list"></div>
+    </div>`;
+  body.querySelectorAll("[data-artistapp-filter]").forEach(b => b.addEventListener("click", () => {
+    ADMIN_ARTIST_FILTER = b.dataset.artistappFilter;
+    ADMIN_ARTIST_REJECT_TARGET_ID = null;
+    renderAdminArtistApps(body);
+  }));
+  renderAdminArtistAppList();
+}
+
+function renderAdminArtistAppList() {
+  const listEl = document.getElementById("admin-artistapp-list");
+  if (!listEl) return;
+
+  const list = getArtistApplications({ status: ADMIN_ARTIST_FILTER });
+
+  if (list.length === 0) {
+    listEl.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:0;">"${esc(ADMIN_ARTIST_FILTER)}" 상태의 신청이 없습니다.</p>`;
+    return;
+  }
+
+  listEl.innerHTML = list.map(a => {
+    const isRejecting = ADMIN_ARTIST_REJECT_TARGET_ID === a.id;
+    const statusColor = a.status === "승인" ? "var(--primary)" : a.status === "거절" ? "var(--danger)" : "var(--muted)";
+    return `
+      <div style="padding:12px 0;border-top:1px solid var(--border);">
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="font-size:14px;font-weight:600;">${esc(a.artistName)}</div>
+          <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:#f5f2ee;color:${statusColor};">${esc(a.status)}</span>
+        </div>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.7;">
+          이름 ${esc(a.name)} · 휴대폰 ${esc(a.phone)} · 이메일 ${esc(a.email)}<br>
+          판매자 영상: <a href="${esc(a.videoUrl)}" target="_blank" rel="noopener" style="color:var(--primary-dark);">${esc(a.videoUrl)}</a><br>
+          악보/MR 샘플: <a href="${esc(a.sampleFileUrl)}" target="_blank" rel="noopener" style="color:var(--primary-dark);">파일 열기</a><br>
+          신청일 ${formatDate(a.createdAt)}${a.status === "거절" && a.rejectReason ? ` · 거절 사유: ${esc(a.rejectReason)}` : ""}
+        </div>
+        ${a.status === "심사대기" ? `
+          <div style="display:flex;gap:8px;margin-top:8px;">
+            <button data-artistapp-approve="${a.id}"
+              style="flex:1;padding:9px;font-size:13px;border:none;border-radius:8px;background:var(--primary);color:var(--on-accent);cursor:pointer;">
+              승인
+            </button>
+            <button data-artistapp-reject="${a.id}"
+              style="flex:1;padding:9px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">
+              거절
+            </button>
+          </div>
+        ` : ""}
+        ${isRejecting ? `
+          <div style="margin-top:8px;">
+            <input type="text" id="admin-artistapp-reject-reason" placeholder="거절 사유를 입력하세요"
+              style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
+            <div style="display:flex;gap:8px;margin-top:6px;">
+              <button id="admin-artistapp-reject-confirm"
+                style="flex:1;padding:9px;font-size:13px;border:none;border-radius:8px;background:var(--danger);color:#fff;cursor:pointer;">
+                거절 확정
+              </button>
+              <button id="admin-artistapp-reject-cancel"
+                style="flex:1;padding:9px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;">
+                취소
+              </button>
+            </div>
+          </div>
+        ` : ""}
+      </div>
+    `;
+  }).join("");
+
+  listEl.querySelectorAll("[data-artistapp-approve]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const adminId = getCurrentUser()?.id;
+      const result = approveArtistApplication(btn.dataset.artistappApprove, adminId);
+      if (!result.ok) {
+        showAdminMsg("admin-artistapp-msg", result.message || "승인에 실패했습니다.", true);
+        return;
+      }
+      renderAll();
+      showAdminMsg("admin-artistapp-msg", "승인되었습니다. 신청자에게 바로 판매자 권한이 부여됩니다.", false);
+    });
+  });
+
+  listEl.querySelectorAll("[data-artistapp-reject]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      ADMIN_ARTIST_REJECT_TARGET_ID = btn.dataset.artistappReject;
+      renderAdminArtistAppList();
+    });
+  });
+
+  const confirmBtn = document.getElementById("admin-artistapp-reject-confirm");
+  if (confirmBtn) {
+    confirmBtn.addEventListener("click", () => {
+      const reasonInput = document.getElementById("admin-artistapp-reject-reason");
+      const reason = reasonInput ? reasonInput.value.trim() : "";
+      if (!reason) {
+        showAdminMsg("admin-artistapp-msg", "거절 사유를 입력해주세요.", true);
+        return;
+      }
+      const adminId = getCurrentUser()?.id;
+      const result = rejectArtistApplication(ADMIN_ARTIST_REJECT_TARGET_ID, adminId, reason);
+      ADMIN_ARTIST_REJECT_TARGET_ID = null;
+      if (!result.ok) {
+        showAdminMsg("admin-artistapp-msg", result.message || "거절에 실패했습니다.", true);
+        return;
+      }
+      renderAll();
+      showAdminMsg("admin-artistapp-msg", "거절되었습니다. 신청자에게 사유가 전달됩니다.", false);
+    });
+  }
+
+  const cancelBtn = document.getElementById("admin-artistapp-reject-cancel");
+  if (cancelBtn) {
+    cancelBtn.addEventListener("click", () => {
+      ADMIN_ARTIST_REJECT_TARGET_ID = null;
+      renderAdminArtistAppList();
     });
   }
 }
