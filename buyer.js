@@ -380,13 +380,15 @@ function bindScoreCarousels(el) {
 function scoreCard(s, opts) {
   const o = opts || {};
   const r = getScoreRating(s.id);
+  // 2026-10-20 추가: 전용 썸네일(thumbnailUrl)이 없으면, 상세페이지 미리보기와 같은 소스(previewImages — 악보 첫 페이지)를 그대로 써서 목록에서도 실제 악보 첫 페이지가 보이게 한다. 둘 다 없으면 기존 가짜 오선지 그림(sheetArt)으로 대체.
+  const cardPreviewSrc = s.thumbnailUrl || (previewImages(s) ? previewImages(s)[0] : null);
   return `
     <div class="score-card" data-score-id="${s.id}">
       <div class="thumb" style="--tint:${themeOf(s.instrument).tint};--ink:${themeOf(s.instrument).ink};">
         ${o.rank ? `<span class="rank-num ${o.rank <= 3 ? "top" : ""}">${o.rank}</span>` : ""}
         <span class="diff-badge" style="${diffBadgeStyle(s.difficulty)}">${esc(s.difficulty)}</span>
-        ${s.thumbnailUrl
-          ? `<img src="${esc(s.thumbnailUrl)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
+        ${cardPreviewSrc
+          ? `<img src="${esc(cardPreviewSrc)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
           : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${esc(s.instrument)}</div>`}
         ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶</span>` : ""}
       </div>
