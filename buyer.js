@@ -273,13 +273,13 @@ function priceHtml(s) {
 // "입문"/"상급"은 예전(더 이전) 버전에서 쓰던 이름이 남아있던 것으로, 지금은 어디서도 저장되지 않아 그대로 둔다.
 // 2026-10-20 추가: 사용자 지정 색상으로 5단계 각각 다른 배경·글자색 적용 (border는 배경색과 동일하게 맞춰 테두리가 도드라지지 않게 함)
 const DIFF_BADGE_COLORS = {
-  "입문": { bg: "#E0EDE2", border: "#E0EDE2", fg: "#386240" },
-  "매우 쉬움": { bg: "#E0EDE2", border: "#E0EDE2", fg: "#386240" },
-  "쉬움": { bg: "#F6EECD", border: "#F6EECD", fg: "#7B6121" },
-  "보통": { bg: "#F5E2CE", border: "#F5E2CE", fg: "#8E4F24" },
-  "매우 어려움": { bg: "#F0DBDA", border: "#F0DBDA", fg: "#943839" },
-  "상급": { bg: "#F0DBDA", border: "#F0DBDA", fg: "#943839" },
-  "어려움": { bg: "#E7DDF2", border: "#E7DDF2", fg: "#634295" }
+  "입문": { bg: "#D7F5DF", border: "#D7F5DF", fg: "#18743A" },
+  "매우 쉬움": { bg: "#D7F5DF", border: "#D7F5DF", fg: "#18743A" },
+  "쉬움": { bg: "#FFF1B8", border: "#FFF1B8", fg: "#8A6200" },
+  "보통": { bg: "#FFE0C2", border: "#FFE0C2", fg: "#B94F0A" },
+  "매우 어려움": { bg: "#FFDADA", border: "#FFDADA", fg: "#B92332" },
+  "상급": { bg: "#FFDADA", border: "#FFDADA", fg: "#B92332" },
+  "어려움": { bg: "#EAD9FF", border: "#EAD9FF", fg: "#7138B5" }
 };
 function diffBadgeStyle(difficulty) {
   const c = DIFF_BADGE_COLORS[difficulty] || DIFF_BADGE_COLORS["매우 쉬움"];
