@@ -382,14 +382,21 @@ function scoreCard(s, opts) {
   const o = opts || {};
   const r = getScoreRating(s.id);
   // 2026-10-20 추가: 전용 썸네일(thumbnailUrl)이 없으면, 상세페이지 미리보기와 같은 소스(previewImages — 악보 첫 페이지)를 그대로 써서 목록에서도 실제 악보 첫 페이지가 보이게 한다. 둘 다 없으면 기존 가짜 오선지 그림(sheetArt)으로 대체.
-  const cardPreviewSrc = s.thumbnailUrl || (previewImages(s) ? previewImages(s)[0] : null);
+  // 2026-10-21 변경: 판매자가 직접 올린 thumbnailUrl이 없으면, 첫 페이지를 "잘리지 않고 전체 다" 보여주는
+  // cardThumbUrl(새로 추가, 미리보기용 42% 크롭 이미지와는 별개로 페이지 전체를 담아 생성)을 우선 쓴다.
+  // cardThumbUrl도 없으면(아직 백필 전인 기존 악보) 예전처럼 42% 크롭 미리보기 이미지로 대체한다.
+  // thumbnailUrl은 판매자가 의도적으로 올린 이미지이므로 기존처럼 object-fit:cover로 박스를 꽉 채우고,
+  // cardThumbUrl·크롭 미리보기는 object-fit:contain + 흰 배경으로 보여줘서 정사각형 박스 안에서
+  // 위아래(또는 좌우)에 여백이 생기더라도 악보 내용이 잘리지 않게 한다.
+  const cardPreviewSrc = s.thumbnailUrl || s.cardThumbUrl || (previewImages(s) ? previewImages(s)[0] : null);
+  const cardPreviewFit = s.thumbnailUrl ? "cover" : "contain";
   return `
     <div class="score-card" data-score-id="${s.id}">
       <div class="thumb" style="--tint:${themeOf(s.instrument).tint};--ink:${themeOf(s.instrument).ink};">
         ${o.rank ? `<span class="rank-num ${o.rank <= 3 ? "top" : ""}">${o.rank}</span>` : ""}
         <span class="diff-badge" style="${diffBadgeStyle(s.difficulty)}">${esc(s.difficulty)}</span>
         ${cardPreviewSrc
-          ? `<img src="${esc(cardPreviewSrc)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:cover;" onerror="this.style.display='none';">`
+          ? `<img src="${esc(cardPreviewSrc)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;" onerror="this.style.display='none';">`
           : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${esc(s.instrument)}</div>`}
         ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶</span>` : ""}
       </div>

@@ -1883,6 +1883,13 @@ let ADMIN_PAGECOUNT_OK = 0;
 let ADMIN_PAGECOUNT_FAIL = 0;
 let ADMIN_PAGECOUNT_LOG = []; // { file, ok, message }
 
+let ADMIN_CARDTHUMB_RUNNING = false;
+let ADMIN_CARDTHUMB_STOP = false;
+let ADMIN_CARDTHUMB_DONE = 0;
+let ADMIN_CARDTHUMB_OK = 0;
+let ADMIN_CARDTHUMB_FAIL = 0;
+let ADMIN_CARDTHUMB_LOG = []; // { file, ok, message }
+
 function pdfMappingStatus() {
   let done = 0;
   for (const m of SCORE_PDF_MAPPING) {
@@ -1922,6 +1929,7 @@ function renderAdminPdfUpload(body) {
     ${renderAdminPdfConfirmHTML()}
     ${renderAdminReviewHTML()}
     ${renderAdminPageCountHTML()}
+    ${renderAdminCardThumbHTML()}
   `;
 
   document.getElementById("admin-pdf-pick-btn")?.addEventListener("click", () => {
@@ -1940,6 +1948,7 @@ function renderAdminPdfUpload(body) {
   wireAdminPdfConfirm();
   wireAdminReview();
   wireAdminPageCount();
+  wireAdminCardThumb();
 }
 
 /* ---------- 기존 악보 페이지 수 일괄 계산 (2026-10-21 추가) ----------
@@ -2075,6 +2084,137 @@ async function runBulkPageCount(files) {
   ADMIN_PAGECOUNT_RUNNING = false;
   renderAdmin();
   if (typeof toast === "function") toast(`페이지 수 계산 완료: 성공 ${ADMIN_PAGECOUNT_OK}건 · 실패 ${ADMIN_PAGECOUNT_FAIL}건`);
+}
+
+/* ---------- 기존 악보 카드 썸네일 일괄 생성 (2026-10-21 추가) ----------
+   목록/홈 카드에 보여줄 "첫 페이지 전체" 썸네일(cardThumbUrl)은 새로 등록되는 악보부터는
+   자동으로 만들어지지만, 이미 등록돼 있던 악보 748건은 저장된 값이 없다(페이지 수
+   일괄 계산과 마찬가지로, 같은 "판매용 악보" 폴더 매칭표를 재사용한다). 페이지 수와
+   달리 이번에는 이미지를 새로 만들어 Storage(previews 버킷)에 올려야 하므로, 파일을
+   열어 페이지 수만 읽는 것보다는 시간이 걸린다. 이미 cardThumbUrl이 채워진 악보는
+   건드리지 않고 조용히 건너뛴다(중간에 멈췄다가 같은 폴더로 다시 시작해도 안전). */
+
+function cardThumbStatus() {
+  const all = pageCountMappingList(); // 페이지 수 작업과 동일한 매칭 목록을 재사용
+  let eligible = 0, done = 0;
+  for (const m of all) {
+    const s = STATE.scores[m.id];
+    if (!s || !s.fileUrl) continue; // 파일 자체가 없는 악보는 대상이 아님
+    eligible++;
+    if (s.cardThumbUrl) done++;
+  }
+  return { total: eligible, done, remaining: eligible - done };
+}
+
+function renderAdminCardThumbHTML() {
+  const st = cardThumbStatus();
+  return `
+    <div style="${ADMIN_PANEL}">
+      <h3 style="margin:0 0 4px;font-size:15px;">기존 악보 카드 썸네일 일괄 생성</h3>
+      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.6;">
+        목록·홈 화면 카드에 "악보 첫 페이지 전체"가 잘리지 않고 보이도록, 위에서 쓴 것과
+        같은 "판매용 악보" 폴더를 다시 골라주시면 파일명이 맞는 악보만 열어서 썸네일 이미지를
+        새로 만들어 저장합니다(이미지를 새로 올리는 작업이라 페이지 수 계산보다 시간이
+        조금 더 걸려요).<br>
+        지금까지 만들어짐: <b>${st.done} / ${st.total}</b>곡
+      </p>
+      <input type="file" id="admin-cardthumb-folder-input" webkitdirectory directory multiple style="display:none;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button id="admin-cardthumb-pick-btn" class="btn btn-primary" style="border-radius:12px;background:#da7f54;border-color:#da7f54;" ${ADMIN_CARDTHUMB_RUNNING ? "disabled" : ""}>
+          ${ADMIN_CARDTHUMB_RUNNING ? "생성 진행 중..." : `"판매용 악보" 폴더 선택해서 생성 시작`}
+        </button>
+        ${ADMIN_CARDTHUMB_RUNNING ? `<button id="admin-cardthumb-stop-btn" style="padding:9px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">중단</button>` : ""}
+      </div>
+      <div id="admin-cardthumb-progress" style="margin-top:14px;"></div>
+      <div id="admin-cardthumb-log" style="margin-top:10px;max-height:320px;overflow-y:auto;font-size:12px;"></div>
+    </div>`;
+}
+
+function wireAdminCardThumb() {
+  document.getElementById("admin-cardthumb-pick-btn")?.addEventListener("click", () => {
+    document.getElementById("admin-cardthumb-folder-input")?.click();
+  });
+  document.getElementById("admin-cardthumb-folder-input")?.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    runBulkCardThumb(files);
+  });
+  document.getElementById("admin-cardthumb-stop-btn")?.addEventListener("click", () => {
+    ADMIN_CARDTHUMB_STOP = true;
+  });
+  renderAdminCardThumbProgress();
+}
+
+function renderAdminCardThumbProgress() {
+  const progEl = document.getElementById("admin-cardthumb-progress");
+  const logEl = document.getElementById("admin-cardthumb-log");
+  if (!progEl || !logEl) return;
+  const total = cardThumbStatus().total;
+  const pct = total ? Math.round((ADMIN_CARDTHUMB_DONE / total) * 100) : 0;
+  progEl.innerHTML = (ADMIN_CARDTHUMB_RUNNING || ADMIN_CARDTHUMB_DONE > 0) ? `
+    <div style="font-size:13px;margin-bottom:6px;">${ADMIN_CARDTHUMB_DONE} / ${total} 처리됨 · 성공 ${ADMIN_CARDTHUMB_OK} · 실패 ${ADMIN_CARDTHUMB_FAIL}</div>
+    <div style="height:8px;border-radius:4px;background:var(--band);"><div style="height:8px;border-radius:4px;background:var(--primary);width:${pct}%;"></div></div>
+  ` : "";
+  const recent = ADMIN_CARDTHUMB_LOG.slice(-200).slice().reverse();
+  logEl.innerHTML = recent.map(r => `
+    <div style="padding:4px 0;border-top:1px solid var(--border);color:${r.ok ? "var(--text)" : "var(--danger)"};">
+      ${r.ok ? "✓" : "✗"} ${esc(r.file)}${r.ok ? "" : ` — ${esc(r.message || "")}`}
+    </div>`).join("");
+}
+
+async function runBulkCardThumb(files) {
+  if (ADMIN_CARDTHUMB_RUNNING) return;
+  ADMIN_CARDTHUMB_RUNNING = true;
+  ADMIN_CARDTHUMB_STOP = false;
+  ADMIN_CARDTHUMB_DONE = 0; ADMIN_CARDTHUMB_OK = 0; ADMIN_CARDTHUMB_FAIL = 0; ADMIN_CARDTHUMB_LOG = [];
+  renderAdmin();
+
+  // macOS 브라우저의 한글 파일명 자모 분리(NFD) 문제는 기존 작업들과 동일하게 NFC로 맞춰서 비교한다.
+  const byName = new Map();
+  for (const f of files) {
+    const name = (f.name || "").normalize("NFC");
+    byName.set(name, f);
+  }
+
+  const targets = pageCountMappingList();
+  for (const m of targets) {
+    if (ADMIN_CARDTHUMB_STOP) break;
+    const score = STATE.scores[m.id];
+    if (!score || !score.fileUrl) continue; // 파일 자체가 없는 악보는 대상이 아님(조용히 건너뜀, 로그 안 남김)
+    if (score.cardThumbUrl) { ADMIN_CARDTHUMB_DONE++; ADMIN_CARDTHUMB_OK++; continue; } // 이미 만들어짐 — 조용히 건너뜀
+
+    const wanted = m.file.normalize("NFC");
+    const file = byName.get(wanted);
+    if (!file) {
+      ADMIN_CARDTHUMB_LOG.push({ file: m.file, ok: false, message: "선택한 폴더에서 이 파일명을 찾지 못함" });
+      ADMIN_CARDTHUMB_FAIL++; ADMIN_CARDTHUMB_DONE++;
+      if (ADMIN_CARDTHUMB_DONE % 10 === 0) renderAdminCardThumbProgress();
+      continue;
+    }
+    try {
+      const blob = await generateScoreCardThumbnail(file);
+      const upload = blob ? await uploadScoreCardThumbnail(score.sellerId, score.id, blob) : null;
+      if (upload && upload.ok && upload.url) {
+        score.cardThumbUrl = upload.url;
+        ADMIN_CARDTHUMB_OK++;
+        ADMIN_CARDTHUMB_LOG.push({ file: m.file, ok: true });
+      } else {
+        ADMIN_CARDTHUMB_FAIL++;
+        ADMIN_CARDTHUMB_LOG.push({ file: m.file, ok: false, message: (upload && upload.message) || "썸네일을 만들지 못함" });
+      }
+    } catch (e) {
+      console.error("[admin] 카드 썸네일 일괄 생성 오류", e);
+      ADMIN_CARDTHUMB_FAIL++;
+      ADMIN_CARDTHUMB_LOG.push({ file: m.file, ok: false, message: "처리 중 오류 발생" });
+    }
+    ADMIN_CARDTHUMB_DONE++;
+    if (ADMIN_CARDTHUMB_DONE % 5 === 0) renderAdminCardThumbProgress();
+  }
+
+  save(); // scores.cardThumbUrl 변경분을 한꺼번에 서버에 반영 (diff 저장)
+  ADMIN_CARDTHUMB_RUNNING = false;
+  renderAdmin();
+  if (typeof toast === "function") toast(`카드 썸네일 생성 완료: 성공 ${ADMIN_CARDTHUMB_OK}건 · 실패 ${ADMIN_CARDTHUMB_FAIL}건`);
 }
 
 function renderAdminPdfProgress() {

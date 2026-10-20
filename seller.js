@@ -474,6 +474,21 @@ async function handleSubmitScore(sellerId) {
     console.error("[seller] PDF 페이지 수 확인 중 오류", e);
   }
 
+  // 목록/홈 카드에 쓸 "첫 페이지 전체" 썸네일도 함께 만든다(2026-10-21 추가). 미리보기
+  // 이미지(42% 크롭)와는 별개 이미지이며, 실패해도 등록은 계속 진행한다(없으면 카드에서
+  // 기존 42% 크롭 미리보기 이미지로 대체해서 보여준다).
+  showSellerMsg(msgEl, "카드 썸네일을 만드는 중입니다...", false);
+  let cardThumbUrl = null;
+  try {
+    const cardThumbBlob = await generateScoreCardThumbnail(file);
+    if (cardThumbBlob) {
+      const cardThumbUpload = await uploadScoreCardThumbnail(sellerId, scoreId, cardThumbBlob);
+      if (cardThumbUpload.ok && cardThumbUpload.url) cardThumbUrl = cardThumbUpload.url;
+    }
+  } catch (e) {
+    console.error("[seller] 카드 썸네일 처리 중 오류", e);
+  }
+
   const result = submitScore(sellerId, {
     id: scoreId,
     title, artist, instrument, difficulty, price,
@@ -482,6 +497,7 @@ async function handleSubmitScore(sellerId) {
     fileUrl: uploadResult.path,
     previewUrls,
     pageCount,
+    cardThumbUrl,
     description,
     tags: SF_TAGS,
     thumbnailUrl

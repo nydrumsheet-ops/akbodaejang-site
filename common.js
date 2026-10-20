@@ -268,6 +268,7 @@ function rowFromScore(s) {
     preview_url: s.previewUrl || null,
     preview_urls: Array.isArray(s.previewUrls) && s.previewUrls.length ? s.previewUrls : null,
     page_count: s.pageCount || null,
+    card_thumb_url: s.cardThumbUrl || null,
     status: s.status, reject_reason: s.rejectReason || null, created_at: s.createdAt,
     approved_at: s.approvedAt || null, sales_count: s.salesCount || 0, view_count: s.viewCount || 0,
     description: s.description || "", tags: s.tags || [], thumbnail_url: s.thumbnailUrl || null,
@@ -281,6 +282,7 @@ function scoreFromRow(r) {
     fileUrl: r.file_url, previewInfo: r.preview_info, previewUrl: r.preview_url || null,
     previewUrls: Array.isArray(r.preview_urls) && r.preview_urls.length ? r.preview_urls : null,
     pageCount: r.page_count || null,
+    cardThumbUrl: r.card_thumb_url || null,
     status: r.status, rejectReason: r.reject_reason,
     createdAt: r.created_at, approvedAt: r.approved_at, salesCount: r.sales_count, viewCount: r.view_count,
     description: r.description || "", tags: r.tags || [], thumbnailUrl: r.thumbnail_url,
@@ -1399,6 +1401,85 @@ async function generateScorePreviewImage(file) {
   return Promise.race([work, timeoutGuard]);
 }
 
+/* ---------- 악보 카드 썸네일 (PDF 첫 페이지 전체, 2026-10-21 추가) ----------
+   목록/홈 화면 악보 카드에 쓰는 썸네일. 기존 미리보기 이미지(generateScorePreviewImage)는
+   상세페이지 "첫 8마디 미리보기" 취지로 첫 페이지 상단 42%만 잘라서 쓰지만, 카드 썸네일은
+   "악보가 잘리지 않고 첫 페이지 전체가 다 보여야" 하므로 자르지 않고 페이지 전체를 그대로
+   이미지로 만든다. 카드가 보이는 박스 자체는 정사각형을 그대로 유지하고, 화면에서는
+   object-fit:contain으로 보여줘서 위아래(또는 좌우)에 흰 여백이 생기는 방식으로 잘리지
+   않게 한다(2026-10-21 사용자 확인 — 박스 모양을 세로로 긴 A4 비율로 바꾸는 대신 이 방식 선택).
+   pdf.js가 없거나 실패하면 null을 반환하며, 이 경우에도 등록 자체는 계속 진행된다(카드 썸네일은
+   선택 정보, 필수 아님 — 없으면 기존처럼 42% 크롭 미리보기 이미지로 대체해서 보여준다). */
+async function generateScoreCardThumbnail(file) {
+  if (!window.pdfjsLib) {
+    console.warn("[common] pdf.js 가 로드되지 않아 카드 썸네일을 만들 수 없습니다.");
+    return null;
+  }
+  if (!file) return null;
+
+  // 미리보기 이미지와 마찬가지로, 다른 탭으로 전환되는 등의 이유로 렌더링이 멈춰버릴 수
+  // 있으니 일정 시간이 지나면 포기하고 null을 돌려줘서 등록 자체는 계속 진행되게 한다.
+  const THUMB_TIMEOUT_MS = 20000;
+  const timeoutGuard = new Promise(resolve => setTimeout(() => resolve(null), THUMB_TIMEOUT_MS));
+
+  const work = (async () => {
+    try {
+      const buf = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      const page = await pdf.getPage(1);
+      const baseViewport = page.getViewport({ scale: 1 });
+      const targetWidth = 1000;
+      const scale = Math.min(2.5, targetWidth / baseViewport.width);
+      const viewport = page.getViewport({ scale });
+
+      // 미리보기 이미지와 달리 자르지 않고 페이지 전체를 그대로 캔버스에 담는다.
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.ceil(viewport.width);
+      canvas.height = Math.ceil(viewport.height);
+      const ctx = canvas.getContext("2d");
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      await page.render({ canvasContext: ctx, viewport }).promise;
+
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png", 0.92));
+      return blob || null;
+    } catch (e) {
+      console.error("[common] 카드 썸네일 생성 오류", e);
+      return null;
+    }
+  })();
+
+  return Promise.race([work, timeoutGuard]);
+}
+
+/* 저장 경로 규칙: "{판매자 아이디}/{악보 아이디}-card.png" — 미리보기 이미지 경로
+   ({판매자 아이디}/{악보 아이디}.png)와 겹치지 않도록 "-card"를 붙인다. previews 버킷은
+   공개 읽기이므로 구매 전 손님도 바로 볼 수 있다(미리보기 이미지와 동일 버킷 재사용 —
+   새 버킷·RLS 설정이 필요 없다). */
+async function uploadScoreCardThumbnail(sellerId, scoreId, blob) {
+  if (!blob) return { ok: false, message: "카드 썸네일을 만들지 못했습니다." };
+  const sb = getSb();
+  if (!sb) return { ok: false, message: "서버 연결 준비 중입니다. 잠시 후 다시 시도해주세요." };
+
+  const path = `${sellerId}/${scoreId}-card.png`;
+  let error = null;
+  try {
+    const res = await sb.storage.from("previews").upload(path, blob, { upsert: true, contentType: "image/png" });
+    error = res.error;
+  } catch (e) {
+    error = e;
+  }
+  if (error) {
+    console.error("[common] 카드 썸네일 업로드 오류", error);
+    return { ok: false, message: "카드 썸네일 업로드 중 문제가 발생했습니다." };
+  }
+  const { data } = sb.storage.from("previews").getPublicUrl(path);
+  if (!data || !data.publicUrl) {
+    return { ok: false, message: "카드 썸네일 주소를 가져오지 못했습니다." };
+  }
+  return { ok: true, url: data.publicUrl };
+}
+
 /* 저장 경로 규칙: "{판매자 아이디}/{악보 아이디}.png" — scores 버킷과 동일한 방식으로
    판매자 본인 소유만 쓸 수 있게 RLS 가 경로를 본다. previews 버킷은 공개 읽기이므로
    구매 전 손님도 바로 볼 수 있다. */
@@ -1555,6 +1636,7 @@ function submitScore(sellerId, data) {
     previewUrl: data.previewUrl || null,
     previewUrls: Array.isArray(data.previewUrls) && data.previewUrls.length ? data.previewUrls : null,
     pageCount: Number.isFinite(data.pageCount) && data.pageCount > 0 ? data.pageCount : null,
+    cardThumbUrl: data.cardThumbUrl || null,
     previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`,
     status: "승인", rejectReason: null, createdAt: nowISO(), approvedAt: nowISO(),
     salesCount: 0, viewCount: 0,
