@@ -119,6 +119,12 @@ const POLICY = {
   chargeRefund: {
     windowDays: 7
   },
+  // 2026-10-20 추가: 악보 다운로드도 구매 후 POLICY.refund.windowDays(7일)이 지나면 막는다
+  // (환불 기한과 동일하게 통일 — 환불도 "구매 후 7일 이내"가 조건이라 어차피 그 이후엔 환불도 안 됐음).
+  // enforceFrom 이전에 이미 구매한 건은 소급 적용하지 않고 계속 다운로드 가능하게 둔다.
+  download: {
+    enforceFrom: "2026-10-20T07:48:37.000Z"
+  },
   preview: {
     bars: 8
   }
@@ -1122,10 +1128,23 @@ async function refundPurchase(purchaseId) {
   return { ok: true };
 }
 
-function downloadPurchase(purchaseId) {
+/* 2026-10-20 추가: 다운로드 가능 여부만 확인하는 순수 함수(부작용 없음, STATE를 바꾸지 않음).
+   buyer.js에서 다운로드 버튼을 누르기 전에도, downloadPurchase() 안에서도 같은 기준으로 재사용한다. */
+function canDownloadPurchase(purchaseId) {
   const purchase = STATE.purchases[purchaseId];
   if (!purchase) return { ok: false, message: "구매 내역을 찾을 수 없습니다." };
   if (purchase.refunded) return { ok: false, message: "환불된 구매는 다운로드할 수 없습니다." };
+  const limited = purchase.purchasedAt >= POLICY.download.enforceFrom;
+  if (limited && purchase.refundDeadline && new Date() > new Date(purchase.refundDeadline)) {
+    return { ok: false, message: `다운로드 가능 기한(구매 후 ${POLICY.refund.windowDays}일)이 지났습니다. 궁금한 점은 고객센터 1:1 문의로 알려주세요.` };
+  }
+  return { ok: true };
+}
+
+function downloadPurchase(purchaseId) {
+  const check = canDownloadPurchase(purchaseId);
+  if (!check.ok) return check;
+  const purchase = STATE.purchases[purchaseId];
   if (!purchase.downloaded) {
     purchase.downloaded = true;
     purchase.downloadedAt = nowISO();

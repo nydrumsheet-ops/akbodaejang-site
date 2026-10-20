@@ -969,7 +969,7 @@ function renderDetailPage(el, p) {
 
         <div class="price-big">${priceHtml(s)}</div>
         ${buyArea}
-        <p class="buy-note">구매 후 ${POLICY.refund.windowDays}일 이내, 파일을 열지 않았다면 포인트로 전액 환불돼요. 구매한 악보는 마이페이지 › 내 악보함에서 언제든 다시 받을 수 있어요.</p>
+        <p class="buy-note">구매 후 ${POLICY.refund.windowDays}일 이내, 파일을 열지 않았다면 포인트로 전액 환불돼요. 구매한 악보는 마이페이지 › 내 악보함에서 같은 기간(${POLICY.refund.windowDays}일) 안에 다시 받을 수 있어요.</p>
       </div>
     </div>
 
@@ -1292,6 +1292,9 @@ function renderMyPage(el, p) {
   // 내 악보함 버튼
   el.querySelectorAll("[data-download]").forEach(b => b.addEventListener("click", async () => {
     if (b.disabled) return;
+    // 2026-10-20 추가: 서명된 다운로드 URL을 만들기 전에 먼저 기한(구매 후 7일) 체크부터 한다.
+    const preCheck = canDownloadPurchase(b.dataset.download);
+    if (!preCheck.ok) { toast(preCheck.message, true); renderBuyer(); return; }
     b.disabled = true;
     const originalText = b.textContent;
     b.textContent = "준비 중...";
@@ -1402,7 +1405,7 @@ function myLibraryHTML(user) {
   return `
     <div class="panel">
       <h2 style="margin:0 0 4px;font-size:17px;">내 악보함</h2>
-      <p class="muted" style="margin:0 0 8px;font-size:12px;">환불은 파일을 열기 전, 구매 후 ${POLICY.refund.windowDays}일 이내만 가능해요.</p>
+      <p class="muted" style="margin:0 0 8px;font-size:12px;">환불은 파일을 열기 전, 다운로드는 구매 후 ${POLICY.refund.windowDays}일 이내만 가능해요.</p>
       ${list.map(x => {
         const s = STATE.scores[x.scoreId];
         const title = s ? s.title : "삭제된 악보";
@@ -1411,14 +1414,17 @@ function myLibraryHTML(user) {
           return `<div class="row-item"><div class="row-main"><div class="row-title" ${s ? `data-score-id="${s.id}"` : ""}>${esc(title)}</div><div class="row-sub" style="color:var(--danger);">환불 완료 · ${formatDate(x.refundedAt)}</div></div></div>`;
         }
         const canRefund = x.price > 0 && !x.downloaded && new Date() <= new Date(x.refundDeadline);
+        // 2026-10-20 추가: 다운로드 기한(구매 후 7일, 오늘 이후 구매분부터만 적용) 체크
+        const dlCheck = canDownloadPurchase(x.id);
+        const downloadExpired = !dlCheck.ok && !x.refunded;
         return `
           <div class="row-item">
             <div class="row-main">
               <div class="row-title" ${s ? `data-score-id="${s.id}"` : ""}>${esc(title)}</div>
-              <div class="row-sub">${x.price === 0 ? "신청곡 무료 지급" : formatPoint(x.price)} · 구매 ${formatDate(x.purchasedAt)}${x.downloaded ? ` · 받음 ${formatDate(x.downloadedAt)}` : canRefund ? ` · 환불 가능 ~${formatDate(x.refundDeadline)}` : ""}</div>
+              <div class="row-sub">${x.price === 0 ? "신청곡 무료 지급" : formatPoint(x.price)} · 구매 ${formatDate(x.purchasedAt)}${downloadExpired ? ` · <span style="color:var(--danger);">${esc(dlCheck.message)}</span>` : x.downloaded ? ` · 받음 ${formatDate(x.downloadedAt)}` : canRefund ? ` · 환불 가능 ~${formatDate(x.refundDeadline)}` : ""}</div>
             </div>
             <div class="row-actions">
-              <button class="btn btn-primary btn-small" data-download="${x.id}">${x.downloaded ? "다시 받기" : "다운로드"}</button>
+              <button class="btn btn-primary btn-small" data-download="${x.id}" ${downloadExpired ? "disabled" : ""}>${downloadExpired ? "기한 만료" : x.downloaded ? "다시 받기" : "다운로드"}</button>
               ${canRefund ? `<button class="btn btn-small" data-refund="${x.id}">환불</button>` : ""}
               ${s && !reviewed ? `<button class="btn btn-small" data-review="${s.id}">후기 쓰기</button>` : ""}
             </div>
