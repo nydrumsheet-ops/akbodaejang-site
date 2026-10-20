@@ -154,7 +154,8 @@ function renderSeller() {
         </label>
 
         <button id="sf-submit"
-          style="margin-top:6px;padding:13px;font-size:15px;border:none;border-radius:10px;background:var(--primary);color:var(--on-accent);cursor:pointer;">
+          style="margin-top:6px;padding:13px;font-size:15px;border:none;border-radius:10px;background:#33312e;color:var(--on-accent);cursor:pointer;"
+          onmouseover="this.style.background='#1f1e1c'" onmouseout="this.style.background='#33312e'">
           등록하기
         </button>
 
