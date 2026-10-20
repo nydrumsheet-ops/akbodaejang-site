@@ -1685,8 +1685,26 @@ async function uploadArtistSampleFile(userId, file) {
   if (!okTypes.includes(ext)) {
     return { ok: false, message: "PDF, JPG, MP3 파일만 업로드할 수 있습니다." };
   }
+  const MAX_BYTES = 30 * 1024 * 1024; // 30MB (scores 버킷과 동일한 상한)
+  if (file.size > MAX_BYTES) {
+    return { ok: false, message: "파일 크기는 30MB를 넘을 수 없습니다." };
+  }
   const sb = getSb();
   if (!sb) return { ok: false, message: "서버 연결 준비 중입니다. 잠시 후 다시 시도해주세요." };
+
+  /* 2026-10-20 수정: 로그인(앱 자체 로그인 상태)과 Supabase 서버 인증(로그인 토큰)이 서로
+     다른 저장소에 따로 보관되다 보니, 화면에는 로그인된 것처럼 보여도 서버 쪽 로그인 토큰이
+     만료돼 있으면(오래 켜둔 탭 등) 업로드가 "권한 없음"으로 조용히 실패하는 경우가 있었다.
+     업로드를 시도하기 전에 서버 로그인 토큰이 살아있는지 먼저 확인해서, 만료됐으면 바로
+     "다시 로그인해주세요"라고 안내한다 — 원인을 알 수 없는 "문제가 발생했습니다"보다 훨씬 명확하다. */
+  let session = null;
+  try {
+    const { data: sessionData } = await sb.auth.getSession();
+    session = sessionData && sessionData.session;
+  } catch (e) { /* 아래에서 session이 없는 것으로 처리 */ }
+  if (!session) {
+    return { ok: false, message: "로그인이 만료된 것 같아요. 로그아웃 후 다시 로그인하고 신청해주세요." };
+  }
 
   const path = `${userId}/${Date.now()}${ext}`;
   let error = null;
@@ -1698,7 +1716,14 @@ async function uploadArtistSampleFile(userId, file) {
   }
   if (error) {
     console.error("[common] 아티스트 신청 샘플 업로드 오류", error);
-    return { ok: false, message: "샘플 파일 업로드 중 문제가 발생했습니다." };
+    const msg = (error && error.message) || "";
+    const isAuthIssue = /row-level security|permission|jwt|403/i.test(msg) || error.statusCode === "403" || error.statusCode === 403;
+    return {
+      ok: false,
+      message: isAuthIssue
+        ? "로그인이 만료된 것 같아요. 로그아웃 후 다시 로그인하고 신청해주세요."
+        : "샘플 파일 업로드 중 문제가 발생했습니다. 파일 용량이 너무 크지 않은지 확인하고 다시 시도해주세요."
+    };
   }
   const { data } = sb.storage.from("artist-samples").getPublicUrl(path);
   if (!data || !data.publicUrl) {
