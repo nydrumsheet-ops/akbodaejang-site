@@ -256,17 +256,19 @@ function priceHtml(s) {
     + `<span>${formatPoint(effectivePrice(s))}</span>`;
 }
 
+// 2026-10-20: 난이도 이름 교체(초급→매우 쉬움, 초중급→쉬움, 중급→보통, 고급→어려움, 프로→매우 어려움)에 맞춰 키를 바꿨다.
+// "입문"/"상급"은 예전(더 이전) 버전에서 쓰던 이름이 남아있던 것으로, 지금은 어디서도 저장되지 않아 그대로 둔다.
 const DIFF_BADGE_COLORS = {
   "입문": { bg: "#ecfcff", border: "#87eaff", fg: "#41c0ff" },
-  "초급": { bg: "#ecfcff", border: "#87eaff", fg: "#41c0ff" },
-  "초중급": { bg: "#ecfcff", border: "#87eaff", fg: "#41c0ff" },
-  "중급": { bg: "#fffaec", border: "#ffb932", fg: "#ffb525" },
-  "프로": { bg: "#ffeeee", border: "#ff7d7d", fg: "#ff7272" },
+  "매우 쉬움": { bg: "#ecfcff", border: "#87eaff", fg: "#41c0ff" },
+  "쉬움": { bg: "#ecfcff", border: "#87eaff", fg: "#41c0ff" },
+  "보통": { bg: "#fffaec", border: "#ffb932", fg: "#ffb525" },
+  "매우 어려움": { bg: "#ffeeee", border: "#ff7d7d", fg: "#ff7272" },
   "상급": { bg: "#ffeeee", border: "#ff7d7d", fg: "#ff7272" },
-  "고급": { bg: "#ffeeee", border: "#ff7d7d", fg: "#ff7272" }
+  "어려움": { bg: "#ffeeee", border: "#ff7d7d", fg: "#ff7272" }
 };
 function diffBadgeStyle(difficulty) {
-  const c = DIFF_BADGE_COLORS[difficulty] || DIFF_BADGE_COLORS["초급"];
+  const c = DIFF_BADGE_COLORS[difficulty] || DIFF_BADGE_COLORS["매우 쉬움"];
   return `background:${c.bg};border:1px solid ${c.border};color:${c.fg};`;
 }
 function cartIcon() {
@@ -525,7 +527,7 @@ function renderHomePage(el) {
     <div class="lvl-band">
       <div class="lvl-head"><h2>지금의 나에게, 알맞은 난이도</h2></div>
       <div class="lvl-grid">
-        ${DIFFICULTIES.map((d, n) => { const info = ({"초급":["한 곡을 끝까지, 차근차근","쉬운 반주 · 편안한 조성"],"중급":["표현이 깊어지는 시간","다양한 리듬 · 풍부한 화성"],"고급":["나만의 해석을 더하다","원곡의 깊이 · 연주회 레퍼토리"]})[d] || ["",""]; const lv = 4 - DIFFICULTIES.length + n + 1; return `<button class="lvl-card" data-go="list:difficulty:${esc(d)}"><span class="lvl-top"><b>${esc(d)}</b><span class="lvl-bars" aria-hidden="true">${[1,2,3,4].map(k => `<i class="${k <= lv ? "on" : ""}" style="height:${8 + k * 3}px"></i>`).join("")}</span></span><span class="lvl-tag">${info[0]}</span><span class="lvl-meta">${info[1]}</span><span class="lvl-foot"><span>보러가기</span><i class="ico" style="--i:url(https://unpkg.com/lucide-static@0.468.0/icons/arrow-right.svg)"></i></span></button>`; }).join("")}
+        ${DIFFICULTIES.map((d, n) => { const info = ({"매우 쉬움":["한 곡을 끝까지, 차근차근","쉬운 반주 · 편안한 조성"],"보통":["표현이 깊어지는 시간","다양한 리듬 · 풍부한 화성"],"어려움":["나만의 해석을 더하다","원곡의 깊이 · 연주회 레퍼토리"]})[d] || ["",""]; const lv = 4 - DIFFICULTIES.length + n + 1; return `<button class="lvl-card" data-go="list:difficulty:${esc(d)}"><span class="lvl-top"><b>${esc(d)}</b><span class="lvl-bars" aria-hidden="true">${[1,2,3,4].map(k => `<i class="${k <= lv ? "on" : ""}" style="height:${8 + k * 3}px"></i>`).join("")}</span></span><span class="lvl-tag">${info[0]}</span><span class="lvl-meta">${info[1]}</span><span class="lvl-foot"><span>보러가기</span><i class="ico" style="--i:url(https://unpkg.com/lucide-static@0.468.0/icons/arrow-right.svg)"></i></span></button>`; }).join("")}
       </div>
     </div>
     </div>

@@ -119,19 +119,22 @@ const POLICY = {
 };
 
 const INSTRUMENTS = ["드럼", "기타", "피아노", "베이스", "바이올린", "보컬"];
-const DIFFICULTIES = ["초급", "중급", "고급"]; // 홈화면 큰 카테고리 3개 (변경 금지)
-/* Score.difficulty 에 실제로 저장되는 5단계 값 (2026-10-18 추가).
-   "초중급"은 "중급" 카테고리 안의 세부 단계, "프로"는 "고급" 카테고리 안의 세부 단계다.
+/* 2026-10-20 변경: 난이도 이름을 전면 교체했다 (기존 → 새 이름):
+   초급→매우 쉬움, 초중급→쉬움, 중급→보통, 고급→어려움, 프로→매우 어려움.
+   구조(홈화면 큰 카테고리 3개 + 카테고리 안의 세부 단계)는 그대로 유지하고 이름만 바꿨다. */
+const DIFFICULTIES = ["매우 쉬움", "보통", "어려움"]; // 홈화면 큰 카테고리 3개 (변경 금지)
+/* Score.difficulty 에 실제로 저장되는 5단계 값 (2026-10-18 추가, 2026-10-20 이름 교체).
+   "쉬움"은 "보통" 카테고리 안의 세부 단계, "매우 어려움"은 "어려움" 카테고리 안의 세부 단계다.
    DIFFICULTIES(3개)는 홈화면 카테고리 이름 그대로 유지하고, 각 카테고리 화면 안에서
    세부 단계를 보여줄 때만 이 5단계 값과 DIFFICULTY_GROUP 을 사용한다. */
-const SCORE_DIFFICULTIES = ["초급", "초중급", "중급", "프로", "고급"];
+const SCORE_DIFFICULTIES = ["매우 쉬움", "쉬움", "보통", "매우 어려움", "어려움"];
 /* 5단계 세부값 → 홈화면 3개 카테고리 매핑. difficultyGroup() 을 통해서만 사용한다. */
-const DIFFICULTY_GROUP = { "초급": "초급", "초중급": "중급", "중급": "중급", "프로": "고급", "고급": "고급" };
+const DIFFICULTY_GROUP = { "매우 쉬움": "매우 쉬움", "쉬움": "보통", "보통": "보통", "매우 어려움": "어려움", "어려움": "어려움" };
 function difficultyGroup(d) {
   return DIFFICULTY_GROUP[d] || d;
 }
-/* 카테고리(초급/중급/고급) 안에서 보여줄 세부 단계 목록. 초급 카테고리는 세부 단계가 없다. */
-const DIFFICULTY_SUBTIERS = { "초급": [], "중급": ["초중급", "중급"], "고급": ["프로", "고급"] };
+/* 카테고리(매우 쉬움/보통/어려움) 안에서 보여줄 세부 단계 목록. 매우 쉬움 카테고리는 세부 단계가 없다. */
+const DIFFICULTY_SUBTIERS = { "매우 쉬움": [], "보통": ["쉬움", "보통"], "어려움": ["매우 어려움", "어려움"] };
 const SCORE_STATUS = ["등록", "심사중", "승인", "반려"]; // 2026-10-19: 악보 등록 심사는 폐지됐지만, admin.js Phase 2 정리 전까지 상수는 남겨둔다
 const WITHDRAW_STATUS = ["요청", "지급완료"];
 const REQUEST_STATUS = ["접수", "채보중", "완료"];
@@ -674,21 +677,21 @@ function seedDemoData() {
 
   const list = [
     // [판매자index, 제목, 악기, 난이도, 가격, 영상, 며칠전]
-    [0, "8비트 기본 그루브 연습곡", "드럼", "초급", 1500, true, 1],
-    [0, "16비트 하이햇 연습곡", "드럼", "초급", 2000, true, 2],
-    [1, "펑크 고스트노트 그루브", "드럼", "중급", 3000, true, 3],
-    [1, "셔플 블루스 리듬 연습곡", "드럼", "중급", 2500, false, 4],
-    [0, "더블킥 빌드업 연습곡", "드럼", "고급", 4000, true, 5],
-    [1, "보사노바 리듬 패턴", "드럼", "중급", 2500, true, 6],
-    [0, "필인 모음집 Vol.1", "드럼", "초급", 3500, true, 8],
-    [1, "메탈 블라스트비트 연습곡", "드럼", "고급", 4500, false, 9],
-    [0, "발라드 6/8 그루브 연습곡", "드럼", "초급", 1500, true, 11],
-    [2, "통기타 스트로크 입문 연습곡", "기타", "초급", 1500, true, 2],
-    [2, "핑거스타일 아르페지오 연습곡", "기타", "중급", 3000, false, 7],
-    [2, "베이스 루트음 워킹 연습곡", "베이스", "초급", 2000, true, 10],
-    [3, "피아노 왼손 반주 패턴 연습곡", "피아노", "초급", 2000, false, 3],
-    [0, "초중급 필인 응용 연습곡", "드럼", "초중급", 2200, true, 6],
-    [1, "프로 더블페달 패턴 연습곡", "드럼", "프로", 5000, true, 7]
+    [0, "8비트 기본 그루브 연습곡", "드럼", "매우 쉬움", 1500, true, 1],
+    [0, "16비트 하이햇 연습곡", "드럼", "매우 쉬움", 2000, true, 2],
+    [1, "펑크 고스트노트 그루브", "드럼", "보통", 3000, true, 3],
+    [1, "셔플 블루스 리듬 연습곡", "드럼", "보통", 2500, false, 4],
+    [0, "더블킥 빌드업 연습곡", "드럼", "어려움", 4000, true, 5],
+    [1, "보사노바 리듬 패턴", "드럼", "보통", 2500, true, 6],
+    [0, "필인 모음집 Vol.1", "드럼", "매우 쉬움", 3500, true, 8],
+    [1, "메탈 블라스트비트 연습곡", "드럼", "어려움", 4500, false, 9],
+    [0, "발라드 6/8 그루브 연습곡", "드럼", "매우 쉬움", 1500, true, 11],
+    [2, "통기타 스트로크 입문 연습곡", "기타", "매우 쉬움", 1500, true, 2],
+    [2, "핑거스타일 아르페지오 연습곡", "기타", "보통", 3000, false, 7],
+    [2, "베이스 루트음 워킹 연습곡", "베이스", "매우 쉬움", 2000, true, 10],
+    [3, "피아노 왼손 반주 패턴 연습곡", "피아노", "매우 쉬움", 2000, false, 3],
+    [0, "초중급 필인 응용 연습곡", "드럼", "쉬움", 2200, true, 6],
+    [1, "프로 더블페달 패턴 연습곡", "드럼", "매우 어려움", 5000, true, 7]
   ];
 
   const scoreIds = [];
@@ -711,7 +714,7 @@ function seedDemoData() {
   for (const [title, instrument] of [["데모 심사대기 드럼 악보", "드럼"], ["데모 심사대기 기타 악보", "기타"]]) {
     const id = uid("score");
     STATE.scores[id] = {
-      id, sellerId: sellers[1].id, title, artist: "악보대장 데모 연습곡", instrument, difficulty: "중급",
+      id, sellerId: sellers[1].id, title, artist: "악보대장 데모 연습곡", instrument, difficulty: "보통",
       price: 2000, hasVideo: false, videoUrl: null, fileUrl: "demo.pdf",
       previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`, status: "심사중", rejectReason: null,
       createdAt: nowISO(), approvedAt: null, salesCount: 0, viewCount: 0, description: "",
@@ -1472,8 +1475,8 @@ function submitScore(sellerId, data) {
   const tags = Array.isArray(data.tags)
     ? [...new Set(data.tags.map(t => String(t).trim()).filter(Boolean))].slice(0, 5)
     : [];
-  // difficulty 는 5단계(SCORE_DIFFICULTIES) 값으로 저장한다. 알 수 없는 값이 오면 "중급"으로 둔다.
-  const difficulty = SCORE_DIFFICULTIES.includes(data.difficulty) ? data.difficulty : "중급";
+  // difficulty 는 5단계(SCORE_DIFFICULTIES) 값으로 저장한다. 알 수 없는 값이 오면 "보통"으로 둔다.
+  const difficulty = SCORE_DIFFICULTIES.includes(data.difficulty) ? data.difficulty : "보통";
   STATE.scores[scoreId] = {
     id: scoreId, sellerId,
     title: data.title, artist: data.artist, instrument: data.instrument, difficulty,
