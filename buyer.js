@@ -921,8 +921,6 @@ function renderDetailPage(el, p) {
       <div>
         <div class="preview-box">
           <div class="preview-sheet">
-            <div class="ps-title">${esc(s.title)}</div>
-            <div class="ps-sub">${esc(s.artist)} · ${esc(s.instrument)} · arr. ${esc(sellerName(s.sellerId))}</div>
             ${previewImgs
               ? `<div class="ps-img">
                    <img src="${esc(previewImgs[0])}" alt="${esc(s.title)} 미리보기" loading="lazy">
