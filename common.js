@@ -1318,6 +1318,28 @@ async function getPdfPageCount(file) {
   }
 }
 
+/* ---------- 유튜브 영상 임베드 URL 변환 (2026-10-21 추가) ----------
+   악보 상세페이지에서 연주 영상을 실제로 재생할 수 있게 보여주기 위해, 판매자가 입력한
+   videoUrl(유튜브 watch/youtu.be/shorts/embed 등 다양한 형식)에서 영상 ID만 뽑아
+   표준 embed 주소("https://www.youtube.com/embed/영상ID")로 바꿔준다.
+   유튜브 링크가 아니거나 영상 ID를 못 찾으면 null을 반환한다 — 이 경우 화면에서는
+   기존처럼 "연주 영상 보기" 링크 버튼으로 대체해서 보여준다(임베드 실패가 아니라
+   지원하지 않는 링크 형식일 뿐이므로 등록 자체는 막지 않는다). */
+function youtubeEmbedUrl(url) {
+  if (!url || typeof url !== "string") return null;
+  const patterns = [
+    /(?:youtube\.com\/watch\?(?:.*&)?v=)([\w-]{11})/,
+    /(?:youtu\.be\/)([\w-]{11})/,
+    /(?:youtube\.com\/embed\/)([\w-]{11})/,
+    /(?:youtube\.com\/shorts\/)([\w-]{11})/
+  ];
+  for (const re of patterns) {
+    const m = url.match(re);
+    if (m && m[1]) return `https://www.youtube.com/embed/${m[1]}`;
+  }
+  return null;
+}
+
 /* ---------- 악보 미리보기 이미지 (PDF 첫 페이지 → PNG, 2026-10-19 추가) ----------
    판매자가 PDF를 올리면, 그 PDF의 첫 페이지 상단 일부를 이미지로 떠서 미리보기용으로
    별도 저장한다. 구매자 상세 화면에서는 이 이미지가 있으면 그걸 보여주고,

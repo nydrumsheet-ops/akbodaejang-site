@@ -884,6 +884,7 @@ function renderDetailPage(el, p) {
   const reviewed = user && reviews.some(r => r.buyerId === user.id);
 
   const previewImgs = previewImages(s);
+  const ytEmbed = s.hasVideo ? youtubeEmbedUrl(s.videoUrl) : null;
 
   const sameSeller = approvedScores().filter(x => x.sellerId === s.sellerId && x.id !== s.id).sort((a, b) => b.salesCount - a.salesCount).slice(0, 8);
 
@@ -954,11 +955,14 @@ function renderDetailPage(el, p) {
               ? `미리보기는 악보 첫 ${POLICY.preview.bars}마디까지 보여요.`
               : `미리보기는 악보 첫 ${POLICY.preview.bars}마디까지 보여요. 실제 악보 이미지는 파일 업로드가 연결되면 이 자리에 나옵니다.`}</p>
         </div>
-        ${s.hasVideo ? `
-          <a class="video-card" href="${esc(s.videoUrl || "#")}" target="_blank" rel="noopener">
-            <span class="video-play">▶</span>
-            <span><span class="vc-title">연주 영상 보기</span><br><span class="vc-sub">${esc(sellerName(s.sellerId))}님이 직접 연주한 영상 (새 창으로 열려요)</span></span>
-          </a>` : ""}
+        ${s.hasVideo ? (ytEmbed
+          ? `<div class="video-embed-wrap">
+               <iframe src="${esc(ytEmbed)}" title="${esc(s.title)} 연주 영상" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+             </div>`
+          : `<a class="video-card" href="${esc(s.videoUrl || "#")}" target="_blank" rel="noopener">
+               <span class="video-play">▶</span>
+               <span><span class="vc-title">연주 영상 보기</span><br><span class="vc-sub">${esc(sellerName(s.sellerId))}님이 직접 연주한 영상 (새 창으로 열려요)</span></span>
+             </a>`) : ""}
       </div>
 
       <div>
