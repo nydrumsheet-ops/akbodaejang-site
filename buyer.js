@@ -995,6 +995,7 @@ function renderDetailPage(el, p) {
           <div class="spec-item"><span class="spec-k">악기</span><span class="spec-v">${esc(s.instrument)}</span></div>
           <div class="spec-item"><span class="spec-k">난이도</span><span class="spec-v">${esc(s.difficulty)}</span></div>
           <div class="spec-item"><span class="spec-k">파일</span><span class="spec-v">PDF</span></div>
+          ${s.pageCount ? `<div class="spec-item"><span class="spec-k">페이지</span><span class="spec-v">${s.pageCount}페이지</span></div>` : ""}
           <div class="spec-item spec-meta"><span class="spec-k">등록일</span><span class="spec-v">${formatDate(s.approvedAt || s.createdAt)}</span></div>
           <div class="spec-item spec-meta"><span class="spec-k">조회 · 판매</span><span class="spec-v">${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</span></div>
         </div>

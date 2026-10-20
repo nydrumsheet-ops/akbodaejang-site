@@ -1876,6 +1876,13 @@ let ADMIN_REVIEW_CHECKED = new Set();  // 업로드하기로 체크해둔 악보
 let ADMIN_REVIEW_RUNNING = false;
 let ADMIN_REVIEW_LOG = [];
 
+let ADMIN_PAGECOUNT_RUNNING = false;
+let ADMIN_PAGECOUNT_STOP = false;
+let ADMIN_PAGECOUNT_DONE = 0;
+let ADMIN_PAGECOUNT_OK = 0;
+let ADMIN_PAGECOUNT_FAIL = 0;
+let ADMIN_PAGECOUNT_LOG = []; // { file, ok, message }
+
 function pdfMappingStatus() {
   let done = 0;
   for (const m of SCORE_PDF_MAPPING) {
@@ -1914,6 +1921,7 @@ function renderAdminPdfUpload(body) {
 
     ${renderAdminPdfConfirmHTML()}
     ${renderAdminReviewHTML()}
+    ${renderAdminPageCountHTML()}
   `;
 
   document.getElementById("admin-pdf-pick-btn")?.addEventListener("click", () => {
@@ -1931,6 +1939,142 @@ function renderAdminPdfUpload(body) {
   renderAdminPdfProgress();
   wireAdminPdfConfirm();
   wireAdminReview();
+  wireAdminPageCount();
+}
+
+/* ---------- 기존 악보 페이지 수 일괄 계산 (2026-10-21 추가) ----------
+   "악보 상세 정보"에 보여줄 총 페이지 수는 새로 등록되는 악보부터는 자동으로 저장되지만,
+   이미 등록돼 있던 악보는 저장된 값이 없다. 위 PDF 일괄 업로드·추가 매칭·검토 필요 세
+   목록(파일명을 이미 알고 있는 악보들)을 그대로 재사용해서, 같은 "판매용 악보" 폴더를
+   다시 한 번 고르면 각 파일을 열어 페이지 수만 가볍게 읽어 채워 넣는다. 파일을 새로
+   올리는 게 아니라 이미 올라간 파일의 페이지 수만 알아내는 것이라 Storage에는 손대지
+   않고, 이미 페이지 수가 채워진 악보는 건드리지 않고 조용히 건너뛴다(중간에 멈췄다가
+   같은 폴더로 다시 시작해도 안전). */
+
+function pageCountMappingList() {
+  const seen = new Set();
+  const list = [];
+  for (const m of [...SCORE_PDF_MAPPING, ...SCORE_PDF_MAPPING_CONFIRM, ...SCORE_PDF_MAPPING_REVIEW]) {
+    if (seen.has(m.id)) continue;
+    seen.add(m.id);
+    list.push(m);
+  }
+  return list;
+}
+
+function pageCountStatus() {
+  const all = pageCountMappingList();
+  let eligible = 0, done = 0;
+  for (const m of all) {
+    const s = STATE.scores[m.id];
+    if (!s || !s.fileUrl) continue; // 파일 자체가 없는 악보는 대상이 아님
+    eligible++;
+    if (s.pageCount) done++;
+  }
+  return { total: eligible, done, remaining: eligible - done };
+}
+
+function renderAdminPageCountHTML() {
+  const st = pageCountStatus();
+  return `
+    <div style="${ADMIN_PANEL}">
+      <h3 style="margin:0 0 4px;font-size:15px;">기존 악보 페이지 수 일괄 계산</h3>
+      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.6;">
+        이미 등록된 악보의 "악보 상세 정보"에 총 페이지 수를 채워 넣습니다. 위에서 쓴 것과
+        같은 "판매용 악보" 폴더를 다시 골라주시면, 파일명이 맞는 악보만 열어서 페이지 수를
+        읽어 저장합니다(파일을 다시 올리는 건 아니라서 빠르게 끝나요).<br>
+        지금까지 채워짐: <b>${st.done} / ${st.total}</b>곡
+      </p>
+      <input type="file" id="admin-pagecount-folder-input" webkitdirectory directory multiple style="display:none;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
+        <button id="admin-pagecount-pick-btn" class="btn btn-primary" style="border-radius:12px;background:#da7f54;border-color:#da7f54;" ${ADMIN_PAGECOUNT_RUNNING ? "disabled" : ""}>
+          ${ADMIN_PAGECOUNT_RUNNING ? "계산 진행 중..." : `"판매용 악보" 폴더 선택해서 계산 시작`}
+        </button>
+        ${ADMIN_PAGECOUNT_RUNNING ? `<button id="admin-pagecount-stop-btn" style="padding:9px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">중단</button>` : ""}
+      </div>
+      <div id="admin-pagecount-progress" style="margin-top:14px;"></div>
+      <div id="admin-pagecount-log" style="margin-top:10px;max-height:320px;overflow-y:auto;font-size:12px;"></div>
+    </div>`;
+}
+
+function wireAdminPageCount() {
+  document.getElementById("admin-pagecount-pick-btn")?.addEventListener("click", () => {
+    document.getElementById("admin-pagecount-folder-input")?.click();
+  });
+  document.getElementById("admin-pagecount-folder-input")?.addEventListener("change", (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+    runBulkPageCount(files);
+  });
+  document.getElementById("admin-pagecount-stop-btn")?.addEventListener("click", () => {
+    ADMIN_PAGECOUNT_STOP = true;
+  });
+  renderAdminPageCountProgress();
+}
+
+function renderAdminPageCountProgress() {
+  const progEl = document.getElementById("admin-pagecount-progress");
+  const logEl = document.getElementById("admin-pagecount-log");
+  if (!progEl || !logEl) return;
+  const total = pageCountStatus().total;
+  const pct = total ? Math.round((ADMIN_PAGECOUNT_DONE / total) * 100) : 0;
+  progEl.innerHTML = (ADMIN_PAGECOUNT_RUNNING || ADMIN_PAGECOUNT_DONE > 0) ? `
+    <div style="font-size:13px;margin-bottom:6px;">${ADMIN_PAGECOUNT_DONE} / ${total} 처리됨 · 성공 ${ADMIN_PAGECOUNT_OK} · 실패 ${ADMIN_PAGECOUNT_FAIL}</div>
+    <div style="height:8px;border-radius:4px;background:var(--band);"><div style="height:8px;border-radius:4px;background:var(--primary);width:${pct}%;"></div></div>
+  ` : "";
+  const recent = ADMIN_PAGECOUNT_LOG.slice(-200).slice().reverse();
+  logEl.innerHTML = recent.map(r => `
+    <div style="padding:4px 0;border-top:1px solid var(--border);color:${r.ok ? "var(--text)" : "var(--danger)"};">
+      ${r.ok ? "✓" : "✗"} ${esc(r.file)}${r.ok ? "" : ` — ${esc(r.message || "")}`}
+    </div>`).join("");
+}
+
+async function runBulkPageCount(files) {
+  if (ADMIN_PAGECOUNT_RUNNING) return;
+  ADMIN_PAGECOUNT_RUNNING = true;
+  ADMIN_PAGECOUNT_STOP = false;
+  ADMIN_PAGECOUNT_DONE = 0; ADMIN_PAGECOUNT_OK = 0; ADMIN_PAGECOUNT_FAIL = 0; ADMIN_PAGECOUNT_LOG = [];
+  renderAdmin();
+
+  // macOS 브라우저의 한글 파일명 자모 분리(NFD) 문제는 기존 PDF 업로드와 동일하게 NFC로 맞춰서 비교한다.
+  const byName = new Map();
+  for (const f of files) {
+    const name = (f.name || "").normalize("NFC");
+    byName.set(name, f);
+  }
+
+  const targets = pageCountMappingList();
+  for (const m of targets) {
+    if (ADMIN_PAGECOUNT_STOP) break;
+    const score = STATE.scores[m.id];
+    if (!score || !score.fileUrl) continue; // 파일 자체가 없는 악보는 대상이 아님(조용히 건너뜀, 로그 안 남김)
+    if (score.pageCount) { ADMIN_PAGECOUNT_DONE++; ADMIN_PAGECOUNT_OK++; continue; } // 이미 채워짐 — 조용히 건너뜀
+
+    const wanted = m.file.normalize("NFC");
+    const file = byName.get(wanted);
+    if (!file) {
+      ADMIN_PAGECOUNT_LOG.push({ file: m.file, ok: false, message: "선택한 폴더에서 이 파일명을 찾지 못함" });
+      ADMIN_PAGECOUNT_FAIL++; ADMIN_PAGECOUNT_DONE++;
+      if (ADMIN_PAGECOUNT_DONE % 10 === 0) renderAdminPageCountProgress();
+      continue;
+    }
+    const count = await getPdfPageCount(file);
+    if (count) {
+      score.pageCount = count;
+      ADMIN_PAGECOUNT_OK++;
+      ADMIN_PAGECOUNT_LOG.push({ file: m.file, ok: true });
+    } else {
+      ADMIN_PAGECOUNT_FAIL++;
+      ADMIN_PAGECOUNT_LOG.push({ file: m.file, ok: false, message: "페이지 수를 읽지 못함" });
+    }
+    ADMIN_PAGECOUNT_DONE++;
+    if (ADMIN_PAGECOUNT_DONE % 5 === 0) renderAdminPageCountProgress();
+  }
+
+  save(); // scores.pageCount 변경분을 한꺼번에 서버에 반영 (diff 저장)
+  ADMIN_PAGECOUNT_RUNNING = false;
+  renderAdmin();
+  if (typeof toast === "function") toast(`페이지 수 계산 완료: 성공 ${ADMIN_PAGECOUNT_OK}건 · 실패 ${ADMIN_PAGECOUNT_FAIL}건`);
 }
 
 function renderAdminPdfProgress() {

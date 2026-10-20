@@ -466,6 +466,14 @@ async function handleSubmitScore(sellerId) {
     console.error("[seller] 미리보기 이미지 처리 중 오류", e);
   }
 
+  // 악보 상세정보에 보여줄 총 페이지 수도 함께 알아낸다(실패해도 등록은 계속 진행).
+  let pageCount = null;
+  try {
+    pageCount = await getPdfPageCount(file);
+  } catch (e) {
+    console.error("[seller] PDF 페이지 수 확인 중 오류", e);
+  }
+
   const result = submitScore(sellerId, {
     id: scoreId,
     title, artist, instrument, difficulty, price,
@@ -473,6 +481,7 @@ async function handleSubmitScore(sellerId) {
     videoUrl: hasVideo ? videoUrl : null,
     fileUrl: uploadResult.path,
     previewUrls,
+    pageCount,
     description,
     tags: SF_TAGS,
     thumbnailUrl

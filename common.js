@@ -267,6 +267,7 @@ function rowFromScore(s) {
     video_url: s.videoUrl || null, file_url: s.fileUrl || null, preview_info: s.previewInfo || null,
     preview_url: s.previewUrl || null,
     preview_urls: Array.isArray(s.previewUrls) && s.previewUrls.length ? s.previewUrls : null,
+    page_count: s.pageCount || null,
     status: s.status, reject_reason: s.rejectReason || null, created_at: s.createdAt,
     approved_at: s.approvedAt || null, sales_count: s.salesCount || 0, view_count: s.viewCount || 0,
     description: s.description || "", tags: s.tags || [], thumbnail_url: s.thumbnailUrl || null,
@@ -279,6 +280,7 @@ function scoreFromRow(r) {
     difficulty: r.difficulty, price: r.price, hasVideo: r.has_video, videoUrl: r.video_url,
     fileUrl: r.file_url, previewInfo: r.preview_info, previewUrl: r.preview_url || null,
     previewUrls: Array.isArray(r.preview_urls) && r.preview_urls.length ? r.preview_urls : null,
+    pageCount: r.page_count || null,
     status: r.status, rejectReason: r.reject_reason,
     createdAt: r.created_at, approvedAt: r.approved_at, salesCount: r.sales_count, viewCount: r.view_count,
     description: r.description || "", tags: r.tags || [], thumbnailUrl: r.thumbnail_url,
@@ -1295,6 +1297,27 @@ async function uploadScoreFile(sellerId, scoreId, file) {
   return { ok: true, path };
 }
 
+/* ---------- 악보 총 페이지 수 (2026-10-21 추가) ----------
+   미리보기 이미지와는 별개로, PDF 전체 페이지 수만 가볍게 알아낸다(렌더링 없이
+   pdf.js로 문서를 여는 것까지만 하므로 generateScorePreviewImage(s)보다 훨씬 빠르다).
+   pdf.js가 없거나 실패하면 null을 반환하며, 이 경우에도 등록 자체는 계속 진행된다
+   (페이지 수는 선택 정보, 필수 아님). */
+async function getPdfPageCount(file) {
+  if (!window.pdfjsLib) {
+    console.warn("[common] pdf.js 가 로드되지 않아 페이지 수를 알아낼 수 없습니다.");
+    return null;
+  }
+  if (!file) return null;
+  try {
+    const buf = await file.arrayBuffer();
+    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    return pdf.numPages || null;
+  } catch (e) {
+    console.error("[common] PDF 페이지 수 확인 오류", e);
+    return null;
+  }
+}
+
 /* ---------- 악보 미리보기 이미지 (PDF 첫 페이지 → PNG, 2026-10-19 추가) ----------
    판매자가 PDF를 올리면, 그 PDF의 첫 페이지 상단 일부를 이미지로 떠서 미리보기용으로
    별도 저장한다. 구매자 상세 화면에서는 이 이미지가 있으면 그걸 보여주고,
@@ -1509,6 +1532,7 @@ function submitScore(sellerId, data) {
     videoUrl: data.videoUrl || null, fileUrl: data.fileUrl || null,
     previewUrl: data.previewUrl || null,
     previewUrls: Array.isArray(data.previewUrls) && data.previewUrls.length ? data.previewUrls : null,
+    pageCount: Number.isFinite(data.pageCount) && data.pageCount > 0 ? data.pageCount : null,
     previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`,
     status: "승인", rejectReason: null, createdAt: nowISO(), approvedAt: nowISO(),
     salesCount: 0, viewCount: 0,
