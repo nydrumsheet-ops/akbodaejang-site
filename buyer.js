@@ -1229,11 +1229,14 @@ function renderMyPage(el, p) {
   // 2026-10-19 추가: "아티스트 되기" 탭은 아직 판매자가 아닌 회원(role === "buyer")에게만 보여준다.
   const tabs = [["library", "내 악보함"], ["points", "포인트 · 충전"]];
   if (user.role === "buyer") tabs.push(["artist", "아티스트 되기"]);
-  tabs.push(["wish", `찜한 악보 ${user.wishlist.length}`], ["following", `구독 아티스트 ${user.following.length}`], ["recent", "최근 본 악보"]);
+  tabs.push(["wish", `찜한 악보 ${user.wishlist.length}`], ["following", `구독 아티스트 ${user.following.length}`], ["recent", "최근 본 악보"], ["inquiry", "1:1 문의"]);
 
   let body = "";
   if (tab === "points") body = myPointsHTML(user, p);
   else if (tab === "artist") body = myArtistHTML(user);
+  // 2026-10-20 추가: 마이페이지에서도 1:1 문의(문의하기 + 내 문의 내역)를 바로 볼 수 있게,
+  // 고객센터 화면에서 쓰던 renderSupportQna()를 그대로 재사용한다(중복 구현 방지).
+  else if (tab === "inquiry") body = `<div id="mypage-qna-mount"></div>`;
   else if (tab === "wish") {
     const list = user.wishlist.map(id => STATE.scores[id]).filter(s => s && s.status === "승인");
     body = list.length ? `<div class="score-grid">${list.map(s => scoreCard(s)).join("")}</div>` : `<div class="empty">찜한 악보가 없어요. 악보 카드의 ♡를 눌러 담아보세요.</div>`;
@@ -1266,6 +1269,12 @@ function renderMyPage(el, p) {
 
   bindCards(el);
   el.querySelectorAll("[data-tab]").forEach(b => b.addEventListener("click", () => goBuyer("mypage", { tab: b.dataset.tab }, { keepScroll: true })));
+
+  // 2026-10-20 추가: "1:1 문의" 탭은 고객센터의 renderSupportQna()를 그대로 호출해서 채운다.
+  if (tab === "inquiry") {
+    const qnaMount = document.getElementById("mypage-qna-mount");
+    if (qnaMount) renderSupportQna(qnaMount, user);
+  }
 
   // 내 악보함 버튼
   el.querySelectorAll("[data-download]").forEach(b => b.addEventListener("click", async () => {
