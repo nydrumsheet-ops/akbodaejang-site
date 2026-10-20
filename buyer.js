@@ -723,6 +723,18 @@ function artistCard(u) {
    악보 목록 (검색·필터)
    ============================================================ */
 
+// 2026-10-20 추가: 난이도 필터가 체크박스 다중 선택으로 바뀌면서, 실제 비교에 쓸 선택된 5단계 값 목록을 여기서 정리한다.
+// p.difficulties(배열)가 있으면 그대로 쓰고, 없을 때만 홈 화면 난이도 카드가 넘겨주는 예전 방식(p.difficulty, 3개 카테고리 중 하나)을
+// DIFFICULTY_SUBTIERS로 풀어서 하위호환으로 써준다.
+function selectedDifficulties(p) {
+  if (Array.isArray(p.difficulties)) return p.difficulties;
+  if (p.difficulty) {
+    const sub = DIFFICULTY_SUBTIERS[p.difficulty];
+    return sub && sub.length ? sub : [p.difficulty];
+  }
+  return [];
+}
+
 function filterScores(p) {
   const q = (p.q || "").trim().toLowerCase();
   let list = approvedScores();
@@ -735,10 +747,9 @@ function filterScores(p) {
     );
   }
   if (p.instrument) list = list.filter(s => s.instrument === p.instrument);
-  // 2026-10-18 변경: 난이도는 이제 5단계로 저장되므로, 홈카테고리 3개 기준 필터는 difficultyGroup()으로 묶어서 비교한다.
-  if (p.difficulty) list = list.filter(s => difficultyGroup(s.difficulty) === p.difficulty);
-  // 카테고리(중급/고급) 안의 세부 단계(초중급/프로 등) 필터 — p.difficulty 가 선택된 상태에서만 의미가 있다.
-  if (p.subtier) list = list.filter(s => s.difficulty === p.subtier);
+  // 2026-10-20 변경: 난이도 필터는 체크박스 다중 선택으로 바뀌어, 선택된 5단계 값과 직접 비교한다.
+  const diffs = selectedDifficulties(p);
+  if (diffs.length) list = list.filter(s => diffs.includes(s.difficulty));
   if (p.video) list = list.filter(s => s.hasVideo);
   if (p.minPrice) list = list.filter(s => effectivePrice(s) >= Number(p.minPrice));
   if (p.maxPrice) list = list.filter(s => effectivePrice(s) <= Number(p.maxPrice));
@@ -770,8 +781,9 @@ function renderListPage(el, p) {
 
   const update = (patch) => goBuyer("list", Object.assign({}, p, patch, { page: 1 }), { keepScroll: true });
 
-  // 2026-10-18 추가: 중급/고급 카테고리 안에서만 보여줄 세부 단계 목록 (초급은 세부 단계 없음)
-  const subtiers = p.difficulty ? (DIFFICULTY_SUBTIERS[p.difficulty] || []) : [];
+  // 2026-10-20 변경: 난이도 필터를 체크박스 다중 선택으로 바꾸면서, 매우 쉬움부터 매우 어려움까지 5단계를 전부 보여준다.
+  const DIFF_CHECK_ORDER = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"];
+  const checkedDiffs = selectedDifficulties(p);
 
   el.innerHTML = `
     <div class="breadcrumb"><button data-go="home">홈</button> › ${title}</div>
@@ -785,19 +797,10 @@ function renderListPage(el, p) {
           ${["", ...INSTRUMENTS].map(i => `<button class="chip ${(p.instrument || "") === i ? "active" : ""}" data-f-inst="${esc(i)}">${i ? esc(i) : "전체"}</button>`).join("")}
         </div>
       </div>
-      <div class="filter-line">
+      <div class="filter-line" style="flex-wrap:wrap;">
         <span class="filter-label">난이도</span>
-        <div class="chip-row">
-          ${["", ...DIFFICULTIES].map(d => `<button class="chip ${(p.difficulty || "") === d ? "active" : ""}" data-f-diff="${esc(d)}">${d ? esc(d) : "전체"}</button>`).join("")}
-        </div>
+        ${DIFF_CHECK_ORDER.map(d => `<label class="toggle"><input type="checkbox" data-f-diff value="${esc(d)}" ${checkedDiffs.includes(d) ? "checked" : ""}> ${esc(d)}</label>`).join("")}
       </div>
-      ${subtiers.length ? `
-      <div class="filter-line">
-        <span class="filter-label">세부 단계</span>
-        <div class="chip-row">
-          ${["", ...subtiers].map(d => `<button class="chip ${(p.subtier || "") === d ? "active" : ""}" data-f-subtier="${esc(d)}">${d ? esc(d) : "전체"}</button>`).join("")}
-        </div>
-      </div>` : ""}
       <div class="filter-line" style="flex-wrap:wrap;">
         <span class="filter-label">조건</span>
         <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> 연주영상 있음</label>
@@ -830,8 +833,11 @@ function renderListPage(el, p) {
 
   bindCards(el);
   el.querySelectorAll("[data-f-inst]").forEach(b => b.addEventListener("click", () => update({ instrument: b.dataset.fInst })));
-  el.querySelectorAll("[data-f-diff]").forEach(b => b.addEventListener("click", () => update({ difficulty: b.dataset.fDiff, subtier: "" })));
-  el.querySelectorAll("[data-f-subtier]").forEach(b => b.addEventListener("click", () => update({ subtier: b.dataset.fSubtier })));
+  el.querySelectorAll("[data-f-diff]").forEach(cb => cb.addEventListener("change", () => {
+    const cur = selectedDifficulties(p);
+    const next = cb.checked ? [...cur, cb.value] : cur.filter(d => d !== cb.value);
+    update({ difficulties: next, difficulty: "" });
+  }));
   document.getElementById("f-video")?.addEventListener("change", (e) => update({ video: e.target.checked }));
   document.getElementById("f-sort")?.addEventListener("change", (e) => update({ sort: e.target.value }));
   document.getElementById("f-price")?.addEventListener("click", () => update({
