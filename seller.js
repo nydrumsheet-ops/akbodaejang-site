@@ -43,7 +43,9 @@ function renderSeller() {
         <input type="text" id="sp-displayname" placeholder="예: 그루브랩" maxlength="30"
           style="flex:1;min-width:160px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
         <button id="sp-save"
-          style="padding:10px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);font-size:13px;cursor:pointer;">
+          style="padding:10px 16px;border:1px solid var(--border);border-radius:8px;background:var(--bg);font-size:13px;cursor:pointer;"
+          onmouseover="this.style.background='#F5F2EE';this.style.borderColor='#B9AFA4';this.style.color='#302D2A'"
+          onmouseout="this.style.background='var(--bg)';this.style.borderColor='var(--border)';this.style.color=''">
           활동명 저장
         </button>
       </div>
