@@ -1303,20 +1303,28 @@ async function uploadScoreFile(sellerId, scoreId, file) {
    미리보기 이미지와는 별개로, PDF 전체 페이지 수만 가볍게 알아낸다(렌더링 없이
    pdf.js로 문서를 여는 것까지만 하므로 generateScorePreviewImage(s)보다 훨씬 빠르다).
    pdf.js가 없거나 실패하면 null을 반환하며, 이 경우에도 등록 자체는 계속 진행된다
-   (페이지 수는 선택 정보, 필수 아님). */
+   (페이지 수는 선택 정보, 필수 아님).
+   2026-10-21 수정: pdf.js가 연 문서(pdf)를 쓰고 나서 destroy()로 메모리를 반드시 풀어준다.
+   예전에는 getDocument()로 연 문서를 그대로 버려둬서, 관리자 화면에서 수백 개 PDF를
+   한 번에 처리하는 일괄 작업(기존 악보 페이지 수 계산·카드 썸네일 생성) 중에 브라우저
+   탭의 메모리가 계속 쌓여 결국 탭이 멈추는(흰 화면) 사고가 있었다 — 이 함수도 같은 방식으로
+   문서를 여는 만큼, 혹시 모를 사고를 막기 위해 똑같이 정리해준다. */
 async function getPdfPageCount(file) {
   if (!window.pdfjsLib) {
     console.warn("[common] pdf.js 가 로드되지 않아 페이지 수를 알아낼 수 없습니다.");
     return null;
   }
   if (!file) return null;
+  let pdf = null;
   try {
     const buf = await file.arrayBuffer();
-    const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+    pdf = await pdfjsLib.getDocument({ data: buf }).promise;
     return pdf.numPages || null;
   } catch (e) {
     console.error("[common] PDF 페이지 수 확인 오류", e);
     return null;
+  } finally {
+    if (pdf) { try { pdf.destroy(); } catch (e2) { /* 무시 */ } }
   }
 }
 
@@ -1363,9 +1371,10 @@ async function generateScorePreviewImage(file) {
   const timeoutGuard = new Promise(resolve => setTimeout(() => resolve(null), PREVIEW_TIMEOUT_MS));
 
   const work = (async () => {
+    let pdf = null;
     try {
       const buf = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      pdf = await pdfjsLib.getDocument({ data: buf }).promise;
       const page = await pdf.getPage(1);
       // 화면에서 보기 좋은 해상도로 렌더링(너무 크면 용량이 커지므로 적당히 제한)
       const baseViewport = page.getViewport({ scale: 1 });
@@ -1395,6 +1404,8 @@ async function generateScorePreviewImage(file) {
     } catch (e) {
       console.error("[common] 미리보기 이미지 생성 오류", e);
       return null;
+    } finally {
+      if (pdf) { try { pdf.destroy(); } catch (e2) { /* 무시 */ } }
     }
   })();
 
@@ -1409,7 +1420,10 @@ async function generateScorePreviewImage(file) {
    object-fit:contain으로 보여줘서 위아래(또는 좌우)에 흰 여백이 생기는 방식으로 잘리지
    않게 한다(2026-10-21 사용자 확인 — 박스 모양을 세로로 긴 A4 비율로 바꾸는 대신 이 방식 선택).
    pdf.js가 없거나 실패하면 null을 반환하며, 이 경우에도 등록 자체는 계속 진행된다(카드 썸네일은
-   선택 정보, 필수 아님 — 없으면 기존처럼 42% 크롭 미리보기 이미지로 대체해서 보여준다). */
+   선택 정보, 필수 아님 — 없으면 기존처럼 42% 크롭 미리보기 이미지로 대체해서 보여준다).
+   2026-10-21 수정: pdf.js 문서를 다 쓴 뒤 destroy()로 메모리를 풀어준다 — 관리자의 "기존 악보
+   카드 썸네일 일괄 생성" 도구가 이 함수를 ~730번 연달아 호출하는데, 예전에는 문서를 닫지 않고
+   그대로 버려둬서 메모리가 계속 쌓이다 브라우저 탭이 멈추는(흰 화면) 사고가 있었다. */
 async function generateScoreCardThumbnail(file) {
   if (!window.pdfjsLib) {
     console.warn("[common] pdf.js 가 로드되지 않아 카드 썸네일을 만들 수 없습니다.");
@@ -1423,9 +1437,10 @@ async function generateScoreCardThumbnail(file) {
   const timeoutGuard = new Promise(resolve => setTimeout(() => resolve(null), THUMB_TIMEOUT_MS));
 
   const work = (async () => {
+    let pdf = null;
     try {
       const buf = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      pdf = await pdfjsLib.getDocument({ data: buf }).promise;
       const page = await pdf.getPage(1);
       const baseViewport = page.getViewport({ scale: 1 });
       const targetWidth = 1000;
@@ -1446,6 +1461,8 @@ async function generateScoreCardThumbnail(file) {
     } catch (e) {
       console.error("[common] 카드 썸네일 생성 오류", e);
       return null;
+    } finally {
+      if (pdf) { try { pdf.destroy(); } catch (e2) { /* 무시 */ } }
     }
   })();
 
@@ -1528,9 +1545,10 @@ async function generateScorePreviewImages(file, maxPages) {
   const timeoutGuard = new Promise(resolve => setTimeout(() => resolve(images), PREVIEW_TIMEOUT_MS));
 
   const work = (async () => {
+    let pdf = null;
     try {
       const buf = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: buf }).promise;
+      pdf = await pdfjsLib.getDocument({ data: buf }).promise;
       const pageCount = Math.min(maxPages, pdf.numPages || 1);
       for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
         const page = await pdf.getPage(pageNum);
@@ -1566,6 +1584,8 @@ async function generateScorePreviewImages(file, maxPages) {
     } catch (e) {
       console.error("[common] 여러 페이지 미리보기 이미지 생성 오류", e);
       return images;
+    } finally {
+      if (pdf) { try { pdf.destroy(); } catch (e2) { /* 무시 */ } }
     }
   })();
 

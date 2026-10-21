@@ -2078,6 +2078,9 @@ async function runBulkPageCount(files) {
     }
     ADMIN_PAGECOUNT_DONE++;
     if (ADMIN_PAGECOUNT_DONE % 5 === 0) renderAdminPageCountProgress();
+    // 2026-10-21 추가: 중간에 브라우저가 멈추거나 닫혀도 지금까지 처리한 내용이 날아가지 않도록,
+    // 끝까지 기다리지 않고 20건마다 한 번씩 미리 저장해둔다.
+    if (ADMIN_PAGECOUNT_DONE % 20 === 0) save();
   }
 
   save(); // scores.pageCount 변경분을 한꺼번에 서버에 반영 (diff 저장)
@@ -2209,6 +2212,9 @@ async function runBulkCardThumb(files) {
     }
     ADMIN_CARDTHUMB_DONE++;
     if (ADMIN_CARDTHUMB_DONE % 5 === 0) renderAdminCardThumbProgress();
+    // 2026-10-21 추가: PDF를 수백 장 연달아 열면서 브라우저가 멈추는 문제가 있었기 때문에,
+    // 끝까지 기다리지 않고 20건마다 한 번씩 미리 저장해둔다 — 중간에 멈춰도 그때까지는 안전.
+    if (ADMIN_CARDTHUMB_DONE % 20 === 0) save();
   }
 
   save(); // scores.cardThumbUrl 변경분을 한꺼번에 서버에 반영 (diff 저장)
