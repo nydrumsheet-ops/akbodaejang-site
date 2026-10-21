@@ -922,7 +922,7 @@ function renderDetailPage(el, p) {
       <div class="buy-row">
         <button class="btn btn-primary" id="d-buy">바로 구매</button>
         <button class="btn" id="d-cart">${inCart ? "장바구니 보기" : "장바구니 담기"}</button>
-        <button class="btn wish-big" id="d-wish" style="color:${wished ? "var(--hot)" : "var(--text)"};">${wished ? "♥ 찜함" : "♡ 찜"}</button>
+        <button class="btn wish-big" id="d-wish" aria-label="${wished ? "찜 해제" : "찜하기"}" style="color:${wished ? "var(--hot)" : "var(--text)"};">${wished ? "♥" : "♡"}</button>
       </div>
       ${user ? `
       <div class="buy-points">
@@ -1085,7 +1085,7 @@ function renderDetailPage(el, p) {
     const u = getCurrentUser();
     if (u.cart.includes(s.id)) { goBuyer("cart"); return; }
     const res = addToCart(u.id, s.id);
-    if (!res.ok) { toast(res.message, true); renderBuyer(); return; }
+    if (!res.ok) { toast(res.message, true); return; }
     toast("장바구니에 담았어요");
     renderBuyer();
     renderHeaderAuth();
