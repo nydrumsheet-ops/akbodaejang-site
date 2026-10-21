@@ -1908,6 +1908,21 @@ async function uploadArtistSampleFile(userId, file) {
   return { ok: true, url: data.publicUrl };
 }
 
+/* 2026-10-21 추가: 관리자가 "승인/거절"처럼 다른 사람의 데이터를 조용히 저장하는 버튼을 누르기 전에,
+   로그인 토큰이 아직 살아있는지 먼저 확인한다. 토큰이 만료된 채로 저장을 시도하면 서버는 에러 없이
+   조용히 그 저장만 무시해서(RLS 거부), 화면에는 승인된 것처럼 보이다가 새로고침하면 승인 전으로
+   돌아가 버리는 문제가 있었다(2026-10-21 아티스트 신청 승인 버그에서 발견). */
+async function hasLiveSession() {
+  const sb = getSb();
+  if (!sb) return false;
+  try {
+    const { data } = await sb.auth.getSession();
+    return !!(data && data.session);
+  } catch (e) {
+    return false;
+  }
+}
+
 function getMyArtistApplications(userId) {
   return Object.values(STATE.artistApplications)
     .filter(a => a.userId === userId)

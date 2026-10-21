@@ -941,7 +941,11 @@ function renderAdminArtistAppList() {
   }).join("");
 
   listEl.querySelectorAll("[data-artistapp-approve]").forEach(btn => {
-    btn.addEventListener("click", () => {
+    btn.addEventListener("click", async () => {
+      if (!(await hasLiveSession())) {
+        showAdminMsg("admin-artistapp-msg", "로그인이 만료된 것 같아요. 로그아웃 후 다시 로그인하고 다시 시도해주세요.", true);
+        return;
+      }
       const adminId = getCurrentUser()?.id;
       const result = approveArtistApplication(btn.dataset.artistappApprove, adminId);
       if (!result.ok) {
@@ -962,11 +966,15 @@ function renderAdminArtistAppList() {
 
   const confirmBtn = document.getElementById("admin-artistapp-reject-confirm");
   if (confirmBtn) {
-    confirmBtn.addEventListener("click", () => {
+    confirmBtn.addEventListener("click", async () => {
       const reasonInput = document.getElementById("admin-artistapp-reject-reason");
       const reason = reasonInput ? reasonInput.value.trim() : "";
       if (!reason) {
         showAdminMsg("admin-artistapp-msg", "거절 사유를 입력해주세요.", true);
+        return;
+      }
+      if (!(await hasLiveSession())) {
+        showAdminMsg("admin-artistapp-msg", "로그인이 만료된 것 같아요. 로그아웃 후 다시 로그인하고 다시 시도해주세요.", true);
         return;
       }
       const adminId = getCurrentUser()?.id;
