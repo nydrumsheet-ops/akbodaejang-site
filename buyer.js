@@ -298,6 +298,10 @@ function cartIcon() {
 function previewImages(s) {
   if (Array.isArray(s.previewUrls) && s.previewUrls.length) return s.previewUrls.slice(0, 5);
   if (s.previewUrl) return [s.previewUrl];
+  // 2026-10-21 추가: 전용 미리보기 이미지가 한 번도 안 만들어진 옛날 악보(대량 수입 데이터)는
+  // 목록 카드에 쓰는 전체 페이지 썸네일(cardThumbUrl)을 상세페이지 미리보기에도 그대로 재사용한다.
+  // 가짜 오선지 그림 대신 실제 악보 첫 페이지가 보이고, 그 아래는 기존 ps-fade/ps-lock이 그대로 가려준다.
+  if (s.cardThumbUrl) return [s.cardThumbUrl];
   return null;
 }
 
@@ -396,7 +400,8 @@ function scoreCard(s, opts) {
         ${o.rank ? `<span class="rank-num ${o.rank <= 3 ? "top" : ""}">${o.rank}</span>` : ""}
         <span class="diff-badge" style="${diffBadgeStyle(s.difficulty)}">${esc(s.difficulty)}</span>
         ${cardPreviewSrc
-          ? `<img src="${esc(cardPreviewSrc)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;" onerror="this.style.display='none';">`
+          ? `<img src="${esc(cardPreviewSrc)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;" onerror="this.style.display='none';">
+             <img src="${esc(cardPreviewSrc)}" alt="" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;z-index:1;pointer-events:none;filter:blur(6px);-webkit-mask-image:linear-gradient(to bottom, transparent 0%, transparent 78%, rgba(0,0,0,.6) 88%, #000 100%);mask-image:linear-gradient(to bottom, transparent 0%, transparent 78%, rgba(0,0,0,.6) 88%, #000 100%);" onerror="this.style.display='none';">`
           : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${esc(s.instrument)}</div>`}
         ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶</span>` : ""}
       </div>
