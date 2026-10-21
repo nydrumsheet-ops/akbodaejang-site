@@ -2215,6 +2215,11 @@ async function submitSetPassword() {
 async function handleSupabaseSignedIn(session) {
   const email = session.user.email;
   const authId = session.user.id;
+  // 2026-10-21 버그 수정: 로그인 직전 다른 곳(관리자의 아티스트 신청 승인 등)에서 내 계정이 바뀌었을 수 있으므로,
+  // 로그인(또는 재로그인)할 때마다 항상 서버에서 최신 데이터를 다시 받아온다. 이걸 안 하면, 로그아웃했다가 다시
+  // 로그인할 때 이 브라우저에 남아있던 "승인되기 전" 낡은 정보를 그대로 쓰게 되고, 그 상태에서 아무 저장(save())이나
+  // 한 번만 일어나도 그 낡은 정보가 서버에 그대로 덮어써져서 승인 자체가 취소된 것처럼 되돌아갈 수 있었다.
+  await load();
   let user = findUserByEmail(email);
 
   if (user) {
