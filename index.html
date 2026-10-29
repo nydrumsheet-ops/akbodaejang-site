@@ -329,8 +329,9 @@ a{color:var(--link)}
 #header-my-btn:hover{background:transparent;color:#e76f32}
 #header-cart-btn:focus-visible,#header-my-btn:focus-visible{outline:2px solid #302a26;outline-offset:2px}
 #logout-btn{background:#ffffff;transition:background-color .18s var(--ease),color .18s var(--ease)}
-/* 2026-10-29: 헤더 "로그아웃"·"관리자 페이지" hover — 배경 흰색, 글자 검정 */
-#logout-btn:hover,#header-admin-btn:hover{background:#ffffff;color:#000000}
+/* 2026-10-29: 헤더 "로그인"·"로그아웃"·"관리자 페이지" hover — "아티스트 가입" 링크 hover와 동일(배경 없음, 글자 주황 var(--accent)) */
+#header-login-btn,#header-admin-btn{transition:color .18s var(--ease)}
+#header-login-btn:hover,#logout-btn:hover,#header-admin-btn:hover{background:transparent;color:var(--accent)}
 #logout-btn:focus-visible{outline:2px solid #302a26;outline-offset:2px}
 .badge{position:absolute;top:2px;left:22px;min-width:18px;height:18px;padding:0 5px;border-radius:var(--radius-pill);background:var(--accent-hover);color:var(--on-accent);font:700 11px/1 var(--font-mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--surface-page)}
 .menu-row{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
