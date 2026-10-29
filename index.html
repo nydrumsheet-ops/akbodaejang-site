@@ -500,7 +500,10 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .video-flag{position:absolute;left:10px;top:10px;z-index:2;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:#ffffff;border:1px solid #f0eee9;border-radius:50%;color:#f07845;font-size:11px;box-shadow:var(--shadow-sm)}
 .diff-badge{position:absolute;top:8px;right:8px;z-index:2;font:700 12px/1 var(--font-text);padding:6px 10px;border-radius:var(--radius-pill);box-shadow:var(--shadow-sm)}
 .cart-btn{flex-shrink:0;width:34px;height:34px;border-radius:var(--radius-field);border:1px solid #D5D0CA;background:#ffffff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color 180ms ease,border-color 180ms ease}
-.cart-btn:hover{background:#F5F2EE;border-color:#B9AFA4}
+/* 2026-10-29: 악보 카드 장바구니 버튼 hover — B안: 거의 흰 배경 + 브랜드 주황 테두리·아이콘(난이도 배지와 형태로 구분) */
+.cart-btn:hover{background:#FFF4EE;border-color:#E87949}
+.cart-btn:hover svg{stroke:#E87949}
+.cart-btn svg{transition:stroke var(--dur-fast) var(--ease)}
 .cart-btn svg{display:block}
 .card-body{padding:0;display:flex;flex-direction:column;gap:4px;flex:1}
 .tags{display:flex;gap:4px;flex-wrap:wrap}
