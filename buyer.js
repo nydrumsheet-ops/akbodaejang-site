@@ -361,6 +361,9 @@ function bindPreviewCarousel(el, images) {
   function render() {
     img.src = images[idx];
     img.classList.toggle("preview-page-blur", idx > 0);
+    // 2026-10-29: 1페이지는 아래 60%만 블러(겹친 ps-blur-layer), 2페이지부터는 위 preview-page-blur로 전체 블러
+    const blurLayer = box.querySelector(".ps-blur-layer");
+    if (blurLayer) blurLayer.style.display = idx === 0 ? "" : "none";
     if (counter) counter.textContent = `${idx + 1} / ${images.length}`;
     if (prevBtn) prevBtn.disabled = idx <= 0;
     if (nextBtn) nextBtn.disabled = idx >= images.length - 1;
@@ -407,7 +410,7 @@ function scoreCard(s, opts) {
         <span class="diff-badge" style="${diffBadgeStyle(s.difficulty)}">${esc(s.difficulty)}</span>
         ${cardPreviewSrc
           ? `<img src="${esc(cardPreviewSrc)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;" onerror="this.style.display='none';">
-             <img src="${esc(cardPreviewSrc)}" alt="" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;z-index:1;pointer-events:none;filter:blur(6px);-webkit-mask-image:linear-gradient(to bottom, transparent 0%, transparent 78%, rgba(0,0,0,.6) 88%, #000 100%);mask-image:linear-gradient(to bottom, transparent 0%, transparent 78%, rgba(0,0,0,.6) 88%, #000 100%);" onerror="this.style.display='none';">`
+             <img src="${esc(cardPreviewSrc)}" alt="" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;z-index:1;pointer-events:none;filter:blur(6px);-webkit-mask-image:linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,.6) 47%, #000 54%, #000 100%);mask-image:linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,.6) 47%, #000 54%, #000 100%);" onerror="this.style.display='none';">`
           : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${esc(s.instrument)}</div>`}
         ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶</span>` : ""}
       </div>
@@ -969,6 +972,7 @@ function renderDetailPage(el, p) {
             ${previewImgs
               ? `<div class="ps-img">
                    <img src="${esc(previewImgs[0])}" alt="${esc(s.title)} 미리보기" loading="lazy">
+                   <img src="${esc(previewImgs[0])}" alt="" aria-hidden="true" class="ps-blur-layer" loading="lazy">
                    ${previewImgs.length > 1 ? `
                      <button class="preview-nav-arrow" data-preview-nav="prev" aria-label="이전 페이지" disabled>${pagerArrowIcon("left")}</button>
                      <button class="preview-nav-arrow" data-preview-nav="next" aria-label="다음 페이지">${pagerArrowIcon("right")}</button>

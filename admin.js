@@ -28,6 +28,8 @@ function renderAdmin() {
   const openRequests = Object.values(STATE.requests).filter(r => r.status !== "완료").length;
   const openInquiries = Object.values(STATE.inquiries).filter(q => q.status !== "답변완료").length;
   const pendingArtistApps = getArtistApplications({ status: "심사대기" }).length;
+  // 2026-10-29: 다시 그리기 전에 상단 탭 줄의 가로 스크롤 위치를 기억해 둔다(다시 그리면 0으로 돌아가 선택한 탭이 잘려 보이던 문제).
+  const prevTabsScroll = document.getElementById("admin-tabs-row")?.scrollLeft || 0;
   const payout = getPayoutBatch();
   const pdfSt = pdfMappingStatus();
   const pdfSt2 = pdfMappingStatus2();
@@ -67,6 +69,26 @@ function renderAdmin() {
   document.getElementById("admin-tabs-right")?.addEventListener("click", () => {
     document.getElementById("admin-tabs-row")?.scrollBy({ left: 160, behavior: "smooth" });
   });
+  // 2026-10-29: 스크롤 위치를 되살린 뒤, 선택된 탭이 일부라도 가려져 있으면 전부 보이도록 탭 줄만 옮긴다(페이지 전체는 스크롤하지 않음).
+  (() => {
+    const row = document.getElementById("admin-tabs-row");
+    const active = row?.querySelector(".chip.active");
+    if (!row) return;
+    row.scrollLeft = prevTabsScroll;
+    if (!active) return;
+    // 아래 본문이 그려진 뒤(폭이 몇 px 바뀔 수 있음) 위치를 맞추도록 화면 갱신 직후에 계산한다.
+    const fit = () => {
+      if (!row.isConnected) return;
+      const pad = 12;
+      const left = active.getBoundingClientRect().left - row.getBoundingClientRect().left + row.scrollLeft;
+      const right = left + active.offsetWidth;
+      if (left < row.scrollLeft + pad) row.scrollLeft = Math.max(0, left - pad);
+      else if (right > row.scrollLeft + row.clientWidth - pad) row.scrollLeft = right - row.clientWidth + pad;
+    };
+    fit();
+    requestAnimationFrame(() => requestAnimationFrame(fit));
+    setTimeout(fit, 120);
+  })();
 
   const body = document.getElementById("admin-tab-body");
 
@@ -839,12 +861,12 @@ function renderAdminReviewList() {
           · 판매자 ${esc(seller ? seller.name : s.sellerId)} · 등록일 ${formatDate(s.createdAt)}
         </div>
         <div style="display:flex;gap:8px;margin-top:8px;">
-          <button data-approve-id="${s.id}"
-            style="flex:1;padding:9px;font-size:13px;border:none;border-radius:8px;background:var(--primary);color:var(--on-accent);cursor:pointer;">
+          <button data-approve-id="${s.id}" class="admin-approve-btn"
+            style="flex:1;padding:9px;font-size:13px;border-radius:8px;cursor:pointer;">
             승인
           </button>
-          <button data-reject-id="${s.id}"
-            style="flex:1;padding:9px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">
+          <button data-reject-id="${s.id}" class="admin-stop-btn"
+            style="flex:1;padding:9px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">
             반려
           </button>
         </div>
@@ -853,12 +875,12 @@ function renderAdminReviewList() {
             <input type="text" id="admin-reject-reason" placeholder="반려 사유를 입력하세요"
               style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
             <div style="display:flex;gap:8px;margin-top:6px;">
-              <button id="admin-reject-confirm"
-                style="flex:1;padding:9px;font-size:13px;border:none;border-radius:8px;background:var(--danger);color:#fff;cursor:pointer;">
+              <button id="admin-reject-confirm" class="admin-approve-btn"
+                style="flex:1;padding:9px;font-size:13px;border-radius:8px;cursor:pointer;">
                 반려 확정
               </button>
-              <button id="admin-reject-cancel"
-                style="flex:1;padding:9px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;">
+              <button id="admin-reject-cancel" class="admin-stop-btn"
+                style="flex:1;padding:9px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">
                 취소
               </button>
             </div>
