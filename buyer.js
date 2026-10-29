@@ -639,7 +639,7 @@ function renderHomePage(el) {
             <div class="req-count"><b>${r.buyerIds.length}</b><span>신청자 수</span></div>
             <div class="row-main" style="flex:1;">
               <div class="row-title" style="cursor:default;">${i + 1}. ${esc(r.title)}</div>
-              <div class="row-sub">${esc(r.composer)} 작곡 · ${esc(r.singer)} · ${esc(r.instrument)}</div>
+              <div class="row-sub">${esc(requestSubLine(r))}</div>
             </div>
             <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
           </div>`).join("") : `<p class="muted" style="margin:0;">아직 신청곡이 없어요. 첫 번째로 신청해보세요.</p>`}
@@ -1671,12 +1671,10 @@ function renderRequestsPage(el) {
       <div class="panel req-form-panel" style="display:flex;flex-direction:column;gap:8px;">
         <h2 style="margin:0 0 4px;font-size:16px;">새 곡 신청하기</h2>
         <input class="field" id="rq-title" placeholder="곡 제목" value="${esc(prefill)}">
-        <input class="field" id="rq-composer" placeholder="작곡가">
-        <input class="field" id="rq-singer" placeholder="가수 / 원곡자">
+        <input class="field" id="rq-artist" placeholder="가수 또는 작곡가 (아는 것만 입력)">
         <select class="field" id="rq-inst">${INSTRUMENTS.map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("")}</select>
-        <textarea class="field" id="rq-note" rows="3" placeholder="요청 메모 (선택 — 편곡 스타일, 참고 영상 등)"></textarea>
         <button class="btn btn-primary" id="rq-submit">신청하기</button>
-        <p class="muted" style="margin:0;font-size:11px;">같은 곡·작곡가·가수·악기를 이미 누가 신청했다면 그 신청에 함께 이름이 올라가요.</p>
+        <p class="muted" style="margin:0;font-size:11px;">같은 곡·악기를 이미 누가 신청했다면 그 신청에 함께 이름이 올라가요.</p>
       </div>
       <div>
         <div class="chip-row" style="margin-bottom:8px;">
@@ -1696,7 +1694,7 @@ function renderRequestsPage(el) {
                 <div class="req-count"><b>${r.buyerIds.length}</b><span>명</span></div>
                 <div class="row-main" style="flex:1;">
                   <div class="row-title" style="cursor:default;">${esc(r.title)}</div>
-                  <div class="row-sub">${esc(r.composer)} 작곡 · ${esc(r.singer)} · ${esc(r.instrument)}${joined ? " · 내가 신청함" : ""}</div>
+                  <div class="row-sub">${esc(requestSubLine(r))}${joined ? " · 내가 신청함" : ""}</div>
                   ${r.note ? `<div class="row-sub" style="margin-top:2px;white-space:pre-wrap;">${esc(r.note)}</div>` : ""}
                 </div>
                 <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px;flex-shrink:0;">
@@ -1721,10 +1719,8 @@ function renderRequestsPage(el) {
   document.getElementById("rq-submit")?.addEventListener("click", () => {
     const data = {
       title: document.getElementById("rq-title").value,
-      composer: document.getElementById("rq-composer").value,
-      singer: document.getElementById("rq-singer").value,
-      instrument: document.getElementById("rq-inst").value,
-      note: document.getElementById("rq-note").value
+      artist: document.getElementById("rq-artist").value,
+      instrument: document.getElementById("rq-inst").value
     };
     requireLogin(() => {
       const res = submitSongRequest(getCurrentUser().id, data);
@@ -1738,7 +1734,7 @@ function renderRequestsPage(el) {
   el.querySelectorAll("[data-join]").forEach(b => b.addEventListener("click", () => {
     const r = STATE.requests[b.dataset.join];
     requireLogin(() => {
-      const res = submitSongRequest(getCurrentUser().id, { title: r.title, composer: r.composer, singer: r.singer, instrument: r.instrument });
+      const res = submitSongRequest(getCurrentUser().id, { title: r.title, artist: requestArtist(r), instrument: r.instrument });
       if (!res.ok) { toast(res.message, true); return; }
       toast(`"${r.title}" 신청에 함께했어요`);
       renderBuyer();

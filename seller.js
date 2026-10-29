@@ -339,7 +339,7 @@ function renderSellerTrend() {
       <div style="display:flex;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--border);">
         <div style="flex:1;min-width:0;">
           <div style="font-weight:700;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.title)}</div>
-          <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(r.composer)} 작곡 · ${esc(r.singer)} · ${esc(r.instrument)}</div>
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(requestSubLine(r))}</div>
           <div style="display:flex;align-items:center;gap:8px;margin-top:6px;flex-wrap:wrap;">
             <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
             <span style="font-size:12px;color:var(--muted);">신청 ${r.buyerIds.length}명 · 추천 ${likeCount}개</span>
@@ -360,7 +360,7 @@ function renderSellerTrend() {
     const artistInput = document.getElementById("sf-artist");
     const instSelect = document.getElementById("sf-instrument");
     if (titleInput) titleInput.value = r.title;
-    if (artistInput) artistInput.value = r.singer;
+    if (artistInput) artistInput.value = r.singer || r.composer || "";
     if (instSelect) instSelect.value = r.instrument;
     document.getElementById("seller-register-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }));

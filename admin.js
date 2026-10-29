@@ -683,7 +683,7 @@ function renderAdminRequests() {
       const open = ADMIN_REQ_OPEN === r.id;
       const linked = r.fulfilledScoreId && STATE.scores[r.fulfilledScoreId];
       return `
-        <div style="border:1px solid ${open ? "var(--primary)" : "var(--border)"};border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--card);">
+        <div style="border:1px solid #D5D0CA;border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--card);">
           <button data-req-open="${r.id}" style="all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:12px;width:100%;padding:14px;">
             <span style="width:44px;text-align:center;flex-shrink:0;">
               <b style="display:block;font-size:18px;">${r.buyerIds.length}</b>
@@ -691,7 +691,7 @@ function renderAdminRequests() {
             </span>
             <span style="flex:1;min-width:0;">
               <b style="display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.title)}</b>
-              <span style="display:block;font-size:12px;color:var(--muted);margin-top:2px;">${esc(r.composer)} 작곡 · ${esc(r.singer)} · ${esc(r.instrument)}${linked ? ` · 연결: ${esc(linked.title)}` : ""}</span>
+              <span style="display:block;font-size:12px;color:var(--muted);margin-top:2px;">${esc(requestSubLine(r))}${linked ? ` · 연결: ${esc(linked.title)}` : ""}</span>
               <span style="display:flex;align-items:center;gap:8px;margin-top:6px;">
                 ${stepper(r.status)}
                 <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
@@ -749,7 +749,8 @@ function renderAdminRequests() {
 
 function requestDetailHTML(r) {
   const requesters = r.buyerIds.map(id => STATE.users[id]).filter(Boolean);
-  const box = "padding:14px;border-radius:12px;background:var(--band);";
+  // 2026-10-29: 상세 상자 — 노란 배경 → 흰 배경 + 1px #D5D0CA 테두리
+  const box = "padding:14px;border-radius:12px;background:#ffffff;border:1px solid #D5D0CA;";
   const requesterList = `
     <div style="${box}">
       <div style="font-weight:700;font-size:13px;margin-bottom:8px;">신청한 사람 ${requesters.length}명</div>
@@ -791,7 +792,7 @@ function requestDetailHTML(r) {
         <div style="font-weight:700;font-size:13px;margin-bottom:8px;">① 진행 상태 바꾸기</div>
         <div style="display:flex;gap:6px;flex-wrap:wrap;">
           ${["접수", "채보중"].map(st => `
-            <button data-req-status="${st}" class="btn btn-small ${r.status === st ? "btn-primary" : ""}" ${r.status === st ? "disabled" : ""}>${r.status === st ? "✓ " : ""}${st}</button>`).join("")}
+            <button data-req-status="${st}" class="btn btn-small req-status-btn ${r.status === st ? "is-current" : ""}" ${r.status === st ? "disabled" : ""}>${r.status === st ? "✓ " : ""}${st}</button>`).join("")}
         </div>
         <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;">채보를 시작하면 "채보중"으로 바꿔주세요. 완료는 아래 ②에서 악보를 연결하면 돼요.</div>
       </div>
@@ -812,7 +813,7 @@ function requestDetailHTML(r) {
             </button>`;
           }).join("") : `<div style="padding:14px;font-size:12px;color:var(--muted);">${q ? "검색 결과가 없어요." : `승인된 ${esc(r.instrument)} 악보가 아직 없어요.`}</div>`}
         </div>
-        <button id="req-fulfill" class="btn btn-primary" style="width:100%;margin-top:10px;" ${ADMIN_REQ_PICK ? "" : "disabled"}>
+        <button id="req-fulfill" class="btn btn-primary admin-dark-btn" style="width:100%;margin-top:10px;" ${ADMIN_REQ_PICK ? "" : "disabled"}>
           ${ADMIN_REQ_PICK ? `선택한 악보로 작업 완료 (신청자 ${r.buyerIds.length}명)` : "위에서 악보를 먼저 골라주세요"}
         </button>
       </div>

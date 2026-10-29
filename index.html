@@ -391,6 +391,10 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 /* 2026-10-29: 아티스트 신청 "승인" 버튼 — 폴더 선택 버튼과 같은 다크 톤 (거절은 .admin-stop-btn 재사용) */
 .admin-approve-btn{background:#33312E;border:1px solid #33312E;color:#ffffff}
 .admin-approve-btn:hover{background:#1F1E1C;border-color:#1F1E1C}
+/* 2026-10-29: 관리자 신청곡 "진행 상태 바꾸기"(접수/채보중) — 현재 상태는 다크(#33312E, 흐리지 않음), 바꿀 상태는 중단 버튼과 같은 외곽선 버튼 */
+.btn.req-status-btn.is-current{background:#33312E;border-color:#33312E;color:#ffffff;opacity:1;cursor:default}
+.btn.req-status-btn:not(.is-current){background:#ffffff;border:1px solid #D5D0CA;color:#302D2A}
+.btn.req-status-btn:not(.is-current):hover{background:#F5F2EE;border-color:#B9AFA4}
 /* 2026-10-29: 검토 섹션 "폴더 다시 선택"(폴더 고른 뒤 상태) — 흰 배경 + 연한 외곽선, hover는 중단 버튼과 같은 톤 */
 #admin-review-pick-btn:not(.btn-primary){background:#ffffff;border-color:#D5D0CA}
 #admin-review-pick-btn:not(.btn-primary):hover{background:#F5F2EE;border-color:#B9AFA4}

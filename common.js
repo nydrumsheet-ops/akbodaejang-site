@@ -1741,29 +1741,53 @@ function getSellerInquiries(sellerId) {
     .sort((a, b) => (a.status === "답변완료") - (b.status === "답변완료") || new Date(b.createdAt) - new Date(a.createdAt));
 }
 
+/* 신청곡에 적힌 "가수 또는 작곡가"를 한 줄로 보여준다(2026-10-29 추가).
+   새 신청은 한 칸(artist → singer 필드에 저장)만 받고, 예전 신청은 작곡가·가수가 따로 있으므로 있는 것만 이어 붙인다. */
+function requestArtist(r) {
+  const singer = (r && r.singer || "").trim();
+  const composer = (r && r.composer || "").trim();
+  if (singer && composer && singer !== composer) return `${singer} · ${composer} 작곡`;
+  return singer || composer;
+}
+/* 목록에 쓰는 보조 줄: "가수/작곡가 · 악기" (가수/작곡가를 안 적었으면 악기만) */
+function requestSubLine(r) {
+  return [requestArtist(r), r && r.instrument].filter(Boolean).join(" · ");
+}
+
 /* 2026-10-16: 포인트 납부 신청곡 제도를 폐지하고, 구매자가 무료로 자유롭게 올리는
-   커뮤니티 게시판으로 바꿨다. 곡 제목·작곡가·가수·악기를 정확히 적도록 네 항목 모두 필수로 받는다.
-   note(요청 메모)는 선택 입력이다. */
+   커뮤니티 게시판으로 바꿨다.
+   2026-10-29 변경: 입력 항목을 "곡 제목(필수) + 가수 또는 작곡가(한 칸, 아는 것만) + 악기(필수)"로 줄이고 요청 메모는 없앴다.
+   가수/작곡가 한 칸은 data.artist 로 받아 singer 필드에 저장한다(DB 컬럼은 그대로, composer 는 빈 값).
+   예전 방식 호출(data.composer / data.singer)도 그대로 받아준다. note 는 더 이상 받지 않지만 예전 신청의 note 는 지우지 않는다. */
 function submitSongRequest(buyerId, data) {
   const buyer = STATE.users[buyerId];
   if (!buyer) return { ok: false, message: "사용자를 찾을 수 없습니다." };
   const title = (data.title || "").trim();
-  const composer = (data.composer || "").trim();
-  const singer = (data.singer || "").trim();
-  const note = (data.note || "").trim();
-  if (!title || !composer || !singer || !INSTRUMENTS.includes(data.instrument)) {
-    return { ok: false, message: "곡 제목, 작곡가, 가수, 악기를 모두 입력해주세요." };
+  const hasArtistField = typeof data.artist === "string";
+  const singer = hasArtistField ? data.artist.trim() : (data.singer || "").trim();
+  const composer = hasArtistField ? "" : (data.composer || "").trim();
+  const note = "";
+  if (!title || !INSTRUMENTS.includes(data.instrument)) {
+    return { ok: false, message: "곡 제목과 악기를 입력해주세요." };
   }
 
-  const existing = Object.values(STATE.requests).find(
-    r => r.title === title && r.composer === composer && r.singer === singer && r.instrument === data.instrument && r.status !== "완료"
-  );
+  // 같은 곡 판단: 제목·악기가 같고(대소문자·공백 무시), 가수/작곡가는 둘 다 적혀 있을 때만 같은지 비교한다.
+  // (한쪽이 비어 있으면 "모르는 것"이므로 같은 곡으로 보고 함께 신청에 올린다.)
+  const norm = v => String(v || "").trim().replace(/\s+/g, " ").toLowerCase();
+  const newArtist = norm(requestArtist({ singer, composer }));
+  const existing = Object.values(STATE.requests).find(r => {
+    if (r.status === "완료" || r.instrument !== data.instrument || norm(r.title) !== norm(title)) return false;
+    const a = norm(requestArtist(r));
+    return !a || !newArtist || a === newArtist || norm(r.singer) === newArtist || norm(r.composer) === newArtist;
+  });
   if (existing && existing.buyerIds.includes(buyerId)) {
     return { ok: false, message: "이미 신청한 곡입니다." };
   }
 
   if (existing) {
     existing.buyerIds.push(buyerId);
+    // 기존 신청에 가수/작곡가가 비어 있었는데 이번에 적었다면 채워 넣는다(2026-10-29).
+    if (!requestArtist(existing) && singer) existing.singer = singer;
     save();
     return { ok: true, requestId: existing.id, joined: true };
   }
