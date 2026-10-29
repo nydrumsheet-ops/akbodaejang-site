@@ -823,9 +823,9 @@ function renderListPage(el, p) {
         <span class="filter-label">조건</span>
         <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> 연주영상 있음</label>
         <span style="display:inline-flex;align-items:center;gap:6px;">
-          <input class="toolbar field" style="width:90px;" type="number" min="0" step="500" id="f-min" placeholder="최소P" value="${esc(p.minPrice || "")}">
+          <input class="field price-field" type="number" inputmode="numeric" min="0" step="500" id="f-min" placeholder="최소P" aria-label="최소 가격(포인트)" value="${esc(p.minPrice || "")}">
           ~
-          <input class="toolbar field" style="width:90px;" type="number" min="0" step="500" id="f-max" placeholder="최대P" value="${esc(p.maxPrice || "")}">
+          <input class="field price-field" type="number" inputmode="numeric" min="0" step="500" id="f-max" placeholder="최대P" aria-label="최대 가격(포인트)" value="${esc(p.maxPrice || "")}">
           <button class="btn btn-small" id="f-price">가격 적용</button>
         </span>
       </div>
@@ -858,8 +858,17 @@ function renderListPage(el, p) {
   }));
   document.getElementById("f-video")?.addEventListener("change", (e) => update({ video: e.target.checked }));
   document.getElementById("f-sort")?.addEventListener("change", (e) => update({ sort: e.target.value }));
-  document.getElementById("f-price")?.addEventListener("click", () => update({
-    minPrice: document.getElementById("f-min").value, maxPrice: document.getElementById("f-max").value
+  // 2026-10-29: 가격 필터 사용성 개선 — 음수는 0으로, 최소가 최대보다 크면 자동으로 서로 바꾸고,
+  // 입력칸에서 Enter 를 눌러도 "가격 적용"과 똑같이 적용된다.
+  const applyPriceFilter = () => {
+    const read = id => { const v = document.getElementById(id)?.value.trim(); return v === "" || v == null ? "" : String(Math.max(0, Math.round(Number(v)) || 0)); };
+    let minPrice = read("f-min"), maxPrice = read("f-max");
+    if (minPrice !== "" && maxPrice !== "" && Number(minPrice) > Number(maxPrice)) [minPrice, maxPrice] = [maxPrice, minPrice];
+    update({ minPrice, maxPrice });
+  };
+  document.getElementById("f-price")?.addEventListener("click", applyPriceFilter);
+  ["f-min", "f-max"].forEach(id => document.getElementById(id)?.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); applyPriceFilter(); }
   }));
   document.getElementById("clear-q")?.addEventListener("click", () => {
     const input = document.getElementById("header-search");

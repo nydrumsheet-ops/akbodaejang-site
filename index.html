@@ -580,6 +580,8 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .field{width:100%}
 textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-family:inherit;line-height:1.5}
 .toggle{display:inline-flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
+/* 2026-10-29: 목록 필터 가격 입력칸 — 옆 "가격 적용"(36px)과 높이를 맞춤 */
+.field.price-field{width:96px;height:36px;padding:0 10px}
 .toggle input{appearance:none;-webkit-appearance:none;width:18px;height:18px;border:1.5px solid #e0e3e9;border-radius:4px;background:#fff;position:relative;cursor:pointer;flex-shrink:0;}
 .toggle input:checked{border-color:var(--accent);}
 .toggle input:checked::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;color:var(--accent);font-weight:700;}
