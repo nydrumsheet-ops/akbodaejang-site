@@ -939,7 +939,7 @@ function renderDetailPage(el, p) {
 
   let buyArea;
   if (own) {
-    buyArea = `<div class="panel" style="margin-top:14px;background:var(--band);">내가 등록한 악보예요. 판매 현황은 판매자 센터에서 볼 수 있어요.</div>`;
+    buyArea = `<div class="panel" style="margin-top:14px;background:#ffffff;">내가 등록한 악보예요. 판매 현황은 판매자 센터에서 볼 수 있어요.</div>`;
   } else if (bought) {
     buyArea = `
       <div class="buy-row" style="grid-template-columns:1fr;">
