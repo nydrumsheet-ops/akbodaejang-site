@@ -247,11 +247,33 @@ function renderSeller() {
 
   renderTagChips();
   const tagInput = document.getElementById("sf-tag-input");
+  // 2026-10-29 수정: 한글 입력 중(조합 중)에 "," 나 Enter 를 누르면, 입력창을 먼저 비운 뒤 조합 중이던 마지막 글자가
+  // 다시 들어가 "침"처럼 앞 단어의 뒷글자가 남던 문제. 이제 ","는 키 입력이 아니라 입력창 내용(input 이벤트)으로 처리하고,
+  // 조합 중에 누른 Enter 는 글자 조합이 끝난 뒤(compositionend)에 태그로 추가한다.
+  let tagEnterPending = false;
+  const splitCommaTags = () => {
+    if (!tagInput.value.includes(",")) return;
+    const parts = tagInput.value.split(",");
+    const rest = parts.pop();
+    parts.forEach(part => addTagText(part));
+    tagInput.value = rest.replace(/^\s+/, "");
+  };
   tagInput.addEventListener("keydown", (e) => {
-    if (e.key === "Enter" || e.key === ",") {
-      e.preventDefault();
-      addTagFromInput();
-    }
+    if (e.key !== "Enter") return;
+    e.preventDefault();
+    if (e.isComposing || e.keyCode === 229) { tagEnterPending = true; return; }
+    addTagFromInput();
+  });
+  tagInput.addEventListener("input", (e) => {
+    if (e.isComposing) return; // 조합 중이면 조합이 끝난 뒤 compositionend 에서 처리
+    splitCommaTags();
+  });
+  tagInput.addEventListener("compositionend", () => {
+    // compositionend 직후에 최종 글자가 입력창에 반영되므로 한 박자 뒤에 처리한다.
+    setTimeout(() => {
+      splitCommaTags();
+      if (tagEnterPending) { tagEnterPending = false; addTagFromInput(); }
+    }, 0);
   });
   tagInput.addEventListener("blur", addTagFromInput);
 
@@ -392,8 +414,14 @@ function renderThumbnailPreview(dataUrl, el) {
 function addTagFromInput() {
   const input = document.getElementById("sf-tag-input");
   if (!input) return;
-  const raw = input.value.trim().replace(/,+$/, "").trim();
+  const text = input.value;
   input.value = "";
+  // 쉼표가 섞여 있으면(붙여넣기 등) 쉼표마다 나눠서 각각 태그로 추가한다.
+  text.split(",").forEach(part => addTagText(part));
+}
+
+function addTagText(text) {
+  const raw = String(text || "").trim();
   if (!raw) return;
   const msgEl = document.getElementById("seller-form-msg");
   if (SF_TAGS.length >= 5) {

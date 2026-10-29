@@ -302,7 +302,12 @@ function cartIcon() {
    여러 장(previewUrls)이 있으면 그걸(최대 5장), 옛날 방식(previewUrl 한 장)만 있으면
    그 한 장짜리 배열로, 둘 다 없으면 null(가짜 오선지 그림으로 대체)을 돌려준다. */
 function previewImages(s) {
-  if (Array.isArray(s.previewUrls) && s.previewUrls.length) return s.previewUrls.slice(0, 5);
+  // 2026-10-29: previewUrls[0]은 첫 페이지 위쪽 42%만 자른 이미지라, 상세 미리보기의 "아래 60% 블러"와 겹치면
+  // 선명한 부분이 페이지의 17% 정도로 줄어든다. 첫 페이지 전체 이미지(cardThumbUrl)가 있으면 첫 장은 그것으로 바꾸고,
+  // 2페이지부터는 기존 previewUrls를 그대로 쓴다(모든 악보가 "첫 페이지 전체 + 아래 60% 블러"로 같게 보이도록).
+  if (Array.isArray(s.previewUrls) && s.previewUrls.length) {
+    return s.cardThumbUrl ? [s.cardThumbUrl, ...s.previewUrls.slice(1, 5)] : s.previewUrls.slice(0, 5);
+  }
   if (s.previewUrl) return [s.previewUrl];
   // 2026-10-21 추가: 전용 미리보기 이미지가 한 번도 안 만들어진 옛날 악보(대량 수입 데이터)는
   // 목록 카드에 쓰는 전체 페이지 썸네일(cardThumbUrl)을 상세페이지 미리보기에도 그대로 재사용한다.
@@ -564,7 +569,7 @@ function renderHomePage(el) {
     <div class="lvl-band">
       <div class="lvl-head"><h2>지금의 나에게, 알맞은 난이도</h2></div>
       <div class="lvl-grid">
-        ${DIFFICULTIES.map((d, n) => { const info = ({"매우 쉬움":["한 곡을 끝까지, 차근차근","쉬운 반주 · 편안한 조성"],"보통":["표현이 깊어지는 시간","다양한 리듬 · 풍부한 화성"],"어려움":["나만의 해석을 더하다","원곡의 깊이 · 연주회 레퍼토리"]})[d] || ["",""]; const lv = 4 - DIFFICULTIES.length + n + 1; return `<button class="lvl-card" data-go="list:difficulty:${esc(d)}"><span class="lvl-top"><b>${esc(d)}</b><span class="lvl-bars" aria-hidden="true">${[1,2,3,4].map(k => `<i class="${k <= lv ? "on" : ""}" style="height:${8 + k * 3}px"></i>`).join("")}</span></span><span class="lvl-tag">${info[0]}</span><span class="lvl-meta">${info[1]}</span><span class="lvl-foot"><span>보러가기</span><i class="ico" style="--i:url(https://unpkg.com/lucide-static@0.468.0/icons/arrow-right.svg)"></i></span></button>`; }).join("")}
+        ${DIFFICULTIES.map((d, n) => { /* 2026-10-29: 홈 첫 카드는 "쉬움"으로 표시하고, 누르면 난이도 "쉬움" 악보 목록으로 이동한다(DIFFICULTIES 상수·저장 데이터는 그대로) */ const cardKey = ({"매우 쉬움":"쉬움"})[d] || d; const info = ({"매우 쉬움":["한 곡을 끝까지, 차근차근","쉬운 반주 · 편안한 조성"],"보통":["표현이 깊어지는 시간","다양한 리듬 · 풍부한 화성"],"어려움":["나만의 해석을 더하다","원곡의 깊이 · 연주회 레퍼토리"]})[d] || ["",""]; const lv = 4 - DIFFICULTIES.length + n + 1; return `<button class="lvl-card" data-go="list:difficulty:${esc(cardKey)}"><span class="lvl-top"><b>${esc(cardKey)}</b><span class="lvl-bars" aria-hidden="true">${[1,2,3,4].map(k => `<i class="${k <= lv ? "on" : ""}" style="height:${8 + k * 3}px"></i>`).join("")}</span></span><span class="lvl-tag">${info[0]}</span><span class="lvl-meta">${info[1]}</span><span class="lvl-foot"><span>보러가기</span><i class="ico" style="--i:url(https://unpkg.com/lucide-static@0.468.0/icons/arrow-right.svg)"></i></span></button>`; }).join("")}
       </div>
     </div>
     </div>
