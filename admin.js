@@ -970,12 +970,12 @@ function renderAdminArtistAppList() {
         </div>
         ${a.status === "심사대기" ? `
           <div style="display:flex;gap:8px;margin-top:8px;">
-            <button data-artistapp-approve="${a.id}"
-              style="flex:1;padding:9px;font-size:13px;border:none;border-radius:8px;background:var(--primary);color:var(--on-accent);cursor:pointer;">
+            <button data-artistapp-approve="${a.id}" class="admin-approve-btn"
+              style="flex:1;padding:9px;font-size:13px;border-radius:8px;cursor:pointer;">
               승인
             </button>
-            <button data-artistapp-reject="${a.id}"
-              style="flex:1;padding:9px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">
+            <button data-artistapp-reject="${a.id}" class="admin-stop-btn"
+              style="flex:1;padding:9px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">
               거절
             </button>
           </div>
@@ -985,12 +985,12 @@ function renderAdminArtistAppList() {
             <input type="text" id="admin-artistapp-reject-reason" placeholder="거절 사유를 입력하세요"
               style="width:100%;padding:9px;border:1px solid var(--border);border-radius:8px;font-size:13px;">
             <div style="display:flex;gap:8px;margin-top:6px;">
-              <button id="admin-artistapp-reject-confirm"
-                style="flex:1;padding:9px;font-size:13px;border:none;border-radius:8px;background:var(--danger);color:#fff;cursor:pointer;">
+              <button id="admin-artistapp-reject-confirm" class="admin-approve-btn"
+                style="flex:1;padding:9px;font-size:13px;border-radius:8px;cursor:pointer;">
                 거절 확정
               </button>
-              <button id="admin-artistapp-reject-cancel"
-                style="flex:1;padding:9px;font-size:13px;border:1px solid var(--border);border-radius:8px;background:var(--bg);cursor:pointer;">
+              <button id="admin-artistapp-reject-cancel" class="admin-stop-btn"
+                style="flex:1;padding:9px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">
                 취소
               </button>
             </div>
