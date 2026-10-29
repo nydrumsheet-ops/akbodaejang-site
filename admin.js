@@ -185,13 +185,30 @@ function adminMetrics(days) {
   };
 }
 
-function statTile(label, value, sub) {
+function statTile(label, value, sub, spark) {
   return `
     <div style="padding:14px;border-radius:14px;background:var(--card);border:1px solid var(--border);min-width:0;">
       <div style="font-size:12px;color:var(--muted);">${label}</div>
       <div style="font-size:20px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${value}</div>
       ${sub ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${sub}</div>` : ""}
+      ${spark || ""}
     </div>`;
+}
+
+// 2026-10-29 추가: 숫자 카드용 스파크라인(축 없음, 흐름만). 색은 테마 대응되는 진한 강조색(--primary-dark).
+function adminSparkline(values, title) {
+  const W = 120, H = 28, pad = 3;
+  const max = Math.max(1, ...values);
+  const step = values.length > 1 ? (W - pad * 2) / (values.length - 1) : 0;
+  const pts = values.map((v, i) => [pad + i * step, H - pad - (v / max) * (H - pad * 2)]);
+  const line = pts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const [lx, ly] = pts[pts.length - 1];
+  return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:28px;display:block;margin-top:8px;" role="img" aria-label="${esc(title)}">
+    <title>${esc(title)}</title>
+    <path d="${line} L${lx.toFixed(1)} ${H} L${pad} ${H} Z" fill="var(--primary-soft)" stroke="none"/>
+    <path d="${line}" fill="none" stroke="var(--primary-dark)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="2.5" fill="var(--primary-dark)"/>
+  </svg>`;
 }
 
 function renderAdminMetrics(body) {
@@ -210,6 +227,31 @@ function renderAdminMetrics(body) {
     daily.push({ d, total: list.reduce((s, p) => s + p.price, 0), count: list.length });
   }
   const maxDaily = Math.max(1, ...daily.map(x => x.total));
+
+  // 2026-10-29 추가: 월별 악보 매출 (최근 12개월, 기간 칩과 무관) — 꺾은선(영역형) 그래프
+  const monthly = [];
+  for (let i = 11; i >= 0; i--) {
+    const start = new Date(); start.setHours(0, 0, 0, 0); start.setDate(1); start.setMonth(start.getMonth() - i);
+    const end = new Date(start); end.setMonth(start.getMonth() + 1);
+    const list = Object.values(STATE.purchases).filter(p => !p.refunded && p.price > 0 && new Date(p.purchasedAt) >= start && new Date(p.purchasedAt) < end);
+    monthly.push({ start, total: list.reduce((s, p) => s + p.price, 0), count: list.length });
+  }
+  const maxMonthly = Math.max(1, ...monthly.map(x => x.total));
+  const LW = 600, LH = 160, LPX = 18, LTOP = 18;
+  const lStep = (LW - LPX * 2) / (monthly.length - 1);
+  const lPts = monthly.map((x, i) => [LPX + i * lStep, LTOP + (LH - LTOP) * (1 - x.total / maxMonthly)]);
+  const lLine = lPts.map(([x, y], i) => `${i ? "L" : "M"}${x.toFixed(1)} ${y.toFixed(1)}`).join(" ");
+  const lArea = `${lLine} L${lPts[lPts.length - 1][0].toFixed(1)} ${LH} L${lPts[0][0].toFixed(1)} ${LH} Z`;
+  const lDots = monthly.map((x, i) => {
+    const [cx, cy] = lPts[i];
+    const label = `${x.start.getFullYear()}년 ${x.start.getMonth() + 1}월${i === monthly.length - 1 ? "(진행 중)" : ""} · ${formatPoint(x.total)} · ${x.count}건`;
+    return `<g class="adm-pt">
+      <rect x="${(cx - lStep / 2).toFixed(1)}" y="0" width="${lStep.toFixed(1)}" height="${LH}" fill="transparent"><title>${label}</title></rect>
+      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="var(--card)" stroke="var(--primary-dark)" stroke-width="2"><title>${label}</title></circle>
+      <text x="${i === monthly.length - 1 ? LW : cx.toFixed(1)}" y="${LH + 15}" font-size="11" fill="var(--muted)" text-anchor="${i === monthly.length - 1 ? "end" : "middle"}">${i === monthly.length - 1 ? "이번 달" : `${x.start.getMonth() + 1}월`}</text>
+    </g>`;
+  }).join("");
+  const bestMonth = monthly.reduce((a, b) => b.total > a.total ? b : a, monthly[0]);
 
   // 많이 팔린 악보 · 판매자 · 악기별
   const byScore = {}, bySeller = {}, byInst = {};
@@ -243,7 +285,7 @@ function renderAdminMetrics(body) {
     </div>
 
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:10px;">
-      ${statTile("악보 매출", formatPoint(m.revenue), `${m.sales.length}건 판매`)}
+      ${statTile("악보 매출", formatPoint(m.revenue), `${m.sales.length}건 판매`, adminSparkline(daily.map(x => x.total), `최근 ${span}일 일별 매출 흐름`))}
       ${statTile("플랫폼 수수료 수익", formatWon(m.fee), `판매자 몫 ${formatWon(m.sellerShare)}`)}
       ${statTile("포인트 충전", formatWon(m.chargeWon), `${m.chargeCount}건`)}
       ${statTile("신규 가입", `${m.signups}명`, `그중 판매자 ${m.newSellers}명`)}
@@ -278,6 +320,24 @@ function renderAdminMetrics(body) {
       </div>
     </div>
 
+    <div style="${ADMIN_PANEL}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap;">
+        <h3 style="margin:0;font-size:15px;">월별 악보 매출 (최근 12개월)</h3>
+        <span style="font-size:12px;color:var(--muted);">점에 마우스를 올리면 월·금액·건수가 보여요</span>
+      </div>
+      <div style="margin-top:12px;">
+        <svg viewBox="0 0 ${LW} ${LH + 20}" style="width:100%;height:auto;display:block;overflow:visible;" role="img" aria-label="월별 악보 매출 꺾은선 그래프">
+          <line x1="0" x2="${LW}" y1="${LTOP}" y2="${LTOP}" stroke="var(--border)" stroke-width="1" stroke-dasharray="3 4"/>
+          <text x="0" y="${LTOP - 5}" font-size="11" fill="var(--muted)">${formatPoint(maxMonthly === 1 && !bestMonth.total ? 0 : maxMonthly)}</text>
+          <line x1="0" x2="${LW}" y1="${LH}" y2="${LH}" stroke="var(--border)" stroke-width="1"/>
+          <path d="${lArea}" fill="var(--primary-soft)" stroke="none"/>
+          <path d="${lLine}" fill="none" stroke="var(--primary-dark)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+          ${lDots}
+        </svg>
+        <div style="font-size:12px;color:var(--muted);margin-top:4px;">가장 많이 판 달: ${bestMonth.total ? `${bestMonth.start.getFullYear()}년 ${bestMonth.start.getMonth() + 1}월 · ${formatPoint(bestMonth.total)}` : "아직 없음"}</div>
+      </div>
+    </div>
+
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:16px;">
       <div style="${ADMIN_PANEL}">
         <h3 style="margin:0 0 10px;font-size:15px;">많이 팔린 악보</h3>
@@ -301,7 +361,7 @@ function renderAdminMetrics(body) {
         ${instRows.length ? instRows.map(([inst, total]) => `
           <div style="margin:8px 0;" title="${esc(inst)} ${formatPoint(total)}">
             <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>${esc(inst)}</span><span style="color:var(--muted);">${formatPoint(total)} · ${Math.round(total / Math.max(1, m.revenue) * 100)}%</span></div>
-            <div style="height:8px;border-radius:4px;background:var(--band);"><div style="height:8px;border-radius:4px;background:var(--primary);width:${(total / maxInst * 100).toFixed(1)}%;"></div></div>
+            <div style="height:8px;border-radius:4px;background:var(--primary-soft);"><div style="height:8px;border-radius:4px;background:var(--primary-dark);width:${(total / maxInst * 100).toFixed(1)}%;"></div></div>
           </div>`).join("") : `<p style="margin:0;font-size:13px;color:var(--muted);">이 기간에 판매가 없어요.</p>`}
       </div>
     </div>
@@ -441,7 +501,7 @@ function memberRowHTML(u, sum) {
     const purchases = Object.values(STATE.purchases).filter(p => p.buyerId === u.id).sort((a, b) => new Date(b.purchasedAt) - new Date(a.purchasedAt)).slice(0, 8);
     const myScores = u.sellerInfo ? Object.values(STATE.scores).filter(s => s.sellerId === u.id) : [];
     detail = `
-      <div style="margin-top:10px;padding:14px;border-radius:12px;background:var(--band);display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;font-size:12px;">
+      <div class="mem-detail" style="margin-top:10px;padding:14px;border-radius:12px;display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:14px;font-size:12px;">
         <div>
           <div style="font-weight:700;margin-bottom:6px;">포인트 내역 (최근 8건)</div>
           ${history.length ? history.map(h => `<div style="display:flex;justify-content:space-between;gap:6px;padding:3px 0;"><span style="min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${formatDate(h.at)} ${esc(h.reason)}</span><b style="white-space:nowrap;">${h.amount >= 0 ? "+" : ""}${formatPoint(h.amount)}</b></div>`).join("") : `<span style="color:var(--muted);">없음</span>`}
@@ -461,15 +521,15 @@ function memberRowHTML(u, sum) {
           <div style="font-weight:700;margin-bottom:6px;">포인트 수동 조정</div>
           <div style="color:var(--muted);margin-bottom:6px;">고객 문의 보상·오류 정정용. 사유는 회원 포인트 내역에 그대로 남아요.</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;">
-            <input id="adj-amt-${u.id}" class="field" type="number" step="100" placeholder="예: 1000 또는 -1000" style="width:150px;">
-            <input id="adj-reason-${u.id}" class="field" placeholder="사유 (필수)" style="flex:1;min-width:120px;">
-            <button data-mem-adjust="${u.id}" class="btn btn-small btn-primary">적용</button>
+            <input id="adj-amt-${u.id}" class="field mem-adj-field" type="number" step="100" placeholder="예: 1000 또는 -1000" style="width:150px;">
+            <input id="adj-reason-${u.id}" class="field mem-adj-field" placeholder="사유 (필수)" style="flex:1;min-width:120px;">
+            <button data-mem-adjust="${u.id}" class="btn btn-small btn-primary admin-dark-btn">적용</button>
           </div>
         </div>
       </div>`;
   }
   return `
-    <div style="padding:12px 0;border-top:1px solid var(--border);">
+    <div class="mem-row" style="padding:12px 0;">
       <button data-mem-open="${u.id}" style="all:unset;cursor:pointer;display:flex;align-items:center;gap:10px;width:100%;">
         <span class="avatar" style="width:36px;height:36px;font-size:13px;${typeof avatarStyle === "function" ? avatarStyle(u.name) : ""}">${esc(String(u.name).replace(/^데모\s*/, "").slice(0, 1))}</span>
         <span style="flex:1;min-width:0;">
@@ -1036,9 +1096,9 @@ function renderAdminPayoutBatch() {
         </table>
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
-        <button id="payout-csv" style="padding:10px 14px;font-size:13px;font-weight:600;border:1px solid var(--border);border-radius:8px;background:var(--primary-soft);color:var(--primary-dark);cursor:pointer;"><i class="ico ico-download"></i> ① 엑셀 파일 받기</button>
-        <button id="payout-copy" style="padding:10px 14px;font-size:13px;font-weight:600;border:1px solid var(--border);border-radius:8px;background:var(--primary-soft);color:var(--primary-dark);cursor:pointer;"><i class="ico ico-copy"></i> 표 복사 (엑셀에 붙여넣기)</button>
-        <button id="payout-done" style="padding:10px 14px;font-size:13px;font-weight:600;border:none;border-radius:8px;background:var(--primary);color:var(--on-accent);cursor:pointer;">✓ ③ 송금했어요 · 전체 지급 완료</button>
+        <button id="payout-csv" class="payout-btn"><i class="ico ico-download"></i> ① 엑셀 파일 받기</button>
+        <button id="payout-copy" class="payout-btn"><i class="ico ico-copy"></i> 표 복사 (엑셀에 붙여넣기)</button>
+        <button id="payout-done" class="payout-btn">✓ ③ 송금했어요 · 전체 지급 완료</button>
       </div>
     `;
   }
@@ -1077,7 +1137,8 @@ function renderAdminPayoutBatch() {
     if (doneBtn.dataset.confirm !== "1") {
       doneBtn.dataset.confirm = "1";
       doneBtn.textContent = `은행 송금을 마쳤나요? 한 번 더 누르면 ${batch.items.length}명 지급 완료 처리`;
-      doneBtn.style.background = "var(--hot)";
+      // 2026-10-29: 인라인 배경 대신 클래스로 확인 단계 강조(경고색)를 표시한다. 스타일은 index.html .payout-btn.is-confirm
+      doneBtn.classList.add("is-confirm");
       return;
     }
     const res = completePayoutBatch();
@@ -1925,10 +1986,10 @@ function renderAdminPdfUpload(body) {
       </div>
       <input type="file" id="admin-pdf-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <button id="admin-pdf-pick-btn" class="btn btn-primary" style="border-radius:12px;background:#da7f54;border-color:#da7f54;" ${ADMIN_PDF_RUNNING ? "disabled" : ""}>
+        <button id="admin-pdf-pick-btn" class="btn btn-primary admin-dark-btn" style="border-radius:12px;" ${ADMIN_PDF_RUNNING ? "disabled" : ""}>
           ${ADMIN_PDF_RUNNING ? "업로드 진행 중..." : `"판매용 악보" 폴더 선택해서 업로드 시작`}
         </button>
-        ${ADMIN_PDF_RUNNING ? `<button id="admin-pdf-stop-btn" style="padding:9px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">중단</button>` : ""}
+        ${ADMIN_PDF_RUNNING ? `<button id="admin-pdf-stop-btn" class="admin-stop-btn" style="padding:9px 14px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">중단</button>` : ""}
       </div>
       <div id="admin-pdf-progress" style="margin-top:14px;"></div>
       <div id="admin-pdf-log" style="margin-top:10px;max-height:320px;overflow-y:auto;font-size:12px;"></div>
@@ -2004,10 +2065,10 @@ function renderAdminPageCountHTML() {
       </p>
       <input type="file" id="admin-pagecount-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <button id="admin-pagecount-pick-btn" class="btn btn-primary" style="border-radius:12px;background:#da7f54;border-color:#da7f54;" ${ADMIN_PAGECOUNT_RUNNING ? "disabled" : ""}>
+        <button id="admin-pagecount-pick-btn" class="btn btn-primary admin-dark-btn" style="border-radius:12px;" ${ADMIN_PAGECOUNT_RUNNING ? "disabled" : ""}>
           ${ADMIN_PAGECOUNT_RUNNING ? "계산 진행 중..." : `"판매용 악보" 폴더 선택해서 계산 시작`}
         </button>
-        ${ADMIN_PAGECOUNT_RUNNING ? `<button id="admin-pagecount-stop-btn" style="padding:9px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">중단</button>` : ""}
+        ${ADMIN_PAGECOUNT_RUNNING ? `<button id="admin-pagecount-stop-btn" class="admin-stop-btn" style="padding:9px 14px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">중단</button>` : ""}
       </div>
       <div id="admin-pagecount-progress" style="margin-top:14px;"></div>
       <div id="admin-pagecount-log" style="margin-top:10px;max-height:320px;overflow-y:auto;font-size:12px;"></div>
@@ -2131,10 +2192,10 @@ function renderAdminCardThumbHTML() {
       </p>
       <input type="file" id="admin-cardthumb-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <button id="admin-cardthumb-pick-btn" class="btn btn-primary" style="border-radius:12px;background:#da7f54;border-color:#da7f54;" ${ADMIN_CARDTHUMB_RUNNING ? "disabled" : ""}>
+        <button id="admin-cardthumb-pick-btn" class="btn btn-primary admin-dark-btn" style="border-radius:12px;" ${ADMIN_CARDTHUMB_RUNNING ? "disabled" : ""}>
           ${ADMIN_CARDTHUMB_RUNNING ? "생성 진행 중..." : `"판매용 악보" 폴더 선택해서 생성 시작`}
         </button>
-        ${ADMIN_CARDTHUMB_RUNNING ? `<button id="admin-cardthumb-stop-btn" style="padding:9px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">중단</button>` : ""}
+        ${ADMIN_CARDTHUMB_RUNNING ? `<button id="admin-cardthumb-stop-btn" class="admin-stop-btn" style="padding:9px 14px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">중단</button>` : ""}
       </div>
       <div id="admin-cardthumb-progress" style="margin-top:14px;"></div>
       <div id="admin-cardthumb-log" style="margin-top:10px;max-height:320px;overflow-y:auto;font-size:12px;"></div>
@@ -2325,10 +2386,10 @@ function renderAdminPdfConfirmHTML() {
       </p>
       <input type="file" id="admin-pdf2-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
-        <button id="admin-pdf2-pick-btn" class="btn btn-primary" style="border-radius:12px;background:#da7f54;border-color:#da7f54;" ${ADMIN_PDF2_RUNNING ? "disabled" : ""}>
+        <button id="admin-pdf2-pick-btn" class="btn btn-primary admin-dark-btn" style="border-radius:12px;" ${ADMIN_PDF2_RUNNING ? "disabled" : ""}>
           ${ADMIN_PDF2_RUNNING ? "업로드 진행 중..." : `"판매용 악보" 폴더 선택해서 업로드 시작`}
         </button>
-        ${ADMIN_PDF2_RUNNING ? `<button id="admin-pdf2-stop-btn" style="padding:9px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">중단</button>` : ""}
+        ${ADMIN_PDF2_RUNNING ? `<button id="admin-pdf2-stop-btn" class="admin-stop-btn" style="padding:9px 14px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">중단</button>` : ""}
       </div>
       <div id="admin-pdf2-progress" style="margin-top:14px;"></div>
       <div id="admin-pdf2-log" style="margin-top:10px;max-height:280px;overflow-y:auto;font-size:12px;"></div>
@@ -2486,7 +2547,7 @@ function renderAdminReviewHTML() {
       </p>
       <input type="file" id="admin-review-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
-        <button id="admin-review-pick-btn" class="btn ${ADMIN_REVIEW_FOLDER ? "" : "btn-primary"}">
+        <button id="admin-review-pick-btn" class="btn ${ADMIN_REVIEW_FOLDER ? "" : "btn-primary admin-dark-btn"}">
           ${ADMIN_REVIEW_FOLDER ? "폴더 다시 선택" : `"판매용 악보" 폴더 선택`}
         </button>
         ${folderInfo}
@@ -2495,7 +2556,7 @@ function renderAdminReviewHTML() {
         ? `<p style="font-size:13px;color:var(--muted);margin:0;">남은 검토 대상이 없어요. 전부 처리됐습니다.</p>`
         : rowsHTML}
       ${rows.length ? `
-        <button id="admin-review-upload-btn" class="btn btn-primary" style="margin-top:8px;border-radius:12px;background:#da7f54;border-color:#da7f54;" ${(ADMIN_REVIEW_RUNNING || !ADMIN_REVIEW_FOLDER || ADMIN_REVIEW_CHECKED.size === 0) ? "disabled" : ""}>
+        <button id="admin-review-upload-btn" class="btn btn-primary admin-dark-btn" style="margin-top:8px;border-radius:12px;" ${(ADMIN_REVIEW_RUNNING || !ADMIN_REVIEW_FOLDER || ADMIN_REVIEW_CHECKED.size === 0) ? "disabled" : ""}>
           ${ADMIN_REVIEW_RUNNING ? "업로드 중..." : `체크한 ${ADMIN_REVIEW_CHECKED.size}곡 업로드`}
         </button>` : ""}
       <div id="admin-review-log" style="margin-top:10px;max-height:280px;overflow-y:auto;font-size:12px;"></div>

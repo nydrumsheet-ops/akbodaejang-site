@@ -285,6 +285,12 @@ function diffBadgeStyle(difficulty) {
   const c = DIFF_BADGE_COLORS[difficulty] || DIFF_BADGE_COLORS["매우 쉬움"];
   return `background:${c.bg};border:1px solid ${c.border};color:${c.fg};`;
 }
+// 2026-10-29 추가: 상세페이지 태그(.tag-diff)에 홈 카드 난이도 배지와 같은 색(DIFF_BADGE_COLORS)을 적용한다.
+// .tag-diff 는 테두리를 inset box-shadow 로 그리므로 border 대신 box-shadow 를 덮어써 태그 크기가 바뀌지 않게 한다.
+function diffTagStyle(difficulty) {
+  const c = DIFF_BADGE_COLORS[difficulty] || DIFF_BADGE_COLORS["매우 쉬움"];
+  return `background:${c.bg};box-shadow:inset 0 0 0 1px ${c.border};color:${c.fg};`;
+}
 function cartIcon() {
   return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
     <circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle>
@@ -980,7 +986,7 @@ function renderDetailPage(el, p) {
       <div>
         <div class="tags">
           <span class="tag">${esc(s.instrument)}</span>
-          <span class="tag tag-diff">${esc(s.difficulty)}</span>
+          <span class="tag tag-diff" style="${diffTagStyle(s.difficulty)}">${esc(s.difficulty)}</span>
           ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);">▶ 연주영상</span>` : ""}
         </div>
         <h1 class="detail-title" style="margin-top:8px;">${esc(s.title)}</h1>
@@ -1011,7 +1017,9 @@ function renderDetailPage(el, p) {
           <div class="spec-item"><span class="spec-k">악기</span><span class="spec-v">${esc(s.instrument)}</span></div>
           <div class="spec-item"><span class="spec-k">난이도</span><span class="spec-v">${esc(s.difficulty)}</span></div>
           <div class="spec-item"><span class="spec-k">파일</span><span class="spec-v">PDF</span></div>
-          ${s.pageCount ? `<div class="spec-item"><span class="spec-k">페이지</span><span class="spec-v">${s.pageCount}페이지</span></div>` : ""}
+          ${/* 2026-10-29: 페이지 행을 항상 표시(6칸이라 2열 표의 빈 칸도 사라짐). 페이지 수가 아직 저장되지 않은 기존 악보는 "-"로 표시하고,
+               관리자 > 기존 악보 페이지 수 일괄 계산을 돌리면 숫자로 채워진다. */""}
+          <div class="spec-item${s.pageCount ? "" : " spec-meta"}"><span class="spec-k">전체 페이지</span><span class="spec-v">${s.pageCount ? `${s.pageCount}페이지` : "-"}</span></div>
           <div class="spec-item spec-meta"><span class="spec-k">등록일</span><span class="spec-v">${formatDate(s.approvedAt || s.createdAt)}</span></div>
           <div class="spec-item spec-meta"><span class="spec-k">조회 · 판매</span><span class="spec-v">${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</span></div>
         </div>
@@ -1646,7 +1654,7 @@ function renderRequestsPage(el) {
     <p class="muted" style="margin:0 0 16px;line-height:1.6;">찾는 악보가 없으면 누구나 무료로 자유롭게 올릴 수 있는 게시판이에요. 신청이 많은 곡부터 채보해서 악보로 만들어요.</p>
 
     <div class="two-col req-layout">
-      <div class="panel" style="display:flex;flex-direction:column;gap:8px;">
+      <div class="panel req-form-panel" style="display:flex;flex-direction:column;gap:8px;">
         <h2 style="margin:0 0 4px;font-size:16px;">새 곡 신청하기</h2>
         <input class="field" id="rq-title" placeholder="곡 제목" value="${esc(prefill)}">
         <input class="field" id="rq-composer" placeholder="작곡가">
@@ -1664,7 +1672,7 @@ function renderRequestsPage(el) {
         <div class="chip-row" style="margin-bottom:10px;">
           ${[["", "전체"], ...REQUEST_STATUS.map(s => [s, s]), ...(user ? [["mine", "내 신청"]] : [])].map(([v, l]) => `<button class="chip ${REQ_FILTER === v ? "active" : ""}" data-rq-filter="${v}">${l}</button>`).join("")}
         </div>
-        <div class="panel">
+        <div class="panel req-list-panel">
           ${list.length ? list.map((r, i) => {
             const joined = user && r.buyerIds.includes(user.id);
             const likedBy = r.likedBy || [];
@@ -1683,7 +1691,7 @@ function renderRequestsPage(el) {
                     <button type="button" class="btn btn-small" data-rq-like="${r.id}" style="color:${liked ? "var(--hot)" : "var(--text)"};">추천 ${likedBy.length}</button>
                     ${r.status === "완료" && r.fulfilledScoreId
                       ? `<button class="btn btn-small" data-score-id="${r.fulfilledScoreId}">악보 보기</button>`
-                      : joined ? "" : `<button class="btn btn-small" data-join="${r.id}">저도 신청</button>`}
+                      : joined ? "" : `<button class="btn btn-small" data-join="${r.id}">신청하기</button>`}
                   </div>
                 </div>
               </div>`;
@@ -1769,7 +1777,7 @@ function renderSupportFaq(body) {
     <div class="chip-row" style="margin-bottom:12px;">
       ${cats.map(c => `<button class="chip ${SUPPORT_FAQ_CAT === c ? "active" : ""}" data-faq-cat="${esc(c)}">${c ? esc(c) : "전체"}</button>`).join("")}
     </div>
-    <div class="panel">
+    <div class="panel faq-panel">
       ${list.map(f => {
         const open = SUPPORT_FAQ_OPEN === f.id;
         return `

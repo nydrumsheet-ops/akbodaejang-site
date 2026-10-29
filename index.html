@@ -372,6 +372,25 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .muted{color:var(--muted)}
 .empty{padding:40px 16px;text-align:center;color:var(--muted);background:#ffffff;border-radius:var(--radius-card)}
 .empty .btn{border-radius:12px}
+.empty .btn.btn-small[data-go="home"]{border-color:#D5D0CA}
+/* 2026-10-29: 관리자 정산 지급 버튼 (엑셀 받기 / 표 복사 / 전체 지급 완료) */
+.payout-btn{display:inline-flex;align-items:center;gap:6px;padding:10px 14px;font-size:13px;font-weight:600;border:1px solid #B9AFA4;border-radius:8px;background:#EFE8E1;color:#33312e;cursor:pointer;outline:2px solid transparent;outline-offset:2px;transition:outline-color var(--dur-fast) var(--ease)}
+.payout-btn:hover,.payout-btn:focus-visible{border-color:#B9AFA4;outline:2px solid #E8DCCF;outline-offset:2px}
+.payout-btn.is-confirm{background:var(--hot);border-color:var(--hot);color:#ffffff}
+/* 2026-10-29: 관리자 "판매용 악보" 폴더 선택/업로드 버튼 — 오렌지 → 다크 */
+.btn-primary.admin-dark-btn{background:#33312E;border-color:#33312E;color:#ffffff}
+.btn-primary.admin-dark-btn:hover:not(:disabled),.btn-primary.admin-dark-btn[id$="-pick-btn"]:hover{background:#1F1E1C;border-color:#1F1E1C;color:#ffffff}
+/* 폴더 선택 버튼(업로드·계산·생성)은 진행 중(disabled)에도 흐려지지 않고 #33312E 그대로 — 글자("생성 진행 중...")로 상태를 알린다.
+   검토 섹션 업로드 버튼(admin-review-upload-btn)은 "올릴 게 없음"일 때 비활성이라 기존처럼 흐리게 둔다. */
+.btn-primary.admin-dark-btn[id$="-pick-btn"]:disabled{opacity:1}
+/* 2026-10-29: 진행 중 작업 "중단" 버튼 — 빨간색 → 중립 톤 */
+.admin-stop-btn{border:1px solid #D5D0CA;color:#302D2A}
+.adm-pt circle{transition:r var(--dur-fast) var(--ease)}
+.adm-pt:hover circle{r:6;fill:var(--primary-dark)}
+/* 2026-10-29: 관리자 회원관리 — 항목 구분선·상세(포인트) 영역·수동 조정 입력칸 */
+.mem-row{border-top:1px solid #D5D0CA}
+.mem-detail{background:#ffffff;border:1px solid #D5D0CA}
+.mem-adj-field:not(:focus){border-color:#D5D0CA}
 .chip-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 .chip-row::-webkit-scrollbar{display:none}
 .chip{flex-shrink:0;height:34px;padding:0 14px;border-radius:var(--radius-pill);border:1px solid #e0e3e9;background:#ffffff;font:500 13px/1 var(--font-text);cursor:pointer;color:#636873;white-space:nowrap;transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease)}
@@ -630,7 +649,7 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .stars{color:var(--star);letter-spacing:1px}
 .star-pick button{border:none;background:none;font-size:26px;cursor:pointer;color:var(--c-mute);padding:0 2px}
 .star-pick button.on{color:var(--star)}
-.artist-hero{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:28px;border-radius:var(--radius-lg);background:var(--surface-card);border:0}
+.artist-hero{display:flex;align-items:center;gap:20px;flex-wrap:wrap;padding:28px;border-radius:var(--radius-lg);background:#ffffff;border:1px solid #D5D0CA}
 .artist-hero h1{margin:0;font:var(--type-display-md);letter-spacing:var(--display-tracking)}
 .artist-hero .avatar.lg{background:var(--surface-inverse);color:var(--text-inverse)}
 .stat-row{display:flex;gap:20px;margin-top:8px;font-size:14px;color:var(--muted);flex-wrap:wrap}
@@ -639,11 +658,18 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .two-col:not(.cart-layout):not(.req-layout) > div .panel{background:#ffffff}
 .two-col.cart-layout{grid-template-columns:minmax(0,1fr) 320px}
 .cart-layout>.panel:not(.cart-summary){background:#ffffff}
+.panel.faq-panel{background:#ffffff}
 .two-col.req-layout{grid-template-columns:320px minmax(0,1fr)}
+.req-layout .panel.req-form-panel{background:#F5F2EE}
+.req-form-panel .field:not(:focus){border-color:#D5D0CA}
+.req-form-panel #rq-submit.btn-primary{background:#33312e;border-color:#33312e;color:#ffffff}
+.req-form-panel #rq-submit.btn-primary:hover:not(:disabled){background:#1f1e1c;border-color:#1f1e1c}
+.req-layout .panel.req-list-panel{background:#ffffff;border:1px solid #D5D0CA}
+.req-list-panel .btn[data-rq-like]:not(:hover),.req-list-panel .btn[data-join]:not(:hover){border-color:#D5D0CA}
 .side-menu{display:flex;flex-direction:column;gap:2px}
 .side-menu button{text-align:left;height:44px;padding:0 14px;border:none;background:none;border-radius:var(--radius-control);cursor:pointer;font:var(--type-label);font-size:15px;color:var(--text-body)}
-.side-menu button:hover{background:var(--surface-inset);color:var(--text)}
-.side-menu button.active{background:var(--accent-soft);color:var(--accent-ink)}
+.side-menu button:hover{background:none;color:#000000}
+.side-menu button.active{background:none;color:#000000}
 .point-card{background:#33312e;color:#ffffff;border-radius:var(--radius-card);padding:22px}
 .point-card .pc-label{font:var(--type-eyebrow);letter-spacing:.08em;color:#e8e4de}
 .point-card .pc-value{font:var(--type-display-md);letter-spacing:var(--display-tracking);color:#ffffff;margin-top:8px;font-variant-numeric:tabular-nums}
@@ -662,9 +688,6 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .cart-summary{position:sticky;top:150px;background:#33312e;color:#f3ede2;--muted:#c9c0b2;--danger:#ff9a8f;--border:rgba(255,255,255,.16)}
 .sum-line{display:flex;justify-content:space-between;padding:7px 0;font-size:15px;font-variant-numeric:tabular-nums}
 .sum-line.total{font:700 20px/1.3 var(--font-text);border-top:1px solid var(--border);margin-top:8px;padding-top:14px}
-.req-form-panel{background:#ffffff;border:1px solid #faf6f1}
-.req-form-panel #rq-submit{font-weight:800}
-.req-list-panel{background:#ffffff}
 .req-item{display:flex;align-items:center;gap:14px;padding:14px 0;border-top:1px solid var(--border)}
 .req-item:first-child{border-top:none}
 .req-band .req-item{border-top:none;padding:18px 0}
