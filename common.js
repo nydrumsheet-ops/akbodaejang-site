@@ -2468,8 +2468,10 @@ function renderNav() {
   if (!nav) return;
   const labels = { buyer: "스토어", seller: "판매자 센터", admin: "관리자" };
   const visible = visibleViewsForCurrentUser();
+  const navUser = getCurrentUser();
 
-  if (visible.length <= 1) {
+  // 2026-10-30: 관리자 계정은 헤더 "관리자 페이지" 목록으로 화면을 오가므로 이 줄을 숨긴다.
+  if (visible.length <= 1 || (navUser && navUser.isAdmin)) {
     if (navBarWrap) navBarWrap.style.display = "none";
     nav.innerHTML = "";
     return;
@@ -2523,7 +2525,7 @@ function renderHeaderAuth() {
         <span class="icon-btn-glyph"><i class="ico ico-user"></i></span><span class="icon-btn-label">${esc(user.name)}님 · ${formatPoint(user.points)}</span>
       </button>
       <button id="logout-btn" class="auth-btn">로그아웃</button>
-      ${user.isAdmin ? `<button id="header-admin-btn" class="auth-btn">관리자 페이지</button>` : ""}
+      ${user.isAdmin ? `<span class="adm-menu-wrap"><button id="header-admin-btn" class="auth-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="adm-menu">관리자 페이지<svg class="adm-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="adm-menu" id="adm-menu" role="menu" hidden></div></span>` : ""}
     `;
     document.getElementById("header-my-btn")?.addEventListener("click", () => {
       if (typeof goBuyer === "function") goBuyer("mypage");
@@ -2537,8 +2539,58 @@ function renderHeaderAuth() {
     requireLogin(() => { if (typeof goBuyer === "function") goBuyer("cart"); });
   });
   document.getElementById("logout-btn")?.addEventListener("click", logout);
-  document.getElementById("header-admin-btn")?.addEventListener("click", tryEnterAdmin);
+  // 2026-10-30: "관리자 페이지"를 누르면 바로 이동하지 않고, 글자 아래에 스토어/판매자 센터/관리자 목록을 연다.
+  document.getElementById("header-admin-btn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    toggleAdminMenu();
+  });
 }
+
+/* ---------- 헤더 "관리자 페이지" 목록 (2026-10-30 추가) ----------
+   관리자 계정은 메뉴 아래의 스토어/판매자 센터/관리자 줄(.nav-bar) 대신 이 목록으로 화면을 오간다. */
+const ADMIN_MENU_LABELS = { buyer: "스토어", seller: "판매자 센터", admin: "관리자" };
+
+function closeAdminMenu(focusBtn) {
+  const menu = document.getElementById("adm-menu");
+  const btn = document.getElementById("header-admin-btn");
+  if (!menu || menu.hidden) return;
+  menu.hidden = true;
+  if (btn) {
+    btn.classList.remove("is-open");
+    btn.setAttribute("aria-expanded", "false");
+    if (focusBtn) btn.focus();
+  }
+}
+
+function toggleAdminMenu() {
+  const menu = document.getElementById("adm-menu");
+  const btn = document.getElementById("header-admin-btn");
+  if (!menu || !btn) return;
+  if (!menu.hidden) { closeAdminMenu(); return; }
+  // 열 때마다 지금 보고 있는 화면 기준으로 다시 그린다(✓ 표시)
+  menu.innerHTML = visibleViewsForCurrentUser().map(v =>
+    `<button type="button" role="menuitem" data-adm-view="${v}" class="${v === CURRENT_VIEW ? "active" : ""}">${ADMIN_MENU_LABELS[v]}</button>`
+  ).join("");
+  menu.querySelectorAll("[data-adm-view]").forEach(item => item.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const view = item.dataset.admView;
+    closeAdminMenu();
+    if (view === "admin") tryEnterAdmin();
+    else showView(view);
+  }));
+  menu.hidden = false;
+  btn.classList.add("is-open");
+  btn.setAttribute("aria-expanded", "true");
+}
+
+// 목록 바깥을 누르거나 ESC를 누르면 닫는다(헤더를 다시 그려도 한 번만 등록되도록 여기서 등록)
+document.addEventListener("click", (e) => {
+  if (e.target.closest && e.target.closest(".adm-menu-wrap")) return;
+  closeAdminMenu();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape") closeAdminMenu(true);
+});
 
 /* ---------- 헤더 검색창 · 악기 메뉴 (index.html 의 고정 영역) ---------- */
 

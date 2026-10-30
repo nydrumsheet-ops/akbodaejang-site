@@ -333,6 +333,19 @@ a{color:var(--link)}
 #header-login-btn,#header-admin-btn{transition:color .18s var(--ease)}
 #header-login-btn:hover,#logout-btn:hover,#header-admin-btn:hover{background:transparent;color:var(--accent)}
 #logout-btn:focus-visible{outline:2px solid #302a26;outline-offset:2px}
+/* 2026-10-30: 헤더 "관리자 페이지" 목록(스토어/판매자 센터/관리자) */
+.adm-menu-wrap{position:relative;display:inline-flex}
+#header-admin-btn{display:inline-flex;align-items:center;gap:4px}
+#header-admin-btn .adm-caret{transition:transform .18s var(--ease)}
+#header-admin-btn.is-open{color:var(--accent)}
+#header-admin-btn.is-open .adm-caret{transform:rotate(180deg)}
+#header-admin-btn:focus-visible{outline:2px solid #302a26;outline-offset:2px}
+.adm-menu{position:absolute;top:calc(100% + 6px);right:0;min-width:176px;background:#ffffff;border:1px solid #D5D0CA;border-radius:12px;box-shadow:0 10px 24px rgba(48,45,42,.12);padding:6px;z-index:200;display:flex;flex-direction:column}
+.adm-menu[hidden]{display:none}
+.adm-menu button{display:flex;align-items:center;justify-content:space-between;gap:12px;height:40px;padding:0 12px;border:0;background:transparent;border-radius:8px;font-size:14px;color:#302D2A;cursor:pointer;text-align:left;white-space:nowrap}
+.adm-menu button:hover,.adm-menu button:focus-visible{background:#F5F2EE;outline:none}
+.adm-menu button.active{font-weight:700;color:#000000}
+.adm-menu button.active::after{content:"✓";color:var(--accent);font-weight:700}
 .badge{position:absolute;top:2px;left:22px;min-width:18px;height:18px;padding:0 5px;border-radius:var(--radius-pill);background:var(--accent-hover);color:var(--on-accent);font:700 11px/1 var(--font-mono);display:inline-flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px var(--surface-page)}
 .menu-row{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 .menu-row::-webkit-scrollbar{display:none}
