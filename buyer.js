@@ -272,6 +272,17 @@ function priceHtml(s) {
 // 2026-10-20: 난이도 이름 교체(초급→매우 쉬움, 초중급→쉬움, 중급→보통, 고급→어려움, 프로→매우 어려움)에 맞춰 키를 바꿨다.
 // "입문"/"상급"은 예전(더 이전) 버전에서 쓰던 이름이 남아있던 것으로, 지금은 어디서도 저장되지 않아 그대로 둔다.
 // 2026-10-20 추가: 사용자 지정 색상으로 5단계 각각 다른 배경·글자색 적용 (border는 배경색과 동일하게 맞춰 테두리가 도드라지지 않게 함)
+/* 2026-10-30: 홈 난이도 칸마다 보여주는 짧은 소개 문구 */
+const DIFF_INTRO = {
+  "매우 쉬움": "이제 막 배우기 시작한 초보",
+  "쉬움": "기본기가 조금씩 손에 익은 단계",
+  "보통": "한 곡을 끝까지 무리 없이 치는 단계",
+  "어려움": "빠른 곡·복잡한 리듬에 도전",
+  "매우 어려움": "원곡 그대로, 고난도 테크닉"
+};
+/* 2026-10-30: 난이도를 보여주거나 고르는 곳(홈·등록·후기)에서 쓰는 쉬운 순서 */
+const DIFF_ORDER_5 = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"];
+
 const DIFF_BADGE_COLORS = {
   "입문": { bg: "#D7F5DF", border: "#D7F5DF", fg: "#18743A" },
   "매우 쉬움": { bg: "#D7F5DF", border: "#D7F5DF", fg: "#18743A" },
@@ -477,7 +488,8 @@ function bindCards(root) {
     el.addEventListener("click", () => {
       const [page, key, value] = el.dataset.go.split(":");
       const params = {};
-      if (key) params[key] = value === "true" ? true : value;
+      if (key === "difficulties") params.difficulties = String(value || "").split("|").filter(Boolean); // 2026-10-30: 홈 난이도 카드(여러 단계 묶음)
+      else if (key) params[key] = value === "true" ? true : value;
       goBuyer(page, params);
     });
   });
@@ -568,12 +580,14 @@ function renderHomePage(el) {
         ${["피아노", "드럼", "기타", "베이스", "바이올린", "보컬"].map(i => `<button class="inst-card" data-go="list:instrument:${esc(i)}"><b>${esc(i)}</b></button>`).join("")}
       </div>
 
+    <!-- 2026-10-30: 홈 난이도 — 저장된 5단계를 그대로 다섯 칸으로(겹침·빠짐 없음), 칸마다 짧은 소개 문구 + 단계마다 길어지는 주황 그라데이션 막대 -->
     <div class="lvl-band">
-      <div class="lvl-head"><h2>지금의 나에게, 알맞은 난이도</h2></div>
-      <div class="lvl-grid">
-        ${DIFFICULTIES.map((d, n) => { /* 2026-10-29: 홈 첫 카드는 "쉬움"으로 표시하고, 누르면 난이도 "쉬움" 악보 목록으로 이동한다(DIFFICULTIES 상수·저장 데이터는 그대로) */ const cardKey = ({"매우 쉬움":"쉬움"})[d] || d; const info = ({"매우 쉬움":["한 곡을 끝까지, 차근차근","쉬운 반주 · 편안한 조성"],"보통":["표현이 깊어지는 시간","다양한 리듬 · 풍부한 화성"],"어려움":["나만의 해석을 더하다","원곡의 깊이 · 연주회 레퍼토리"]})[d] || ["",""]; const lv = 4 - DIFFICULTIES.length + n + 1; return `<button class="lvl-card" data-go="list:difficulty:${esc(cardKey)}"><span class="lvl-top"><b>${esc(cardKey)}</b><span class="lvl-bars" aria-hidden="true">${[1,2,3,4].map(k => `<i class="${k <= lv ? "on" : ""}" style="height:${8 + k * 3}px"></i>`).join("")}</span></span><span class="lvl-tag">${info[0]}</span><span class="lvl-meta">${info[1]}</span><span class="lvl-foot"><span>보러가기</span><i class="ico" style="--i:url(https://unpkg.com/lucide-static@0.468.0/icons/arrow-right.svg)"></i></span></button>`; }).join("")}
+      <div class="lvl-head"><h2>지금의 나에게, 알맞은 난이도</h2><span class="lvl-sub">쉬운 곡부터 한 단계씩</span></div>
+      <div class="lvl-steps">
+        ${DIFF_ORDER_5.map((d, n) => { const cnt = approvedScores().filter(x => x.difficulty === d).length; return `<button class="lvl-step" data-go="list:difficulties:${esc(d)}"><span class="lvl-meter" aria-hidden="true"><i style="width:${(n + 1) * 20}%;"></i></span><b>${esc(d)}</b><span class="lvl-step-desc">${esc(DIFF_INTRO[d] || "")}</span><span class="lvl-step-count">${cnt}곡</span></button>`; }).join("")}
       </div>
     </div>
+
     </div>
 
     <div class="section">
@@ -909,12 +923,14 @@ function renderListPage(el, p) {
 
 function renderDetailPage(el, p) {
   const s = STATE.scores[p.id];
-  if (!s || s.status !== "승인") {
+  const user = getCurrentUser();
+  // 2026-10-30: 판매 중지된 악보도 산 회원과 등록한 아티스트 본인은 상세를 볼 수 있다(그 외에는 안내만)
+  const canSeeStopped = s && s.status === "판매중지" && user && (user.id === s.sellerId || hasPurchased(user.id, s.id));
+  if (!s || (s.status !== "승인" && !canSeeStopped)) {
     el.innerHTML = `<div class="empty"><p>판매 중인 악보가 아니에요.</p><button class="btn" data-go="home">홈으로</button></div>`;
     bindCards(el);
     return;
   }
-  const user = getCurrentUser();
   const seller = STATE.users[s.sellerId];
   const st = getSellerStats(s.sellerId);
   const rating = getScoreRating(s.id);
@@ -947,9 +963,11 @@ function renderDetailPage(el, p) {
 
   let buyArea;
   if (own) {
-    buyArea = `<div class="panel" style="margin-top:14px;background:#ffffff;">내가 등록한 악보예요. 판매 현황은 판매자 센터에서 볼 수 있어요.</div>`;
+    buyArea = s.status === "판매중지"
+      ? `<div class="panel" style="margin-top:14px;background:#ffffff;">판매 중지한 악보예요. 다른 회원에게는 보이지 않아요. 판매자 센터 › 내 악보 관리에서 다시 판매할 수 있어요.</div>`
+      : `<div class="panel" style="margin-top:14px;background:#ffffff;">내가 등록한 악보예요. 판매 현황은 판매자 센터에서 볼 수 있어요.</div>`;
   } else if (bought) {
-    buyArea = `
+    buyArea = `${s.status === "판매중지" ? `<p class="muted" style="margin:14px 0 0;font-size:13px;">지금은 판매가 중지된 악보예요. 이미 구매하셨으니 내 악보함에서 그대로 받을 수 있어요.</p>` : ""}
       <div class="buy-row" style="grid-template-columns:1fr;">
         <button class="btn btn-primary" id="d-library">✓ 구매 완료 · 내 악보함에서 받기</button>
       </div>`;
@@ -1062,7 +1080,7 @@ function renderDetailPage(el, p) {
             <div class="star-pick" id="star-pick">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-star="${n}" class="${REVIEW_DRAFT.rating >= n ? "on" : ""}" aria-label="${n}점">★</button>`).join("")}</div>
             <div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap;align-items:center;">
               <span class="muted" style="font-size:12px;">체감 난이도</span>
-              <select class="field" id="rv-diff" style="width:auto;"><option value="">선택 안 함</option>${DIFFICULTIES.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")}</select>
+              <select class="field" id="rv-diff" style="width:auto;"><option value="">선택 안 함</option>${DIFF_ORDER_5.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")}</select>
             </div>
             <textarea class="field" id="rv-text" placeholder="연주해보니 어땠는지 다른 분들께 알려주세요 (5글자 이상)"></textarea>
             <div style="text-align:right;margin-top:8px;"><button class="btn btn-primary btn-small" id="rv-submit">후기 등록</button></div>

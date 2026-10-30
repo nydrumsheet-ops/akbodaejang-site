@@ -147,7 +147,7 @@ function difficultyGroup(d) {
 }
 /* 카테고리(매우 쉬움/보통/어려움) 안에서 보여줄 세부 단계 목록. 매우 쉬움 카테고리는 세부 단계가 없다. */
 const DIFFICULTY_SUBTIERS = { "매우 쉬움": [], "보통": ["쉬움", "보통"], "어려움": ["매우 어려움", "어려움"] };
-const SCORE_STATUS = ["등록", "심사중", "승인", "반려"]; // 2026-10-19: 악보 등록 심사는 폐지됐지만, admin.js Phase 2 정리 전까지 상수는 남겨둔다
+const SCORE_STATUS = ["등록", "심사중", "승인", "반려", "판매중지"]; // 2026-10-19: 악보 등록 심사는 폐지됐지만, admin.js Phase 2 정리 전까지 상수는 남겨둔다 / 2026-10-30: "판매중지" 추가(판매자가 직접 내린 악보)
 const WITHDRAW_STATUS = ["요청", "지급완료"];
 const REQUEST_STATUS = ["접수", "채보중", "완료"];
 const INQUIRY_STATUS = ["답변대기", "답변완료"];
@@ -852,6 +852,102 @@ function effectivePrice(score) {
   return Math.max(0, Math.round(score.price * (1 - d.rate)));
 }
 
+/* ---------- 판매자 본인 악보 수정 · 판매 중지 · 삭제 (2026-10-30 추가) ----------
+   - 판매 중지: status 를 "판매중지"로 바꾼다. 목록·검색·상세에서 빠지지만(approvedScores 는 "승인"만),
+     이미 산 회원은 내 악보함에서 계속 받을 수 있다(다운로드는 status 를 보지 않음).
+   - 삭제: 구매 기록이 하나도 없고 신청곡에 연결되지 않은 악보만 가능. 산 사람이 있으면 판매 중지만 된다. */
+function scorePurchaseCount(scoreId) {
+  return Object.values(STATE.purchases).filter(p => p.scoreId === scoreId).length;
+}
+
+function canDeleteScore(scoreId) {
+  if (scorePurchaseCount(scoreId) > 0) return { ok: false, message: "이 악보를 산 회원이 있어 삭제할 수 없어요. 대신 판매 중지를 이용해주세요." };
+  if (Object.values(STATE.requests).some(r => r.fulfilledScoreId === scoreId)) return { ok: false, message: "신청곡 완성 악보로 연결돼 있어 삭제할 수 없어요. 대신 판매 중지를 이용해주세요." };
+  return { ok: true };
+}
+
+/* data: { title, artist, instrument, difficulty, price, description, tags, hasVideo, videoUrl,
+           (PDF 교체 시) fileUrl, previewUrls, pageCount, cardThumbUrl } */
+function updateScoreBySeller(sellerId, scoreId, data) {
+  const s = STATE.scores[scoreId];
+  if (!s) return { ok: false, message: "악보를 찾을 수 없습니다." };
+  if (s.sellerId !== sellerId) return { ok: false, message: "본인이 등록한 악보만 수정할 수 있습니다." };
+  const title = String(data.title || "").trim();
+  const artist = String(data.artist || "").trim();
+  if (!title || !artist) return { ok: false, message: "곡 제목과 가수를 입력해주세요." };
+  if (!INSTRUMENTS.includes(data.instrument)) return { ok: false, message: "악기를 선택해주세요." };
+  if (!SCORE_DIFFICULTIES.includes(data.difficulty)) return { ok: false, message: "난이도를 선택해주세요." };
+  const price = Number(data.price);
+  if (!Number.isFinite(price) || price <= 0) return { ok: false, message: "가격을 올바르게 입력해주세요." };
+  const videoUrl = String(data.videoUrl || "").trim();
+  if (data.hasVideo && !videoUrl) return { ok: false, message: "영상이 있다고 체크했으면 영상 링크도 입력해주세요." };
+
+  s.title = title;
+  s.artist = artist;
+  s.instrument = data.instrument;
+  s.difficulty = data.difficulty;
+  s.price = Math.round(price);
+  s.description = String(data.description || "").trim();
+  s.tags = Array.isArray(data.tags) ? [...new Set(data.tags.map(t => String(t).trim()).filter(Boolean))].slice(0, 5) : (s.tags || []);
+  s.hasVideo = !!data.hasVideo;
+  s.videoUrl = data.hasVideo ? videoUrl : null;
+  if (data.fileUrl) s.fileUrl = data.fileUrl;
+  if (Array.isArray(data.previewUrls) && data.previewUrls.length) s.previewUrls = data.previewUrls;
+  if (Number.isFinite(data.pageCount) && data.pageCount > 0) s.pageCount = data.pageCount;
+  if (data.cardThumbUrl) s.cardThumbUrl = data.cardThumbUrl;
+  save();
+  return { ok: true };
+}
+
+/* 판매 중지 / 다시 판매. 상태 값은 서버에 먼저 바로 써 보고, 서버가 거절하면 화면 값도 바꾸지 않는다. */
+async function setScoreOnSale(sellerId, scoreId, onSale) {
+  const s = STATE.scores[scoreId];
+  if (!s) return { ok: false, message: "악보를 찾을 수 없습니다." };
+  if (s.sellerId !== sellerId) return { ok: false, message: "본인이 등록한 악보만 바꿀 수 있습니다." };
+  if (s.status !== "승인" && s.status !== "판매중지") return { ok: false, message: "판매 중이거나 판매 중지된 악보만 바꿀 수 있습니다." };
+  const next = onSale ? "승인" : "판매중지";
+  if (s.status === next) return { ok: true };
+  const sb = getSb();
+  if (!sb) return { ok: false, message: "서버 연결 준비 중입니다. 잠시 후 다시 시도해주세요." };
+  let error = null;
+  try {
+    const res = await sb.from("scores").update({ status: next }).eq("id", scoreId);
+    error = res.error;
+  } catch (e) { error = e; }
+  if (error) {
+    console.error("[common] 판매 상태 변경 오류", error);
+    return { ok: false, message: "판매 상태를 바꾸지 못했어요. 잠시 후 다시 시도해주세요." };
+  }
+  s.status = next;
+  save();
+  return { ok: true };
+}
+
+async function deleteScoreBySeller(sellerId, scoreId) {
+  const s = STATE.scores[scoreId];
+  if (!s) return { ok: false, message: "악보를 찾을 수 없습니다." };
+  if (s.sellerId !== sellerId) return { ok: false, message: "본인이 등록한 악보만 삭제할 수 있습니다." };
+  const can = canDeleteScore(scoreId);
+  if (!can.ok) return can;
+  // 저장소 파일도 정리한다(실패해도 악보 삭제는 진행 — 남은 파일은 아무 데서도 연결되지 않음)
+  const sb = getSb();
+  if (sb) {
+    try { if (s.fileUrl) await sb.storage.from("scores").remove([s.fileUrl]); } catch (e) { console.error("[common] 악보 파일 삭제 오류", e); }
+    try {
+      const imgs = [1, 2, 3, 4, 5].map(i => `${s.sellerId}/${scoreId}-p${i}.png`).concat(`${s.sellerId}/${scoreId}-card.png`);
+      await sb.storage.from("previews").remove(imgs);
+    } catch (e) { console.error("[common] 미리보기 이미지 삭제 오류", e); }
+  }
+  delete STATE.scores[scoreId];
+  const me = STATE.users[sellerId];
+  if (me) {
+    if (Array.isArray(me.cart)) me.cart = me.cart.filter(id => id !== scoreId);
+    if (Array.isArray(me.wishlist)) me.wishlist = me.wishlist.filter(id => id !== scoreId);
+  }
+  save();
+  return { ok: true };
+}
+
 function setScoreDiscount(sellerId, scoreId, rate, startAt, endAt) {
   const score = STATE.scores[scoreId];
   if (!score) return { ok: false, message: "악보를 찾을 수 없습니다." };
@@ -1087,7 +1183,7 @@ function submitReview(buyerId, scoreId, data) {
   const id = uid("review");
   STATE.reviews[id] = {
     id, scoreId, buyerId, rating,
-    feltDifficulty: DIFFICULTIES.includes(data.feltDifficulty) ? data.feltDifficulty : "",
+    feltDifficulty: SCORE_DIFFICULTIES.includes(data.feltDifficulty) ? data.feltDifficulty : "", // 2026-10-30: 후기 체감 난이도도 5단계로
     text, createdAt: nowISO()
   };
   save();

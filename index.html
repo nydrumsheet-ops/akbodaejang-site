@@ -333,6 +333,60 @@ a{color:var(--link)}
 #header-login-btn,#header-admin-btn{transition:color .18s var(--ease)}
 #header-login-btn:hover,#logout-btn:hover,#header-admin-btn:hover{background:transparent;color:var(--accent)}
 #logout-btn:focus-visible{outline:2px solid #302a26;outline-offset:2px}
+/* 2026-10-30: 판매자 센터 탭 */
+.seller-tabs{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none;border-bottom:1px solid #D5D0CA;margin-bottom:16px}
+.seller-tabs::-webkit-scrollbar{display:none}
+.seller-tab{flex-shrink:0;position:relative;padding:10px 14px 12px;border:0;background:transparent;font:var(--type-label);font-size:15px;color:var(--muted);cursor:pointer;white-space:nowrap}
+.seller-tab:hover{color:#000000}
+.seller-tab.active{color:#000000;font-weight:700}
+.seller-tab.active::after{content:"";position:absolute;left:14px;right:14px;bottom:-1px;height:2px;background:#33312E;border-radius:2px}
+.seller-tab b{margin-left:2px;color:#c45a1c}
+.seller-tab:focus-visible{outline:2px solid #302a26;outline-offset:-2px;border-radius:8px}
+#view-seller [data-seller-sec]{display:none;margin:0 0 16px !important}
+#view-seller [data-seller-sec].is-active{display:block}
+/* 2026-10-30: 내 악보 검색 · 상태 필터 */
+.ms-toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:8px}
+.ms-search{flex:1;min-width:200px;height:38px;padding:0 12px;border:1px solid #D5D0CA;border-radius:10px;font-size:14px;background:#ffffff;color:var(--text)}
+.ms-search:focus{outline:2px solid #E8DCCF;outline-offset:1px;border-color:#B9AFA4}
+.ms-filters{display:flex;gap:6px;flex-wrap:wrap}
+.ms-filter{height:32px;padding:0 12px;border:1px solid #D5D0CA;border-radius:999px;background:#ffffff;color:#302D2A;font-size:12px;cursor:pointer;white-space:nowrap}
+.ms-filter:hover{background:#F5F2EE;border-color:#B9AFA4}
+.ms-filter.active{background:#33312E;border-color:#33312E;color:#ffffff}
+.ms-count{font-size:12px;color:var(--muted);margin:0 0 4px}
+/* 2026-10-30: 관리자 "도구" 탭 — 끝난 작업용 기능 모음 */
+.adm-tools-head{margin-bottom:12px}
+.adm-tools-head p{margin:0 0 10px;font-size:13px;color:var(--muted)}
+.adm-tools-chips{display:flex;gap:6px;flex-wrap:wrap}
+.adm-tool-chip{height:32px;padding:0 14px;border:1px solid #D5D0CA;border-radius:999px;background:#ffffff;color:#302D2A;font-size:13px;cursor:pointer}
+.adm-tool-chip b{margin-left:2px;color:#c45a1c}
+.adm-tool-chip:hover{background:#F5F2EE;border-color:#B9AFA4}
+.adm-tool-chip.active{background:#33312E;border-color:#33312E;color:#ffffff}
+.adm-tool-chip.active b{color:#ffffff}
+/* 2026-10-30: 판매자 센터 "내 악보 관리" — 수정 · 판매 중지 · 삭제 */
+.sm-bar{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px}
+.sm-btn{height:30px;padding:0 12px;border:1px solid #D5D0CA;border-radius:8px;background:#ffffff;color:#302D2A;font-size:12px;cursor:pointer}
+.sm-btn:hover:not(:disabled){background:#F5F2EE;border-color:#B9AFA4}
+.sm-btn:disabled{opacity:.55;cursor:default}
+.sm-btn-dark{background:#33312E;border-color:#33312E;color:#ffffff}
+.sm-btn-dark:hover:not(:disabled){background:#1F1E1C;border-color:#1F1E1C}
+.sm-btn-danger{background:#ffffff;border-color:#c0392b;color:#c0392b}
+.sm-btn-danger:hover:not(:disabled){background:#fdecea;border-color:#c0392b}
+.sm-link{border:none;background:none;padding:0 4px;color:#8A847D;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.sm-link:hover{color:#c0392b}
+.sm-confirm{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#c0392b;flex-wrap:wrap}
+.sm-note{font-size:12px;color:var(--muted)}
+.sm-msg{margin-top:8px;font-size:12px;color:#2f7d4f}
+.sm-msg.is-error{color:#c0392b}
+.sm-edit{margin-top:10px;padding:14px;border:1px solid #D5D0CA;border-radius:10px;background:#F5F2EE;display:flex;flex-direction:column;gap:10px}
+.sm-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.sm-edit label{font-size:12px;color:#302D2A;display:flex;flex-direction:column;gap:4px}
+.sm-edit .sm-check{flex-direction:row;align-items:center;gap:8px;font-size:13px}
+.sm-sub{color:var(--muted);font-weight:400}
+.sm-in{width:100%;box-sizing:border-box;padding:9px 10px;border:1px solid #D5D0CA;border-radius:8px;font-size:13px;background:#ffffff;color:var(--text);font-family:inherit}
+.sm-in:focus{outline:2px solid #E8DCCF;outline-offset:1px;border-color:#B9AFA4}
+textarea.sm-in{resize:vertical}
+.sm-actions{display:flex;gap:8px}
+@media (max-width:560px){.sm-grid{grid-template-columns:minmax(0,1fr)}}
 /* 2026-10-30: 헤더 "관리자 페이지" 목록(스토어/판매자 센터/관리자) */
 .adm-menu-wrap{position:relative;display:inline-flex}
 #header-admin-btn{display:inline-flex;align-items:center;gap:4px}
@@ -542,6 +596,20 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .lvl-bars i.on{background:#f26432}
 .lvl-tag{margin-top:14px;font:var(--type-body);font-weight:500;color:#8e8174}
 .lvl-meta{margin-top:8px;font-size:12px;color:#8e8174}
+/* 2026-10-30: 홈 난이도 — 다섯 칸 + 소개 문구 + 길어지는 그라데이션 막대 */
+.lvl-steps{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:12px}
+.lvl-step{display:flex;flex-direction:column;align-items:flex-start;gap:6px;padding:16px 16px 14px;border:1px solid #eae4dc;border-radius:var(--radius-field);background:#ffffff;color:var(--text);cursor:pointer;text-align:left;transition:transform var(--dur-base) var(--ease),box-shadow var(--dur-base) var(--ease),border-color var(--dur-base) var(--ease)}
+.lvl-step:hover{transform:translateY(-2px);box-shadow:var(--shadow-md);border-color:#F6C9AE}
+.lvl-step:focus-visible{outline:2px solid #302a26;outline-offset:2px}
+.lvl-step b{font-size:16px;font-weight:700;color:#302a26;margin-top:4px}
+.lvl-meter{display:block;width:80px;height:8px;border-radius:999px;background:#F3ECE4;overflow:hidden;margin:6px 0 4px}
+.lvl-meter i{display:block;height:100%;border-radius:999px;background:linear-gradient(90deg,#FFC9A3,#E87949)}
+.lvl-step:hover .lvl-meter i{animation:lvlFill .5s var(--ease)}
+@keyframes lvlFill{from{width:0}}
+@media (prefers-reduced-motion:reduce){.lvl-step:hover .lvl-meter i{animation:none}}
+.lvl-step-desc{font-size:13px;line-height:1.45;color:#625950;word-break:keep-all}
+.lvl-step-count{margin-top:auto;padding-top:4px;font-size:12px;color:#8e8174}
+@media (max-width:760px){.lvl-steps{display:flex;overflow-x:auto;scrollbar-width:none;gap:8px;scroll-snap-type:x mandatory;padding-bottom:4px}.lvl-steps::-webkit-scrollbar{display:none}.lvl-step{flex:0 0 150px;scroll-snap-align:start}}
 .lvl-foot{margin-top:auto;padding-top:24px;display:flex;justify-content:space-between;align-items:center;font-size:16px;font-weight:600;color:#e95b2a}
 .lvl-foot .ico{font-size:18px;color:#f26432;transition:transform .2s var(--ease)}
 .lvl-card:hover .lvl-foot .ico{transform:translateX(3px)}

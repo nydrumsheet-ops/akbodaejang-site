@@ -12,6 +12,13 @@ let SF_TAGS = []; // 악보 등록 폼에서 지금 입력 중인 태그 (제출
 let SF_THUMBNAIL_DATA = null; // 선택한 썸네일 이미지를 읽어둔 데이터 (제출 성공해야 비움)
 let SELLER_INQUIRY_OPEN = null; // 펼쳐서 보고 있는 문의 id
 let SELLER_DISCOUNT_OPEN = null; // 펼쳐서 할인 설정 중인 악보 id (2026-10-16 추가)
+let SELLER_EDIT_OPEN = null;      // 펼쳐서 수정 중인 악보 id (2026-10-30 추가)
+let SELLER_DELETE_CONFIRM = null; // "정말 삭제할까요?" 확인 중인 악보 id (2026-10-30 추가)
+let SELLER_SCORE_BUSY = null;     // 저장·판매상태 변경·삭제 처리 중인 악보 id (2026-10-30 추가)
+let SELLER_MYSCORES_Q = "";       // 내 악보 검색어(제목·가수·태그) (2026-10-30 추가)
+let SELLER_MYSCORES_FILTER = "all"; // 내 악보 상태 필터: all | sale | stopped | discount (2026-10-30 추가)
+let SELLER_TAB = null;            // 판매자 센터 탭 (2026-10-30 추가): scores | register | sales | trend | inquiries | profile
+const SELLER_TABS = [["scores", "내 악보"], ["register", "악보 등록"], ["sales", "판매·정산"], ["trend", "신청곡 트렌드"], ["inquiries", "고객 문의"], ["profile", "프로필"]];
 let SELLER_TREND_INST = "";      // 신청곡 트렌드 악기 필터, "" = 전체 (2026-10-16 추가)
 let SELLER_TREND_SORT = "requests"; // "requests"(신청 많은 순) | "likes"(좋아요 많은 순) | "latest"(최근 순)
 let SELLER_TREND_STATUS = "";    // "" = 전체, 그 외엔 REQUEST_STATUS 값
@@ -42,8 +49,14 @@ function renderSeller() {
     return;
   }
 
+  // 2026-10-30: 한 페이지에 8개 칸이 길게 이어지던 것을 탭으로 나눴다. 칸 내용·id 는 그대로 두고 보이는 칸만 바꾼다.
+  if (!SELLER_TAB) SELLER_TAB = Object.values(STATE.scores).some(s => s.sellerId === user.id) ? "scores" : "register";
+  const unansweredInq = Object.values(STATE.inquiries).filter(q => q.sellerId === user.id && q.status !== "답변완료").length;
   el.innerHTML = `
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
+    <div class="seller-tabs" role="tablist">
+      ${SELLER_TABS.map(([k, l]) => `<button type="button" role="tab" class="seller-tab ${SELLER_TAB === k ? "active" : ""}" data-seller-tab="${k}" aria-selected="${SELLER_TAB === k}">${l}${k === "inquiries" && unansweredInq ? ` <b>${unansweredInq}</b>` : ""}</button>`).join("")}
+    </div>
+    <div data-seller-sec="profile" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">아티스트 프로필</h2>
       <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">악보 목록·상세페이지·아티스트 페이지에 구매자가 보는 이름이에요. 가입할 때 적은 이름과 달라도 괜찮아요.</p>
       <div id="seller-profile-msg" style="font-size:13px;margin:0 0 8px;"></div>
@@ -59,7 +72,7 @@ function renderSeller() {
       </div>
     </div>
 
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
+    <div data-seller-sec="trend" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">신청곡 트렌드</h2>
       <p style="margin:0 0 14px;font-size:13px;color:var(--muted);">구매자들이 올린 신청곡과 추천(좋아요) 현황이에요. 신청·추천이 많을수록 그만큼 찾는 사람이 많다는 뜻이니, 다음에 만들 악보를 고를 때 참고하세요.</p>
       <div class="chip-row" style="margin-bottom:8px;">
@@ -75,7 +88,7 @@ function renderSeller() {
       <div id="seller-trend-list"></div>
     </div>
 
-    <div id="seller-register-panel" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
+    <div data-seller-sec="register" id="seller-register-panel" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">악보 등록</h2>
       <p style="margin:0 0 4px;font-size:13px;color:var(--muted);">등록한 악보는 바로 목록에 노출됩니다. 여러 곡을 올릴 땐 등록 후 이 폼이 비워진 채 그대로 이어서 다음 곡을 입력하면 돼요.</p>
       ${SF_SESSION_COUNT > 0 ? `<p style="margin:0 0 14px;font-size:12px;color:var(--primary-dark);font-weight:600;">이번 접속에서 ${SF_SESSION_COUNT}곡 등록했어요.</p>` : `<div style="margin-bottom:18px;"></div>`}
@@ -110,7 +123,7 @@ function renderSeller() {
           <select id="sf-difficulty"
             style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;background:var(--card);">
             <option value="">선택하세요</option>
-            ${DIFFICULTIES.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")}
+            ${["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"].map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")}
           </select>
         </label>
 
@@ -172,19 +185,26 @@ function renderSeller() {
       </div>
     </div>
 
-    <div id="seller-bulk-panel" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
+    <div data-seller-sec="register" id="seller-bulk-panel" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       ${renderBulkPanelHTML()}
     </div>
 
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
-      <h2 style="margin:0 0 4px;font-size:17px;">내 악보 · 심사상태</h2>
-      <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">등록한 악보의 심사 진행 상황입니다.
+    <div data-seller-sec="scores" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
+      <h2 style="margin:0 0 4px;font-size:17px;">내 악보 관리</h2>
+      <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">등록한 악보를 고치거나, 판매를 잠시 멈추거나, 할인을 설정할 수 있어요.
         <button id="seller-store-link" style="margin-left:6px;border:none;background:none;color:var(--primary);font-size:13px;cursor:pointer;padding:0;text-decoration:underline;">구매자에게 보이는 내 아티스트 페이지 ›</button>
       </p>
+      <div class="ms-toolbar">
+        <input type="search" id="ms-search" class="ms-search" placeholder="제목·가수·태그로 찾기" value="${esc(SELLER_MYSCORES_Q)}" aria-label="내 악보 검색">
+        <div class="ms-filters" id="ms-filters">
+          ${[["all", "전체"], ["sale", "판매 중"], ["stopped", "판매 중지"], ["discount", "할인 중"]].map(([k, l]) => `<button type="button" class="ms-filter ${SELLER_MYSCORES_FILTER === k ? "active" : ""}" data-ms-filter="${k}">${l}</button>`).join("")}
+        </div>
+      </div>
+      <div id="ms-count" class="ms-count"></div>
       <div id="seller-my-scores"></div>
     </div>
 
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
+    <div data-seller-sec="sales" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">판매현황 · 적립금</h2>
       <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">판매된 악보와 정산 대기 적립금입니다.</p>
       <div id="seller-sales-summary"></div>
@@ -192,7 +212,7 @@ function renderSeller() {
       <div id="seller-recent-purchases" style="margin-top:16px;"></div>
     </div>
 
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;">
+    <div data-seller-sec="sales" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">정산 · 자동 지급</h2>
       <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">출금 신청은 따로 하지 않아도 돼요. 적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이면 매달 ${POLICY.settlement.payoutDay}일에 아래 계좌로 자동 입금됩니다.</p>
 
@@ -217,13 +237,20 @@ function renderSeller() {
       <div id="seller-withdraw-history"></div>
     </div>
 
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-top:16px;">
+    <div data-seller-sec="inquiries" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-top:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">고객 문의</h2>
       <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">구매자가 내 악보를 골라서 보낸 1:1 문의입니다. 다른 판매자 악보에 대한 문의는 보이지 않아요.</p>
       <div id="seller-inquiry-msg" style="font-size:13px;margin:0 0 10px;"></div>
       <div id="seller-inquiry-list"></div>
     </div>
   `;
+
+  applySellerTab();
+  el.querySelectorAll("[data-seller-tab]").forEach(b => b.addEventListener("click", () => {
+    SELLER_TAB = b.dataset.sellerTab;
+    applySellerTab();
+    window.scrollTo({ top: 0 });
+  }));
 
   const dnInput = document.getElementById("sp-displayname");
   if (dnInput) dnInput.value = (user.sellerInfo && user.sellerInfo.displayName) || user.name;
@@ -294,6 +321,19 @@ function renderSeller() {
   });
 
   wireBulkPanel(user.id);
+
+  // 2026-10-30: 내 악보 검색·상태 필터 — 입력칸은 다시 그리지 않고 목록만 다시 그려서 타이핑이 끊기지 않게 한다
+  document.getElementById("ms-search")?.addEventListener("input", (e) => {
+    SELLER_MYSCORES_Q = e.target.value;
+    SELLER_MYSCORES_PAGE = 1;
+    renderMyScores(user.id);
+  });
+  document.querySelectorAll("#ms-filters [data-ms-filter]").forEach(b => b.addEventListener("click", () => {
+    SELLER_MYSCORES_FILTER = b.dataset.msFilter;
+    SELLER_MYSCORES_PAGE = 1;
+    document.querySelectorAll("#ms-filters [data-ms-filter]").forEach(x => x.classList.toggle("active", x === b));
+    renderMyScores(user.id);
+  }));
 
   document.getElementById("seller-store-link")?.addEventListener("click", () => {
     if (typeof goBuyer === "function") goBuyer("artist", { id: user.id });
@@ -873,6 +913,18 @@ window.addEventListener("beforeunload", (e) => {
   if (SB_RUNNING) { e.preventDefault(); e.returnValue = ""; }
 });
 
+/* 판매자 센터 탭: 지금 탭의 칸만 보이게 하고 탭 버튼 상태를 맞춘다 (2026-10-30 추가) */
+function applySellerTab() {
+  const view = document.getElementById("view-seller");
+  if (!view) return;
+  view.querySelectorAll("[data-seller-sec]").forEach(sec => sec.classList.toggle("is-active", sec.dataset.sellerSec === SELLER_TAB));
+  view.querySelectorAll("[data-seller-tab]").forEach(b => {
+    const on = b.dataset.sellerTab === SELLER_TAB;
+    b.classList.toggle("active", on);
+    b.setAttribute("aria-selected", String(on));
+  });
+}
+
 /* ---------- 신청곡 트렌드 (2026-10-16 추가) ---------- */
 
 function renderSellerTrend() {
@@ -939,6 +991,8 @@ function renderSellerTrend() {
     if (titleInput) titleInput.value = r.title;
     if (artistInput) artistInput.value = r.singer || r.composer || "";
     if (instSelect) instSelect.value = r.instrument;
+    SELLER_TAB = "register"; // 2026-10-30: 탭으로 나뉘어서, 채워 넣은 등록 폼이 보이도록 "악보 등록" 탭으로 옮긴다
+    applySellerTab();
     document.getElementById("seller-register-panel")?.scrollIntoView({ behavior: "smooth", block: "start" });
   }));
   listEl.querySelectorAll("[data-trend-view]").forEach(b => b.addEventListener("click", () => {
@@ -1139,19 +1193,39 @@ const SCORE_STATUS_COLOR = {
   "등록": "#625950",
   "심사중": "#8a6420",
   "승인": "var(--primary-dark)",
-  "반려": "var(--danger)"
+  "반려": "var(--danger)",
+  "판매중지": "#8A847D"
 };
+// 화면에 보이는 상태 이름 (2026-10-30: 심사가 없어져 "승인" 대신 "판매 중"으로 보여준다)
+const SCORE_STATUS_LABEL = { "승인": "판매 중", "판매중지": "판매 중지" };
 
 function renderMyScores(sellerId) {
   const wrap = document.getElementById("seller-my-scores");
   if (!wrap) return;
 
-  const myScores = Object.values(STATE.scores)
+  const allMine = Object.values(STATE.scores)
     .filter(s => s.sellerId === sellerId)
     .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const countEl = document.getElementById("ms-count");
 
+  if (allMine.length === 0) {
+    if (countEl) countEl.textContent = "";
+    wrap.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:0;">아직 등록한 악보가 없습니다. "악보 등록" 탭에서 첫 악보를 등록해보세요.</p>`;
+    return;
+  }
+
+  // 2026-10-30: 검색어(제목·가수·태그)와 상태 필터를 적용한다
+  const q = String(SELLER_MYSCORES_Q || "").trim().toLowerCase();
+  const myScores = allMine.filter(s => {
+    if (SELLER_MYSCORES_FILTER === "sale" && s.status !== "승인") return false;
+    if (SELLER_MYSCORES_FILTER === "stopped" && s.status !== "판매중지") return false;
+    if (SELLER_MYSCORES_FILTER === "discount" && !(s.status === "승인" && activeDiscount(s))) return false;
+    if (!q) return true;
+    return [s.title, s.artist, ...(s.tags || [])].some(t => String(t || "").toLowerCase().includes(q));
+  });
+  if (countEl) countEl.textContent = myScores.length === allMine.length ? `전체 ${allMine.length}곡` : `${allMine.length}곡 중 ${myScores.length}곡`;
   if (myScores.length === 0) {
-    wrap.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:0;">아직 등록한 악보가 없습니다. 위 폼으로 첫 악보를 등록해보세요.</p>`;
+    wrap.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:12px 0 0;">조건에 맞는 악보가 없어요.</p>`;
     return;
   }
 
@@ -1175,7 +1249,7 @@ function renderMyScores(sellerId) {
       : "";
 
     /* 2026-10-16 추가: 승인된 악보만 판매자가 직접 할인율·기간을 설정/해제할 수 있다 */
-    const discountBlock = s.status === "승인" ? renderDiscountPanel(s) : "";
+    const discountBlock = s.status === "승인" && SELLER_EDIT_OPEN !== s.id ? renderDiscountPanel(s) : "";
 
     return `
       <div style="padding:12px 0;border-top:1px solid var(--border);">
@@ -1187,10 +1261,12 @@ function renderMyScores(sellerId) {
             </div>
           </div>
           <span style="flex-shrink:0;padding:4px 10px;border-radius:20px;font-size:12px;font-weight:600;color:${color};background:color-mix(in oklch,${color} 14%,var(--card));">
-            ${esc(s.status)}
+            ${esc(SCORE_STATUS_LABEL[s.status] || s.status)}
           </span>
         </div>
         ${rejectBlock}
+        ${renderScoreManageBar(s)}
+        ${SELLER_EDIT_OPEN === s.id ? renderScoreEditPanel(s) : ""}
         ${discountBlock}
       </div>
     `;
@@ -1205,6 +1281,7 @@ function renderMyScores(sellerId) {
     SELLER_MYSCORES_PAGE = current + (b.dataset.pageNav === "prev" ? -1 : 1);
     renderMyScores(sellerId);
   }));
+  wireScoreManage(wrap, sellerId);
   wrap.querySelectorAll("[data-disc-toggle]").forEach(b => b.addEventListener("click", () => {
     const id = b.dataset.discToggle;
     SELLER_DISCOUNT_OPEN = SELLER_DISCOUNT_OPEN === id ? null : id;
@@ -1233,6 +1310,194 @@ function renderMyScores(sellerId) {
     renderAll();
     showSellerMsg(document.getElementById(`disc-msg-${id}`), "할인이 해제되었습니다.", false);
   }));
+}
+
+/* ---------- 내 악보 수정 · 판매 중지 · 삭제 (2026-10-30 추가) ---------- */
+const SM_DIFFICULTY_ORDER = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"];
+
+function renderScoreManageBar(s) {
+  if (s.status !== "승인" && s.status !== "판매중지") return "";
+  const busy = SELLER_SCORE_BUSY === s.id;
+  const dis = busy ? "disabled" : "";
+  const sold = scorePurchaseCount(s.id);
+  const canDel = canDeleteScore(s.id).ok;
+  const confirming = SELLER_DELETE_CONFIRM === s.id;
+  return `
+    <div class="sm-bar">
+      <button type="button" class="sm-btn" data-sm-edit="${s.id}" ${dis}>${SELLER_EDIT_OPEN === s.id ? "수정 닫기" : "수정"}</button>
+      ${s.status === "승인"
+        ? `<button type="button" class="sm-btn" data-sm-sale="${s.id}" data-on="0" ${dis}>판매 중지</button>`
+        : `<button type="button" class="sm-btn sm-btn-dark" data-sm-sale="${s.id}" data-on="1" ${dis}>다시 판매</button>`}
+      ${canDel
+        ? (confirming
+            ? `<span class="sm-confirm">정말 삭제할까요? 되돌릴 수 없어요.
+                 <button type="button" class="sm-btn sm-btn-danger" data-sm-del-yes="${s.id}" ${dis}>삭제</button>
+                 <button type="button" class="sm-btn" data-sm-del-no="${s.id}" ${dis}>취소</button></span>`
+            : `<button type="button" class="sm-link" data-sm-del="${s.id}" ${dis}>삭제</button>`)
+        : `<span class="sm-note">${sold ? `구매 ${sold}건 · 삭제 대신 판매 중지만 할 수 있어요` : ""}</span>`}
+    </div>
+    <div class="sm-msg" id="sm-msg-${s.id}" hidden></div>`;
+}
+
+function renderScoreEditPanel(s) {
+  const busy = SELLER_SCORE_BUSY === s.id;
+  const dis = busy ? "disabled" : "";
+  const sold = scorePurchaseCount(s.id);
+  return `
+    <div class="sm-edit" data-sm-panel="${s.id}">
+      <div class="sm-grid">
+        <label>곡 제목<input type="text" class="sm-in" id="sm-title-${s.id}" value="${esc(s.title)}" ${dis}></label>
+        <label>가수<input type="text" class="sm-in" id="sm-artist-${s.id}" value="${esc(s.artist)}" ${dis}></label>
+        <label>악기<select class="sm-in" id="sm-inst-${s.id}" ${dis}>
+          ${INSTRUMENTS.map(x => `<option value="${esc(x)}" ${s.instrument === x ? "selected" : ""}>${esc(x)}</option>`).join("")}
+        </select></label>
+        <label>난이도<select class="sm-in" id="sm-diff-${s.id}" ${dis}>
+          ${SM_DIFFICULTY_ORDER.map(x => `<option value="${esc(x)}" ${s.difficulty === x ? "selected" : ""}>${esc(x)}</option>`).join("")}
+        </select></label>
+        <label>가격 (포인트)<input type="number" class="sm-in" id="sm-price-${s.id}" min="0" step="100" value="${esc(s.price)}" ${dis}></label>
+        <label><span>태그 <span class="sm-sub">(쉼표로 구분, 최대 5개)</span></span><input type="text" class="sm-in" id="sm-tags-${s.id}" value="${esc((s.tags || []).join(", "))}" placeholder="예: IU, 아이유, 좋은날" ${dis}></label>
+      </div>
+      <label class="sm-full"><span>악보 소개 <span class="sm-sub">(선택)</span></span>
+        <textarea class="sm-in" id="sm-desc-${s.id}" rows="3" placeholder="예: 사용된 테크닉, 연습 팁, 원곡과 다른 점" ${dis}>${esc(s.description || "")}</textarea>
+      </label>
+      <label class="sm-check"><input type="checkbox" id="sm-hasvideo-${s.id}" ${s.hasVideo ? "checked" : ""} ${dis}> 연주 영상이 있습니다</label>
+      <label class="sm-full" id="sm-video-wrap-${s.id}" ${s.hasVideo ? "" : "hidden"}>영상 링크
+        <input type="text" class="sm-in" id="sm-videourl-${s.id}" value="${esc(s.videoUrl || "")}" placeholder="유튜브 링크 등" ${dis}>
+      </label>
+      <label class="sm-full"><span>PDF 파일 바꾸기 <span class="sm-sub">(선택 — 고르면 미리보기·카드 썸네일·페이지 수도 새로 만들어요${sold ? `. 이미 산 ${sold}명도 새 파일을 받게 돼요` : ""})</span></span>
+        <input type="file" id="sm-file-${s.id}" accept="application/pdf,.pdf" class="file-input" style="margin-top:4px;font-size:13px;" ${dis}>
+      </label>
+      <div class="sm-actions">
+        <button type="button" class="btn btn-primary admin-dark-btn" data-sm-save="${s.id}" style="border-radius:10px;" ${dis}>${busy ? "저장하는 중…" : "저장"}</button>
+        <button type="button" class="btn admin-stop-btn" data-sm-cancel="${s.id}" style="border-radius:10px;background:#ffffff;" ${dis}>취소</button>
+      </div>
+    </div>`;
+}
+
+function smShowMsg(id, text, isError) {
+  const el = document.getElementById(`sm-msg-${id}`);
+  if (!el) return;
+  el.textContent = text;
+  el.hidden = !text;
+  el.classList.toggle("is-error", !!isError);
+}
+
+function wireScoreManage(wrap, sellerId) {
+  wrap.querySelectorAll("[data-sm-edit]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.smEdit;
+    SELLER_EDIT_OPEN = SELLER_EDIT_OPEN === id ? null : id;
+    SELLER_DELETE_CONFIRM = null;
+    if (SELLER_EDIT_OPEN) SELLER_DISCOUNT_OPEN = null;
+    renderMyScores(sellerId);
+  }));
+  wrap.querySelectorAll("[data-sm-cancel]").forEach(b => b.addEventListener("click", () => {
+    SELLER_EDIT_OPEN = null;
+    renderMyScores(sellerId);
+  }));
+  wrap.querySelectorAll("[id^='sm-hasvideo-']").forEach(c => c.addEventListener("change", () => {
+    const id = c.id.replace("sm-hasvideo-", "");
+    const w = document.getElementById(`sm-video-wrap-${id}`);
+    if (w) w.hidden = !c.checked;
+  }));
+  wrap.querySelectorAll("[data-sm-save]").forEach(b => b.addEventListener("click", () => handleSaveScoreEdit(sellerId, b.dataset.smSave)));
+  wrap.querySelectorAll("[data-sm-sale]").forEach(b => b.addEventListener("click", async () => {
+    const id = b.dataset.smSale;
+    const onSale = b.dataset.on === "1";
+    SELLER_SCORE_BUSY = id;
+    renderMyScores(sellerId);
+    const res = await setScoreOnSale(sellerId, id, onSale);
+    SELLER_SCORE_BUSY = null;
+    renderMyScores(sellerId);
+    smShowMsg(id, res.ok
+      ? (onSale ? "다시 판매를 시작했어요. 목록·검색에 다시 보여요." : "판매를 중지했어요. 목록·검색에서 빠지고, 이미 산 회원은 계속 받을 수 있어요.")
+      : res.message, !res.ok);
+  }));
+  wrap.querySelectorAll("[data-sm-del]").forEach(b => b.addEventListener("click", () => {
+    SELLER_DELETE_CONFIRM = b.dataset.smDel;
+    renderMyScores(sellerId);
+  }));
+  wrap.querySelectorAll("[data-sm-del-no]").forEach(b => b.addEventListener("click", () => {
+    SELLER_DELETE_CONFIRM = null;
+    renderMyScores(sellerId);
+  }));
+  wrap.querySelectorAll("[data-sm-del-yes]").forEach(b => b.addEventListener("click", async () => {
+    const id = b.dataset.smDelYes;
+    const title = STATE.scores[id] ? STATE.scores[id].title : "";
+    SELLER_SCORE_BUSY = id;
+    renderMyScores(sellerId);
+    const res = await deleteScoreBySeller(sellerId, id);
+    SELLER_SCORE_BUSY = null;
+    SELLER_DELETE_CONFIRM = null;
+    if (SELLER_EDIT_OPEN === id) SELLER_EDIT_OPEN = null;
+    renderMyScores(sellerId);
+    if (res.ok) toast(`"${title}" 악보를 삭제했어요.`);
+    else smShowMsg(id, res.message, true);
+  }));
+}
+
+async function handleSaveScoreEdit(sellerId, id) {
+  const s = STATE.scores[id];
+  if (!s) return;
+  const val = (k) => (document.getElementById(`sm-${k}-${id}`) || {}).value || "";
+  const data = {
+    title: val("title"), artist: val("artist"), instrument: val("inst"), difficulty: val("diff"),
+    price: val("price"), description: val("desc"),
+    tags: val("tags").split(/[,，]/).map(t => t.trim()).filter(Boolean),
+    hasVideo: !!(document.getElementById(`sm-hasvideo-${id}`) || {}).checked,
+    videoUrl: val("videourl")
+  };
+  const fileInput = document.getElementById(`sm-file-${id}`);
+  const file = fileInput && fileInput.files && fileInput.files[0] ? fileInput.files[0] : null;
+
+  // 먼저 입력값만 검사(파일을 올리기 전에 막을 수 있는 건 막는다)
+  const check = updateScoreBySellerCheck(data);
+  if (check) { smShowMsg(id, check, true); return; }
+
+  SELLER_SCORE_BUSY = id;
+  renderMyScores(sellerId);
+  if (file) {
+    smShowMsg(id, "새 PDF를 올리는 중이에요…", false);
+    const up = await uploadScoreFile(sellerId, id, file); // 같은 경로에 덮어쓴다
+    if (!up.ok) {
+      SELLER_SCORE_BUSY = null;
+      renderMyScores(sellerId);
+      smShowMsg(id, up.message || "파일 업로드에 실패했어요.", true);
+      return;
+    }
+    data.fileUrl = up.path;
+    const bust = `?v=${Date.now()}`; // 같은 주소라 예전 그림이 캐시로 보이지 않도록
+    try {
+      const blobs = await generateScorePreviewImages(file, 5);
+      if (blobs && blobs.length) {
+        const r = await uploadScorePreviewImages(sellerId, id, blobs);
+        if (r.ok && r.urls.length) data.previewUrls = r.urls.map(u => u + bust);
+      }
+    } catch (e) { console.error("[seller] 수정 — 미리보기 이미지 오류", e); }
+    try { data.pageCount = await getPdfPageCount(file); } catch (e) { console.error("[seller] 수정 — 페이지 수 오류", e); }
+    try {
+      const blob = await generateScoreCardThumbnail(file);
+      if (blob) {
+        const r = await uploadScoreCardThumbnail(sellerId, id, blob);
+        if (r.ok && r.url) data.cardThumbUrl = r.url + bust;
+      }
+    } catch (e) { console.error("[seller] 수정 — 카드 썸네일 오류", e); }
+  }
+  const res = updateScoreBySeller(sellerId, id, data);
+  SELLER_SCORE_BUSY = null;
+  if (res.ok) SELLER_EDIT_OPEN = null;
+  renderMyScores(sellerId);
+  smShowMsg(id, res.ok ? (file ? "저장했어요. 새 PDF와 미리보기로 바뀌었어요." : "저장했어요.") : res.message, !res.ok);
+}
+
+/* 파일 업로드 전에 쓰는 입력값 검사(updateScoreBySeller 와 같은 기준) — 문제 없으면 "" */
+function updateScoreBySellerCheck(d) {
+  if (!String(d.title).trim() || !String(d.artist).trim()) return "곡 제목과 가수를 입력해주세요.";
+  if (!INSTRUMENTS.includes(d.instrument)) return "악기를 선택해주세요.";
+  if (!SCORE_DIFFICULTIES.includes(d.difficulty)) return "난이도를 선택해주세요.";
+  const price = Number(d.price);
+  if (!Number.isFinite(price) || price <= 0) return "가격을 올바르게 입력해주세요.";
+  if (d.hasVideo && !String(d.videoUrl).trim()) return "영상이 있다고 체크했으면 영상 링크도 입력해주세요.";
+  return "";
 }
 
 /* 2026-10-16 추가: 악보 한 건의 할인 설정 토글 + 입력 패널 */

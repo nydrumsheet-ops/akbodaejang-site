@@ -10,6 +10,7 @@ let ADMIN_REJECT_TARGET_ID = null;
 let ADMIN_ARTIST_REJECT_TARGET_ID = null;   // 2026-10-20 추가: 아티스트 신청 관리 탭의 거절 대상(악보 심사용 변수와 분리)
 let ADMIN_ARTIST_FILTER = "심사대기";        // 2026-10-20 추가: 아티스트 신청 관리 상태 필터
 let ADMIN_TAB = "metrics";
+let ADMIN_TOOL = "pdf"; // 2026-10-30: "도구" 탭 안의 하위 메뉴 — "pdf"(PDF·이관 도구) | "review"(예전 악보 심사)
 let ADMIN_METRIC_DAYS = 30;          // 운영지표 기간: 1(오늘) / 7 / 30 / 0(전체)
 let ADMIN_MEMBER_QUERY = "";
 let ADMIN_MEMBER_ROLE = "";
@@ -34,16 +35,20 @@ function renderAdmin() {
   const pdfSt = pdfMappingStatus();
   const pdfSt2 = pdfMappingStatus2();
   const pdfStR = reviewMappingStatus();
+  // 2026-10-30: 운영에 매일 쓰는 탭만 위에 두고, 끝난 작업용(예전 악보 심사·PDF 이관 도구)은 "도구" 하나로 묶었다.
+  // "데모 데이터"(전체 데이터를 예시로 다시 채우는 기능)는 실제 운영 데이터를 지울 수 있어 관리자 화면에서 뺐다.
+  if (ADMIN_TAB === "review") { ADMIN_TAB = "tools"; ADMIN_TOOL = "review"; }
+  if (ADMIN_TAB === "pdfupload") { ADMIN_TAB = "tools"; ADMIN_TOOL = "pdf"; }
+  if (ADMIN_TAB === "demo") ADMIN_TAB = "metrics";
+  const pdfRemaining = pdfSt.remaining + pdfSt2.remaining + pdfStR.remaining;
   const tabs = [
     ["metrics", "운영지표", ""],
-    ["review", "악보 심사", pendingReview],
     ["artistapps", "아티스트 신청 관리", pendingArtistApps],
     ["payout", "정산 지급", payout.items.length],
     ["requests", "신청곡", openRequests],
     ["inquiries", "문의 관리", openInquiries],
     ["members", "회원관리", ""],
-    ["pdfupload", "PDF 일괄 업로드", pdfSt.remaining + pdfSt2.remaining + pdfStR.remaining],
-    ["demo", "데모 데이터", ""]
+    ["tools", "도구", pendingReview]
   ];
 
   el.innerHTML = `
@@ -92,15 +97,33 @@ function renderAdmin() {
 
   const body = document.getElementById("admin-tab-body");
 
-  if (ADMIN_TAB === "review") {
+  if (ADMIN_TAB === "tools") {
     body.innerHTML = `
+      <div class="adm-tools-head">
+        <p>자주 쓰지 않는 작업용 기능을 모아 둔 곳이에요.</p>
+        <div class="adm-tools-chips">
+          <button type="button" class="adm-tool-chip ${ADMIN_TOOL === "pdf" ? "active" : ""}" data-admin-tool="pdf">PDF·이관 도구${pdfRemaining ? ` <b>${pdfRemaining}</b>` : ""}</button>
+          <button type="button" class="adm-tool-chip ${ADMIN_TOOL === "review" ? "active" : ""}" data-admin-tool="review">예전 악보 심사${pendingReview ? ` <b>${pendingReview}</b>` : ""}</button>
+        </div>
+      </div>
+      <div id="admin-tool-body"></div>`;
+    body.querySelectorAll("[data-admin-tool]").forEach(b => b.addEventListener("click", () => {
+      ADMIN_TOOL = b.dataset.adminTool;
+      renderAdmin();
+    }));
+    const toolBody = document.getElementById("admin-tool-body");
+    if (ADMIN_TOOL === "review") {
+      toolBody.innerHTML = `
       <div style="${ADMIN_PANEL}">
-        <h2 style="margin:0 0 4px;font-size:17px;">악보 심사</h2>
-        <p style="margin:0 0 12px;font-size:13px;color:var(--muted);">등록되었거나 심사중인 악보를 승인하거나 반려합니다. 반려 시 사유가 판매자에게 전달됩니다.</p>
+        <h2 style="margin:0 0 4px;font-size:17px;">예전 악보 심사</h2>
+        <p style="margin:0 0 12px;font-size:13px;color:var(--muted);">악보 등록 심사는 2026-10-19에 없어졌어요. 그 전에 올라와 아직 "심사중"으로 남아 있는 악보만 여기서 승인하거나 반려합니다.</p>
         <div id="admin-review-msg" style="font-size:13px;margin:0 0 10px;"></div>
         <div id="admin-review-list"></div>
       </div>`;
-    renderAdminReviewList();
+      renderAdminReviewList();
+    } else {
+      renderAdminPdfUpload(toolBody);
+    }
   } else if (ADMIN_TAB === "artistapps") {
     renderAdminArtistApps(body);
   } else if (ADMIN_TAB === "payout") {
@@ -144,30 +167,6 @@ function renderAdmin() {
     renderAdminInquiries(body);
   } else if (ADMIN_TAB === "pdfupload") {
     renderAdminPdfUpload(body);
-  } else if (ADMIN_TAB === "demo") {
-    body.innerHTML = `
-      <div style="${ADMIN_PANEL}">
-        <h2 style="margin:0 0 4px;font-size:17px;">데모 데이터</h2>
-        <p style="margin:0 0 12px;font-size:13px;color:var(--muted);">화면 확인용 예시 악보·구매·충전·후기·신청곡으로 전부 다시 채웁니다. 지금 이 브라우저에 저장된 모든 데이터(가입자, 구매 내역 등)가 지워집니다.</p>
-        <button id="admin-reset-demo"
-          style="padding:10px 14px;font-size:13px;border:1px solid var(--danger);border-radius:8px;background:var(--card);color:var(--danger);cursor:pointer;">
-          데모 데이터로 다시 채우기
-        </button>
-      </div>`;
-    const resetBtn = document.getElementById("admin-reset-demo");
-    resetBtn?.addEventListener("click", () => {
-      if (resetBtn.dataset.confirm !== "1") {
-        resetBtn.dataset.confirm = "1";
-        resetBtn.textContent = "정말 지울까요? 한 번 더 누르면 초기화됩니다";
-        resetBtn.style.background = "var(--danger)";
-        resetBtn.style.color = "#fff";
-        return;
-      }
-      resetDemoData();
-      ADMIN_TAB = "metrics";
-      renderAll();
-      if (typeof toast === "function") toast("데모 데이터로 다시 채웠어요");
-    });
   } else {
     renderAdminMetrics(body);
   }
@@ -317,7 +316,7 @@ function renderAdminMetrics(body) {
 
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:10px;">
       ${[
-        ["review", `심사 대기 ${m.pendingReview}건`, m.pendingReview],
+        ...(m.pendingReview ? [["tools:review", `예전 심사 대기 ${m.pendingReview}건`, m.pendingReview]] : []),
         ["payout", `이번 달 지급 대상 ${payout.items.length}명 · ${formatWon(payout.total)}`, payout.items.length],
         ["requests", `진행 중 신청곡 ${m.openRequests}건`, m.openRequests]
       ].map(([tab, text, n]) => `
@@ -395,7 +394,9 @@ function renderAdminMetrics(body) {
     renderAdmin();
   }));
   body.querySelectorAll("[data-goto-tab]").forEach(b => b.addEventListener("click", () => {
-    ADMIN_TAB = b.dataset.gotoTab;
+    const [tab, tool] = b.dataset.gotoTab.split(":");
+    ADMIN_TAB = tab;
+    if (tool) ADMIN_TOOL = tool;
     renderAdmin();
   }));
 }
