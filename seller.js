@@ -18,6 +18,14 @@ let SELLER_TREND_STATUS = "";    // "" = 전체, 그 외엔 REQUEST_STATUS 값
 let SF_SESSION_COUNT = 0;        // 이번 접속(새로고침 전까지)에서 연속으로 등록한 곡 수 (2026-10-18 대량 등록 개선 추가)
 let SELLER_MYSCORES_PAGE = 1;    // "내 악보 · 심사상태" 목록 페이지 (2026-10-20 추가)
 const SELLER_MYSCORES_PAGE_SIZE = 10; // 한 페이지에 10개씩 (buyer.js의 PAGE_SIZE와는 별개 — 이름 겹치지 않게 분리)
+// 2026-10-30: 여러 곡 한꺼번에 등록(일괄 등록) 상태 — 다시 그려져도(renderSeller) 표가 유지되도록 모듈 변수에 둔다
+let SB_ROWS = [];          // { key, file, fileName, title, artist, instrument, difficulty, price, include, status, message, dup }
+let SB_RUNNING = false;
+let SB_STOP = false;
+let SB_DEFAULT_INST = "";
+let SB_DEFAULT_PRICE = "";
+const SB_MAX_FILES = 100;  // 한 번에 고를 수 있는 최대 파일 수
+const SB_DIFFICULTY_ORDER = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"]; // 화면에 보여줄 순서(값은 SCORE_DIFFICULTIES 와 같음)
 
 function renderSeller() {
   const el = document.getElementById("view-seller");
@@ -164,6 +172,10 @@ function renderSeller() {
       </div>
     </div>
 
+    <div id="seller-bulk-panel" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
+      ${renderBulkPanelHTML()}
+    </div>
+
     <div style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">내 악보 · 심사상태</h2>
       <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">등록한 악보의 심사 진행 상황입니다.
@@ -281,6 +293,8 @@ function renderSeller() {
     handleSubmitScore(user.id);
   });
 
+  wireBulkPanel(user.id);
+
   document.getElementById("seller-store-link")?.addEventListener("click", () => {
     if (typeof goBuyer === "function") goBuyer("artist", { id: user.id });
   });
@@ -295,6 +309,569 @@ function renderSeller() {
   renderSellerInquiries(user.id);
   renderSellerTrend();
 }
+
+/* ============================================================
+   여러 곡 한꺼번에 등록 (2026-10-30 추가)
+   관리자 "PDF 일괄 업로드"처럼 PDF 여러 개(또는 폴더)를 한 번에 고르면,
+   파일 이름("가수 - 제목_난이도.pdf")으로 제목·가수·난이도를 미리 채운 표를 보여주고
+   악기·가격은 한 번에 지정(곡별 수정 가능)한 뒤 한 곡씩 차례로 등록한다.
+   등록 과정(파일 업로드 → 미리보기 → 페이지 수 → 카드 썸네일 → submitScore)은
+   한 곡 등록(handleSubmitScore)과 같다. 소개·태그·영상·직접 썸네일은 일괄 등록에서 받지 않는다.
+   ============================================================ */
+
+let SB_MSG = null; // { text, isError } — 다시 그려져도 남도록 보관
+
+/* 파일 이름 속 난이도 표기 → 저장 값(SCORE_DIFFICULTIES). 예전 이름(초급·중급…)도 받아준다.
+   긴 표기부터 확인해야 "초중급"이 "중급"으로, "매우 쉬움"이 "쉬움"으로 잘못 잡히지 않는다. */
+const SB_DIFF_ALIASES = [
+  ["매우 쉬움", "매우 쉬움"], ["매우쉬움", "매우 쉬움"], ["매우 어려움", "매우 어려움"], ["매우어려움", "매우 어려움"],
+  ["초중급", "쉬움"], ["초급", "매우 쉬움"], ["중급", "보통"], ["고급", "어려움"], ["프로", "매우 어려움"],
+  ["쉬움", "쉬움"], ["보통", "보통"], ["어려움", "어려움"]
+];
+function sbFindDifficulty(text) {
+  const t = String(text || "");
+  for (const [k, v] of SB_DIFF_ALIASES) if (t.includes(k)) return v;
+  return "";
+}
+
+/* "아이유 - 좋은 날_보통.pdf" → { artist:"아이유", title:"좋은 날", difficulty:"보통" }
+   "[고급7] 원위 - FLY.pdf", "... _0001.pdf", "...pdf.pdf" 같은 이름도 정리한다. 못 알아낸 칸은 빈 값. */
+function parseScoreFileName(fileName) {
+  let base = String(fileName || "").split("/").pop().replace(/(\.pdf)+$/i, "").trim();
+  base = base.replace(/[_\s]+0{2,}\d+$/, "").trim();
+  let difficulty = "";
+  const bracket = base.match(/^\[([^\]]+)\]\s*/);
+  if (bracket) {
+    const d = sbFindDifficulty(bracket[1]);
+    if (d) { difficulty = d; base = base.slice(bracket[0].length).trim(); }
+  }
+  const us = base.lastIndexOf("_");
+  if (us > 0) {
+    const d = sbFindDifficulty(base.slice(us + 1));
+    if (d) { if (!difficulty) difficulty = d; base = base.slice(0, us).trim(); }
+  }
+  if (!difficulty) {
+    const m = base.match(/\s*[(\[]([^)\]]+)[)\]]\s*$/);
+    if (m) {
+      const d = sbFindDifficulty(m[1]);
+      if (d) { difficulty = d; base = base.slice(0, m.index).trim(); }
+    }
+  }
+  let artist = "", title = base;
+  const dash = base.match(/\s+-\s*|\s*-\s+/);
+  if (dash) {
+    artist = base.slice(0, dash.index).trim();
+    title = base.slice(dash.index + dash[0].length).trim();
+  }
+  return { artist, title, difficulty };
+}
+
+function sbNorm(v) { return String(v || "").trim().replace(/\s+/g, " ").toLowerCase(); }
+
+/* 빠진 입력이 있으면 무엇이 빠졌는지 돌려준다(없으면 ""). */
+function bulkRowProblem(r) {
+  const miss = [];
+  if (!String(r.title || "").trim()) miss.push("제목");
+  if (!String(r.artist || "").trim()) miss.push("가수");
+  if (!INSTRUMENTS.includes(r.instrument)) miss.push("악기");
+  if (!SCORE_DIFFICULTIES.includes(r.difficulty)) miss.push("난이도");
+  const price = Number(r.price);
+  if (r.price === "" || !Number.isFinite(price) || price <= 0) miss.push("가격");
+  return miss.length ? `입력 필요: ${miss.join("·")}` : "";
+}
+
+/* 이미 등록한 내 악보 중 같은 곡(제목·가수, 그리고 정해져 있으면 악기·난이도까지 같은 것)이 있는지 */
+function bulkDupScore(sellerId, r) {
+  if (!r.title || !r.artist) return null;
+  return Object.values(STATE.scores).find(s =>
+    s.sellerId === sellerId &&
+    sbNorm(s.title) === sbNorm(r.title) && sbNorm(s.artist) === sbNorm(r.artist) &&
+    (!r.instrument || s.instrument === r.instrument) &&
+    (!r.difficulty || s.difficulty === r.difficulty)
+  ) || null;
+}
+
+let SB_FILTER = "all";      // 목록 보기 필터: all | need | fail | ready | excluded | done (2026-10-30 표 형식 개편)
+let SB_OPEN = new Set();    // 휴대폰에서 펼쳐서 고치는 중인 곡(key)
+
+/* 상태 분류 — 필터·정렬·개수에 같이 쓴다 */
+function bulkKind(r) {
+  if (r.status === "완료") return "done";
+  if (r.status === "등록 중") return "running";
+  if (r.status === "실패") return "fail";
+  if (!r.include) return "excluded";
+  if (bulkRowProblem(r)) return "need";
+  return "ready";
+}
+
+function bulkStatus(r) {
+  const k = bulkKind(r);
+  return ({
+    done: ["완료", "#2f7d4f"], running: ["등록 중…", "#9a3208"], fail: ["실패", "#c0392b"],
+    excluded: ["제외", "#8A847D"], need: ["입력 필요", "#c45a1c"], ready: ["준비됨", "#302D2A"]
+  })[k];
+}
+
+function bulkTargets() { return SB_ROWS.filter(r => r.include && r.status !== "완료"); }
+
+function bulkCounts() {
+  const c = { all: SB_ROWS.length, need: 0, fail: 0, ready: 0, excluded: 0, done: 0, running: 0 };
+  for (const r of SB_ROWS) c[bulkKind(r)]++;
+  return c;
+}
+
+function bulkSummarySub(r) {
+  const price = Number(r.price);
+  return [r.difficulty || "난이도?", r.instrument || "악기?", r.price !== "" && Number.isFinite(price) && price > 0 ? `${price.toLocaleString()}P` : "가격?"].join(" · ");
+}
+
+function bulkHintText(r) {
+  if (r.message) return r.message;
+  return r.include && r.status === "대기" ? bulkRowProblem(r) : "";
+}
+
+/* 안내 글자색: 실패는 빨강, 빠진 입력은 주황, 그 외 안내(같은 곡 알림·진행 단계)는 회색 */
+function bulkHintClass(r) {
+  if (r.status === "실패") return "is-error";
+  if (!r.message && r.include && r.status === "대기" && bulkRowProblem(r)) return "is-need";
+  return "";
+}
+
+function bulkRowHTML(r, i) {
+  const locked = SB_RUNNING || r.status === "완료";
+  const [label, color] = bulkStatus(r);
+  const hint = bulkHintText(r);
+  const dis = locked ? "disabled" : "";
+  const open = SB_OPEN.has(r.key);
+  return `
+    <div class="sb-row ${open ? "open" : ""} ${r.status === "완료" ? "is-done" : ""}" data-sb-row="${i}">
+      <input type="checkbox" class="sb-chk" data-sb-field="include" ${r.include ? "checked" : ""} ${dis} aria-label="이 곡 등록하기">
+      <button type="button" class="sb-sum" data-sb-toggle aria-expanded="${open}">
+        <span class="sb-sum-main">${esc(r.title || "제목 없음")}${r.artist ? ` <span class="sb-sum-artist">· ${esc(r.artist)}</span>` : ""}</span>
+        <span class="sb-sum-sub">${esc(bulkSummarySub(r))}</span>
+      </button>
+      <div class="sb-fields">
+        <div class="sb-cell-title">
+          <input type="text" class="sb-in" data-sb-field="title" value="${esc(r.title)}" placeholder="곡 제목" aria-label="곡 제목" ${dis}>
+          <span class="sb-file" title="${esc(r.fileName)}">${esc(r.fileName)}</span>
+        </div>
+        <input type="text" class="sb-in" data-sb-field="artist" value="${esc(r.artist)}" placeholder="가수" aria-label="가수" ${dis}>
+        <select class="sb-in" data-sb-field="instrument" aria-label="악기" ${dis}>
+          <option value="">악기</option>
+          ${INSTRUMENTS.map(x => `<option value="${esc(x)}" ${r.instrument === x ? "selected" : ""}>${esc(x)}</option>`).join("")}
+        </select>
+        <select class="sb-in" data-sb-field="difficulty" aria-label="난이도" ${dis}>
+          <option value="">난이도</option>
+          ${SB_DIFFICULTY_ORDER.map(x => `<option value="${esc(x)}" ${r.difficulty === x ? "selected" : ""}>${esc(x)}</option>`).join("")}
+        </select>
+        <input type="number" class="sb-in" data-sb-field="price" value="${esc(r.price)}" min="0" step="100" placeholder="가격(P)" aria-label="가격" ${dis}>
+      </div>
+      <span class="sb-status" data-sb-status style="color:${color};">${esc(label)}</span>
+      <button type="button" class="sb-tg" data-sb-toggle aria-label="펼치기/접기"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="sb-hint ${bulkHintClass(r)}" data-sb-hint ${hint ? "" : "hidden"}>${esc(hint)}</div>
+    </div>`;
+}
+
+function bulkChipsHTML() {
+  const c = bulkCounts();
+  const items = [["all", "전체"], ["need", "입력 필요"], ["fail", "실패"], ["ready", "준비됨"], ["excluded", "제외"], ["done", "완료"]];
+  return items
+    .filter(([k]) => k === "all" || c[k] > 0 || SB_FILTER === k)
+    .map(([k, l]) => `<button type="button" class="sb-chip ${SB_FILTER === k ? "active" : ""} ${k === "need" || k === "fail" ? "warn" : ""}" data-sb-filter="${k}">${l} <b>${c[k]}</b></button>`)
+    .join("");
+}
+
+/* 화면에 보일 순서: 등록 중이 아닐 때는 고칠 곡(입력 필요·실패)을 맨 위로 */
+function bulkVisibleRows() {
+  const rank = { need: 0, fail: 1, running: 2, ready: 3, excluded: 4, done: 5 };
+  let rows = SB_ROWS.map((r, i) => ({ r, i }));
+  if (SB_FILTER !== "all") rows = rows.filter(({ r }) => bulkKind(r) === SB_FILTER);
+  if (!SB_RUNNING) rows.sort((a, b) => (rank[bulkKind(a.r)] - rank[bulkKind(b.r)]) || (a.i - b.i));
+  return rows;
+}
+
+function bulkRunBarHTML() {
+  const targets = bulkTargets();
+  const done = SB_ROWS.filter(r => r.status === "완료").length;
+  if (SB_RUNNING) {
+    const total = SB_RUN_TOTAL || 1;
+    const pct = Math.round((SB_RUN_DONE / total) * 100);
+    return `
+      <div class="sb-progress"><span style="width:${pct}%;"></span></div>
+      <div style="display:flex;gap:8px;align-items:center;">
+        <span style="flex:1;font-size:13px;font-weight:600;">등록 중… ${SB_RUN_DONE}/${total}곡</span>
+        <button id="sb-stop-btn" class="btn admin-stop-btn" style="border-radius:12px;background:#ffffff;" ${SB_STOP ? "disabled" : ""}>${SB_STOP ? "중단하는 중…" : "중단"}</button>
+      </div>`;
+  }
+  return `
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span style="flex:1;font-size:12px;color:var(--muted);">${SB_ROWS.length}개 파일 · 완료 ${done}곡</span>
+      <button id="sb-run-btn" class="btn btn-primary admin-dark-btn" style="border-radius:12px;min-width:180px;" ${targets.length ? "" : "disabled"}>선택한 ${targets.length}곡 등록하기</button>
+    </div>`;
+}
+
+let SB_RUN_TOTAL = 0;
+let SB_RUN_DONE = 0;
+
+function renderBulkPanelHTML() {
+  const n = SB_ROWS.length;
+  const dis = SB_RUNNING ? "disabled" : "";
+  const field = `style="padding:8px 10px;border:1px solid #D5D0CA;border-radius:8px;font-size:13px;background:#ffffff;"`;
+  const visible = bulkVisibleRows();
+  return `
+    <div id="sb-body">
+      <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
+        <h2 style="margin:0;font-size:17px;flex:1;">여러 곡 한꺼번에 등록</h2>
+        ${n && !SB_RUNNING ? `<button id="sb-clear-btn" type="button" class="sb-link">목록 비우기</button>` : ""}
+      </div>
+      <p style="margin:0 0 14px;font-size:13px;color:var(--muted);line-height:1.6;">
+        파일 이름을 <b style="color:var(--text);">가수 - 제목_난이도.pdf</b>로 맞춰 두면 제목·가수·난이도가 자동으로 채워져요.<br>
+        미리보기·카드 썸네일·페이지 수는 등록할 때 한 곡씩 자동으로 만들어져요. (한 번에 최대 ${SB_MAX_FILES}곡)
+      </p>
+      <input type="file" id="sb-files-input" accept="application/pdf,.pdf" multiple style="display:none;">
+      <input type="file" id="sb-folder-input" webkitdirectory directory multiple style="display:none;">
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button id="sb-pick-files-btn" class="btn btn-primary admin-dark-btn" style="border-radius:12px;" ${dis}>PDF 파일 여러 개 선택</button>
+        <button id="sb-pick-folder-btn" class="btn admin-stop-btn" style="border-radius:12px;background:#ffffff;" ${dis}>폴더 선택</button>
+      </div>
+      <div id="sb-msg" style="font-size:13px;margin-top:10px;color:${SB_MSG && SB_MSG.isError ? "#c0392b" : "var(--text)"};${SB_MSG ? "" : "display:none;"}">${SB_MSG ? esc(SB_MSG.text) : ""}</div>
+      ${n ? `
+      <div style="margin-top:14px;padding:10px 12px;border:1px solid #D5D0CA;border-radius:10px;background:#F5F2EE;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+        <span style="font-size:13px;font-weight:600;margin-right:4px;">모든 곡에 한 번에 적용</span>
+        <select id="sb-def-inst" aria-label="악기 한 번에 적용" ${dis} ${field}>
+          <option value="">악기 선택</option>
+          ${INSTRUMENTS.map(x => `<option value="${esc(x)}" ${SB_DEFAULT_INST === x ? "selected" : ""}>${esc(x)}</option>`).join("")}
+        </select>
+        <input type="number" id="sb-def-price" value="${esc(SB_DEFAULT_PRICE)}" min="0" step="100" placeholder="가격(포인트)" aria-label="가격 한 번에 적용" ${dis} style="width:130px;padding:8px 10px;border:1px solid #D5D0CA;border-radius:8px;font-size:13px;background:#ffffff;">
+        <button id="sb-apply-defaults" class="btn admin-stop-btn" style="border-radius:10px;background:#ffffff;" ${dis}>적용</button>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;">
+        <div id="sb-chips" style="display:flex;gap:6px;flex-wrap:wrap;flex:1;">${bulkChipsHTML()}</div>
+        ${SB_RUNNING ? "" : `<span style="font-size:12px;"><button id="sb-check-all" type="button" class="sb-link">모두 선택</button> · <button id="sb-uncheck-all" type="button" class="sb-link">모두 해제</button></span>`}
+      </div>
+      <div class="sb-table">
+        <div class="sb-head" aria-hidden="true"><span></span><span>제목</span><span>가수</span><span>악기</span><span>난이도</span><span>가격(P)</span><span>상태</span></div>
+        <div id="sb-list">
+          ${visible.length ? visible.map(({ r, i }) => bulkRowHTML(r, i)).join("") : `<div style="padding:18px;text-align:center;font-size:13px;color:var(--muted);">이 조건의 곡이 없어요.</div>`}
+        </div>
+      </div>
+      <div class="sb-runbar" id="sb-runbar">${bulkRunBarHTML()}</div>` : ""}
+    </div>`;
+}
+
+function rerenderBulkPanel(sellerId) {
+  const panel = document.getElementById("seller-bulk-panel");
+  if (!panel) return;
+  panel.innerHTML = renderBulkPanelHTML();
+  wireBulkPanel(sellerId);
+}
+
+function setBulkMsg(sellerId, text, isError) {
+  SB_MSG = text ? { text, isError: !!isError } : null;
+  const el = document.getElementById("sb-msg");
+  if (!el) return;
+  el.textContent = text || "";
+  el.style.display = text ? "" : "none";
+  el.style.color = isError ? "#c0392b" : "var(--text)";
+}
+
+/* 입력할 때마다 표 전체를 다시 그리면 커서가 빠지므로, 그 줄의 상태·요약·안내와 개수·등록 버튼만 고친다
+   (필터에 안 맞게 된 줄도 고치는 동안은 그대로 둔다 — 다음에 다시 그릴 때 정리됨). */
+function updateBulkRowStatus(i, sellerId) {
+  const r = SB_ROWS[i];
+  const row = document.querySelector(`[data-sb-row="${i}"]`);
+  if (r && row) {
+    const [label, color] = bulkStatus(r);
+    const st = row.querySelector("[data-sb-status]");
+    if (st) { st.textContent = label; st.style.color = color; }
+    const hint = row.querySelector("[data-sb-hint]");
+    if (hint) {
+      const text = bulkHintText(r);
+      hint.textContent = text;
+      hint.hidden = !text;
+      hint.className = `sb-hint ${bulkHintClass(r)}`;
+    }
+    const main = row.querySelector(".sb-sum-main");
+    if (main) main.innerHTML = `${esc(r.title || "제목 없음")}${r.artist ? ` <span class="sb-sum-artist">· ${esc(r.artist)}</span>` : ""}`;
+    const sub = row.querySelector(".sb-sum-sub");
+    if (sub) sub.textContent = bulkSummarySub(r);
+  }
+  const chips = document.getElementById("sb-chips");
+  if (chips) {
+    chips.innerHTML = bulkChipsHTML();
+    wireBulkChips(sellerId);
+  }
+  const bar = document.getElementById("sb-runbar");
+  if (bar && !SB_RUNNING) {
+    bar.innerHTML = bulkRunBarHTML();
+    document.getElementById("sb-run-btn")?.addEventListener("click", () => runBulkRegister(sellerId));
+  }
+}
+
+function wireBulkChips(sellerId) {
+  document.querySelectorAll("#sb-chips [data-sb-filter]").forEach(b => b.addEventListener("click", () => {
+    SB_FILTER = b.dataset.sbFilter;
+    rerenderBulkPanel(sellerId);
+  }));
+}
+
+function addBulkFiles(sellerId, files) {
+  const pdfs = files
+    .filter(f => !String(f.name).startsWith("."))
+    .filter(f => f.type === "application/pdf" || /\.pdf$/i.test(f.name || ""))
+    .sort((a, b) => String(a.name).localeCompare(String(b.name), "ko"));
+  const notPdf = files.filter(f => !String(f.name).startsWith(".")).length - pdfs.length;
+  // 2026-10-30: 다음 파일을 넣을 때 지난번에 등록을 끝낸(완료) 곡은 목록에서 자동으로 뺀다.
+  // 끝난 직후에는 결과 확인용으로 남겨 두고, 실패·제외한 곡은 다시 시도할 수 있게 그대로 둔다.
+  const doneBefore = SB_ROWS.filter(r => r.status === "완료").length;
+  if (doneBefore) {
+    SB_ROWS = SB_ROWS.filter(r => r.status !== "완료");
+    for (const k of [...SB_OPEN]) if (!SB_ROWS.some(r => r.key === k)) SB_OPEN.delete(k);
+  }
+  // 처음 고를 때 악기 기본값은 내가 가장 많이 올린 악기로 미리 맞춰 둔다(바꿀 수 있음)
+  if (!SB_ROWS.length && !SB_DEFAULT_INST) {
+    const cnt = {};
+    for (const s of Object.values(STATE.scores)) if (s.sellerId === sellerId) cnt[s.instrument] = (cnt[s.instrument] || 0) + 1;
+    const top = Object.entries(cnt).sort((a, b) => b[1] - a[1])[0];
+    if (top && INSTRUMENTS.includes(top[0])) SB_DEFAULT_INST = top[0];
+  }
+  const keys = new Set(SB_ROWS.map(r => r.key));
+  let added = 0, sameFile = 0, over = 0, dup = 0;
+  for (const f of pdfs) {
+    const key = `${f.name}|${f.size}`;
+    if (keys.has(key)) { sameFile++; continue; }
+    if (SB_ROWS.length >= SB_MAX_FILES) { over++; continue; }
+    const p = parseScoreFileName(f.name);
+    const tooBig = f.size > 30 * 1024 * 1024;
+    const row = {
+      key, file: f, fileName: f.name,
+      title: p.title, artist: p.artist, difficulty: p.difficulty,
+      instrument: SB_DEFAULT_INST, price: SB_DEFAULT_PRICE,
+      include: !tooBig, status: tooBig ? "실패" : "대기",
+      message: tooBig ? "30MB를 넘는 파일은 올릴 수 없어요." : ""
+    };
+    // 이미 등록한 내 악보와 같은 곡이면 기본으로 체크를 빼 둔다(실수로 두 번 올리는 것 방지)
+    if (!tooBig && bulkDupScore(sellerId, row)) {
+      row.include = false;
+      row.message = "이미 등록한 악보와 같은 곡이에요. 그래도 올리려면 체크하세요.";
+      dup++;
+    }
+    SB_ROWS.push(row);
+    keys.add(key);
+    added++;
+  }
+  const parts = [];
+  if (doneBefore) parts.push(`지난번에 등록을 마친 ${doneBefore}곡은 목록에서 정리했어요.`);
+  if (added) parts.push(`${added}개 파일을 목록에 넣었어요.`);
+  if (!added && !pdfs.length) parts.push("PDF 파일이 없어요.");
+  if (dup) parts.push(`이미 등록한 곡 ${dup}개는 체크를 빼 두었어요.`);
+  if (sameFile) parts.push(`이미 목록에 있는 파일 ${sameFile}개는 건너뛰었어요.`);
+  if (notPdf > 0) parts.push(`PDF가 아닌 파일 ${notPdf}개는 제외했어요.`);
+  if (over) parts.push(`한 번에 ${SB_MAX_FILES}개까지라 ${over}개는 넣지 못했어요.`);
+  SB_MSG = { text: parts.join(" "), isError: !added };
+  SB_FILTER = "all";
+  rerenderBulkPanel(sellerId);
+}
+
+function wireBulkPanel(sellerId) {
+  const body = document.getElementById("sb-body");
+  if (!body) return;
+  const filesInput = document.getElementById("sb-files-input");
+  const folderInput = document.getElementById("sb-folder-input");
+  document.getElementById("sb-pick-files-btn")?.addEventListener("click", () => filesInput?.click());
+  document.getElementById("sb-pick-folder-btn")?.addEventListener("click", () => folderInput?.click());
+  for (const input of [filesInput, folderInput]) {
+    input?.addEventListener("change", (e) => {
+      const files = Array.from(e.target.files || []);
+      e.target.value = "";
+      if (files.length) addBulkFiles(sellerId, files);
+    });
+  }
+  document.getElementById("sb-clear-btn")?.addEventListener("click", () => {
+    SB_ROWS = [];
+    SB_MSG = null;
+    SB_FILTER = "all";
+    SB_OPEN.clear();
+    rerenderBulkPanel(sellerId);
+  });
+  document.getElementById("sb-def-inst")?.addEventListener("change", (e) => { SB_DEFAULT_INST = e.target.value; });
+  document.getElementById("sb-def-price")?.addEventListener("input", (e) => { SB_DEFAULT_PRICE = e.target.value; });
+  document.getElementById("sb-apply-defaults")?.addEventListener("click", () => {
+    if (!SB_DEFAULT_INST && SB_DEFAULT_PRICE === "") {
+      setBulkMsg(sellerId, "적용할 악기나 가격을 먼저 정해주세요.", true);
+      return;
+    }
+    let count = 0;
+    for (const r of SB_ROWS) {
+      if (r.status === "완료" || r.status === "등록 중") continue;
+      if (SB_DEFAULT_INST) r.instrument = SB_DEFAULT_INST;
+      if (SB_DEFAULT_PRICE !== "") r.price = SB_DEFAULT_PRICE;
+      count++;
+    }
+    SB_MSG = { text: `${count}곡에 적용했어요.`, isError: false };
+    rerenderBulkPanel(sellerId);
+  });
+  const setAll = (v) => {
+    for (const r of SB_ROWS) if (r.status !== "완료" && r.status !== "등록 중") r.include = v;
+    rerenderBulkPanel(sellerId);
+  };
+  document.getElementById("sb-check-all")?.addEventListener("click", () => setAll(true));
+  document.getElementById("sb-uncheck-all")?.addEventListener("click", () => setAll(false));
+
+  const onField = (e) => {
+    const field = e.target.dataset && e.target.dataset.sbField;
+    const rowEl = e.target.closest && e.target.closest("[data-sb-row]");
+    if (!field || !rowEl) return;
+    const i = Number(rowEl.dataset.sbRow);
+    const r = SB_ROWS[i];
+    if (!r || r.status === "완료" || SB_RUNNING) return;
+    if (field === "include") r.include = e.target.checked;
+    else r[field] = e.target.value;
+    if (r.status === "실패" && field !== "include") { r.status = "대기"; r.message = ""; }
+    else if (field === "include" && r.status === "대기") r.message = "";
+    updateBulkRowStatus(i, sellerId);
+  };
+  body.addEventListener("input", onField);
+  body.addEventListener("change", onField);
+  // 휴대폰: 요약 줄이나 화살표를 누르면 그 곡을 펼쳐서 고친다
+  body.addEventListener("click", (e) => {
+    const tg = e.target.closest && e.target.closest("[data-sb-toggle]");
+    if (!tg) return;
+    const rowEl = tg.closest("[data-sb-row]");
+    const r = rowEl && SB_ROWS[Number(rowEl.dataset.sbRow)];
+    if (!r) return;
+    const open = !rowEl.classList.contains("open");
+    rowEl.classList.toggle("open", open);
+    rowEl.querySelector(".sb-sum")?.setAttribute("aria-expanded", String(open));
+    if (open) SB_OPEN.add(r.key); else SB_OPEN.delete(r.key);
+  });
+  wireBulkChips(sellerId);
+
+  document.getElementById("sb-run-btn")?.addEventListener("click", () => runBulkRegister(sellerId));
+  document.getElementById("sb-stop-btn")?.addEventListener("click", (e) => {
+    SB_STOP = true;
+    e.target.disabled = true;
+    e.target.textContent = "중단하는 중…";
+  });
+}
+
+/* 한 곡 등록 과정(한 곡 등록 폼의 handleSubmitScore 와 같은 순서). 실패하면 { ok:false, message } */
+async function registerScoreFromFile(sellerId, data, file, onStep) {
+  const scoreId = uid("score");
+  onStep && onStep("파일 업로드 중…");
+  const up = await uploadScoreFile(sellerId, scoreId, file);
+  if (!up.ok) return { ok: false, message: up.message || "파일 업로드에 실패했습니다." };
+
+  onStep && onStep("미리보기 이미지 만드는 중…");
+  let previewUrls = null;
+  try {
+    const blobs = await generateScorePreviewImages(file, 5);
+    if (blobs && blobs.length) {
+      const res = await uploadScorePreviewImages(sellerId, scoreId, blobs);
+      if (res.ok && res.urls.length) previewUrls = res.urls;
+    }
+  } catch (e) {
+    console.error("[seller] 일괄 등록 — 미리보기 이미지 오류", e);
+  }
+
+  let pageCount = null;
+  try {
+    pageCount = await getPdfPageCount(file);
+  } catch (e) {
+    console.error("[seller] 일괄 등록 — 페이지 수 확인 오류", e);
+  }
+
+  onStep && onStep("카드 썸네일 만드는 중…");
+  let cardThumbUrl = null;
+  try {
+    const blob = await generateScoreCardThumbnail(file);
+    if (blob) {
+      const res = await uploadScoreCardThumbnail(sellerId, scoreId, blob);
+      if (res.ok && res.url) cardThumbUrl = res.url;
+    }
+  } catch (e) {
+    console.error("[seller] 일괄 등록 — 카드 썸네일 오류", e);
+  }
+
+  return submitScore(sellerId, {
+    id: scoreId,
+    title: data.title, artist: data.artist, instrument: data.instrument,
+    difficulty: data.difficulty, price: data.price,
+    hasVideo: false, videoUrl: null,
+    fileUrl: up.path, previewUrls, pageCount, cardThumbUrl,
+    description: "", tags: [], thumbnailUrl: null
+  });
+}
+
+async function runBulkRegister(sellerId) {
+  if (SB_RUNNING) return;
+  const targets = bulkTargets();
+  if (!targets.length) return;
+  const bad = targets.filter(r => bulkRowProblem(r));
+  if (bad.length) {
+    // 고칠 곡만 보이게 필터를 바꾸고, 휴대폰에서도 바로 고칠 수 있게 펼쳐 둔다
+    SB_MSG = { text: `입력이 빠진 곡이 ${bad.length}곡 있어요. 채우거나 체크를 빼 주세요.`, isError: true };
+    SB_FILTER = bad.some(r => bulkKind(r) === "need") ? "need" : "all";
+    for (const r of bad) SB_OPEN.add(r.key);
+    rerenderBulkPanel(sellerId);
+    document.getElementById("sb-chips")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    return;
+  }
+
+  SB_RUNNING = true;
+  SB_STOP = false;
+  SB_MSG = { text: "한 곡씩 차례로 등록하고 있어요. 다 끝날 때까지 이 페이지를 닫거나 새로고침하지 마세요.", isError: false };
+  for (const r of targets) { r.status = "대기"; r.message = ""; }
+  SB_RUN_TOTAL = targets.length;
+  SB_RUN_DONE = 0;
+  SB_FILTER = "all";
+  rerenderBulkPanel(sellerId);
+
+  let ok = 0, fail = 0;
+  for (const r of targets) {
+    if (SB_STOP) break;
+    r.status = "등록 중";
+    r.message = "";
+    rerenderBulkPanel(sellerId);
+    let res;
+    try {
+      res = await registerScoreFromFile(sellerId, {
+        title: r.title.trim(), artist: r.artist.trim(), instrument: r.instrument,
+        difficulty: r.difficulty, price: Number(r.price)
+      }, r.file, (step) => {
+        r.message = step;
+        const i = SB_ROWS.indexOf(r);
+        updateBulkRowStatus(i, sellerId);
+      });
+    } catch (e) {
+      console.error("[seller] 일괄 등록 오류", e);
+      res = { ok: false, message: "등록 중 문제가 생겼어요. 잠시 후 다시 시도해주세요." };
+    }
+    if (res && res.ok) {
+      r.status = "완료"; r.message = ""; r.include = false; ok++;
+      SF_SESSION_COUNT += 1;
+      SELLER_MYSCORES_PAGE = 1;
+      renderMyScores(sellerId);
+    } else {
+      r.status = "실패"; r.message = (res && res.message) || "등록에 실패했어요."; fail++;
+    }
+    SB_RUN_DONE += 1;
+  }
+  const stopped = SB_STOP;
+  SB_RUNNING = false;
+  SB_STOP = false;
+  const left = bulkTargets().filter(r => r.status === "대기").length;
+  SB_MSG = {
+    text: `${ok}곡 등록했어요.` + (fail ? ` ${fail}곡은 실패했어요 — 빨간 안내를 확인하고 다시 눌러주세요.` : "") + (stopped && left ? ` 중단해서 ${left}곡은 등록하지 않았어요.` : "") + (ok ? " 다음 파일을 넣으면 완료된 곡은 목록에서 빠져요." : ""),
+    isError: !!fail
+  };
+  rerenderBulkPanel(sellerId);
+}
+
+/* 등록 중에 창을 닫으려 하면 한 번 물어본다 */
+window.addEventListener("beforeunload", (e) => {
+  if (SB_RUNNING) { e.preventDefault(); e.returnValue = ""; }
+});
 
 /* ---------- 신청곡 트렌드 (2026-10-16 추가) ---------- */
 

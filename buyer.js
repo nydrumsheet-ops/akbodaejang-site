@@ -553,11 +553,13 @@ function renderHomePage(el) {
           </div>
         </div>
       </div>
-      <div class="hero-dots" id="hero-dots">
-        <button class="hero-dot active" data-slide="0" aria-label="첫 번째 배너"></button>
-        <button class="hero-dot" data-slide="1" aria-label="두 번째 배너"></button>
-        <button class="hero-dot" data-slide="2" aria-label="세 번째 배너"></button>
-      </div>
+      <!-- 2026-10-30: 배너 넘기기 — 막대/점 대신 좌·우 화살표 아이콘 -->
+      <button type="button" class="hero-arrow hero-prev" id="hero-prev" aria-label="이전 배너">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg>
+      </button>
+      <button type="button" class="hero-arrow hero-next" id="hero-next" aria-label="다음 배너">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg>
+      </button>
     </div>
 
     <div class="inst-band">
@@ -704,27 +706,33 @@ function renderPopRow() {
 }
 
 function setupHero() {
+  // 2026-10-30: 아래 막대/점 대신 좌·우 화살표로 넘긴다(끝에서 처음으로 순환). 휴대폰은 좌우로 밀어도 넘어간다.
+  const hero = document.getElementById("hero");
   const track = document.getElementById("hero-track");
-  const dots = document.querySelectorAll("#hero-dots .hero-dot");
-  const dotsWrap = document.getElementById("hero-dots");
-  if (!track) return;
-  const HERO_DOT_ACCENTS = { 2: "#ff8a50" };
+  if (!hero || !track) return;
+  const count = track.children.length;
   let idx = 0;
   const go = (i) => {
-    idx = i;
-    track.style.transform = `translateX(-${i * 100}%)`;
-    dots.forEach((d, k) => d.classList.toggle("active", k === i));
-    if (dotsWrap) {
-      if (HERO_DOT_ACCENTS[i]) dotsWrap.style.setProperty("--hero-dot-accent", HERO_DOT_ACCENTS[i]);
-      else dotsWrap.style.removeProperty("--hero-dot-accent");
-    }
+    idx = (i + count) % count;
+    track.style.transform = `translateX(-${idx * 100}%)`;
+    hero.dataset.slide = String(idx); // 어두운 3번째 배너에서는 화살표를 흰색으로
   };
-  dots.forEach(d => d.addEventListener("click", () => { go(Number(d.dataset.slide)); restart(); }));
   const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const restart = () => {
     if (HERO_TIMER) clearInterval(HERO_TIMER);
-    if (!reduce) HERO_TIMER = setInterval(() => go((idx + 1) % dots.length), 5000);
+    if (!reduce) HERO_TIMER = setInterval(() => go(idx + 1), 5000);
   };
+  document.getElementById("hero-prev")?.addEventListener("click", () => { go(idx - 1); restart(); });
+  document.getElementById("hero-next")?.addEventListener("click", () => { go(idx + 1); restart(); });
+  let startX = null, startY = null;
+  hero.addEventListener("touchstart", (e) => { startX = e.touches[0].clientX; startY = e.touches[0].clientY; }, { passive: true });
+  hero.addEventListener("touchend", (e) => {
+    if (startX === null) return;
+    const dx = e.changedTouches[0].clientX - startX, dy = e.changedTouches[0].clientY - startY;
+    startX = null;
+    if (Math.abs(dx) > 40 && Math.abs(dx) > Math.abs(dy)) { go(idx + (dx < 0 ? 1 : -1)); restart(); }
+  }, { passive: true });
+  go(0);
   restart();
 }
 
