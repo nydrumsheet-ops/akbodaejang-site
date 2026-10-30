@@ -856,6 +856,13 @@ function effectivePrice(score) {
    - 판매 중지: status 를 "판매중지"로 바꾼다. 목록·검색·상세에서 빠지지만(approvedScores 는 "승인"만),
      이미 산 회원은 내 악보함에서 계속 받을 수 있다(다운로드는 status 를 보지 않음).
    - 삭제: 구매 기록이 하나도 없고 신청곡에 연결되지 않은 악보만 가능. 산 사람이 있으면 판매 중지만 된다. */
+/* 등록한 아티스트 본인 또는 관리자만 악보를 고치거나 내릴 수 있다 (2026-10-30: 관리자 악보 관리 추가) */
+function canManageScore(userId, score) {
+  if (!score) return false;
+  const u = STATE.users[userId];
+  return score.sellerId === userId || !!(u && u.isAdmin);
+}
+
 function scorePurchaseCount(scoreId) {
   return Object.values(STATE.purchases).filter(p => p.scoreId === scoreId).length;
 }
@@ -871,7 +878,7 @@ function canDeleteScore(scoreId) {
 function updateScoreBySeller(sellerId, scoreId, data) {
   const s = STATE.scores[scoreId];
   if (!s) return { ok: false, message: "악보를 찾을 수 없습니다." };
-  if (s.sellerId !== sellerId) return { ok: false, message: "본인이 등록한 악보만 수정할 수 있습니다." };
+  if (!canManageScore(sellerId, s)) return { ok: false, message: "본인이 등록한 악보만 수정할 수 있습니다." };
   const title = String(data.title || "").trim();
   const artist = String(data.artist || "").trim();
   if (!title || !artist) return { ok: false, message: "곡 제목과 가수를 입력해주세요." };
@@ -903,7 +910,7 @@ function updateScoreBySeller(sellerId, scoreId, data) {
 async function setScoreOnSale(sellerId, scoreId, onSale) {
   const s = STATE.scores[scoreId];
   if (!s) return { ok: false, message: "악보를 찾을 수 없습니다." };
-  if (s.sellerId !== sellerId) return { ok: false, message: "본인이 등록한 악보만 바꿀 수 있습니다." };
+  if (!canManageScore(sellerId, s)) return { ok: false, message: "본인이 등록한 악보만 바꿀 수 있습니다." };
   if (s.status !== "승인" && s.status !== "판매중지") return { ok: false, message: "판매 중이거나 판매 중지된 악보만 바꿀 수 있습니다." };
   const next = onSale ? "승인" : "판매중지";
   if (s.status === next) return { ok: true };
@@ -926,7 +933,7 @@ async function setScoreOnSale(sellerId, scoreId, onSale) {
 async function deleteScoreBySeller(sellerId, scoreId) {
   const s = STATE.scores[scoreId];
   if (!s) return { ok: false, message: "악보를 찾을 수 없습니다." };
-  if (s.sellerId !== sellerId) return { ok: false, message: "본인이 등록한 악보만 삭제할 수 있습니다." };
+  if (!canManageScore(sellerId, s)) return { ok: false, message: "본인이 등록한 악보만 삭제할 수 있습니다." };
   const can = canDeleteScore(scoreId);
   if (!can.ok) return can;
   // 저장소 파일도 정리한다(실패해도 악보 삭제는 진행 — 남은 파일은 아무 데서도 연결되지 않음)

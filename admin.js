@@ -48,6 +48,7 @@ function renderAdmin() {
     ["requests", "신청곡", openRequests],
     ["inquiries", "문의 관리", openInquiries],
     ["members", "회원관리", ""],
+    ["scores", "악보 관리", ""],
     ["tools", "도구", pendingReview]
   ];
 
@@ -163,6 +164,8 @@ function renderAdmin() {
     renderAdminRequests();
   } else if (ADMIN_TAB === "members") {
     renderAdminMembers(body);
+  } else if (ADMIN_TAB === "scores") {
+    renderAdminScores(body);
   } else if (ADMIN_TAB === "inquiries") {
     renderAdminInquiries(body);
   } else if (ADMIN_TAB === "pdfupload") {
@@ -2696,4 +2699,193 @@ async function runReviewUpload() {
   ADMIN_REVIEW_RUNNING = false;
   renderAdmin();
   if (typeof toast === "function") toast(`검토 업로드 완료: 성공 ${ok}건 · 실패 ${fail}건`);
+}
+
+/* ============================================================
+   악보 관리 (2026-10-30 추가)
+   관리자가 사이트의 모든 악보를 검색해서 판매 중지(숨김)·다시 판매·정보 수정·삭제를 한다.
+   - 수정은 정보만(제목·가수·악기·난이도·가격·태그·소개·영상). PDF 교체는 저장소 보안 규칙상
+     아티스트 본인 폴더에만 쓸 수 있어 판매자 센터에서 아티스트가 직접 한다.
+   - 삭제는 판매자와 같은 기준(구매 기록·신청곡 연결이 없을 때만).
+   ============================================================ */
+let ADMIN_SC_Q = "";
+let ADMIN_SC_STATUS = "all";   // all | sale | stopped | review
+let ADMIN_SC_INST = "";
+let ADMIN_SC_PAGE = 1;
+let ADMIN_SC_EDIT = null;
+let ADMIN_SC_DEL = null;
+let ADMIN_SC_BUSY = null;
+const ADMIN_SC_PAGE_SIZE = 20;
+const ADMIN_SC_DIFF = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"];
+const ADMIN_SC_LABEL = { "승인": "판매 중", "판매중지": "판매 중지", "심사중": "예전 심사중", "등록": "예전 심사중", "반려": "반려" };
+
+function renderAdminScores(body) {
+  const statusChips = [["all", "전체"], ["sale", "판매 중"], ["stopped", "판매 중지"], ["review", "예전 심사중"]];
+  body.innerHTML = `
+    <div style="${ADMIN_PANEL}">
+      <h2 style="margin:0 0 4px;font-size:17px;">악보 관리</h2>
+      <p style="margin:0 0 14px;font-size:13px;color:var(--muted);">사이트의 모든 악보를 찾아서 판매를 멈추거나(숨김), 정보를 고치거나, 삭제할 수 있어요. PDF 파일 교체는 아티스트가 판매자 센터에서 직접 해요.</p>
+      <div class="asc-toolbar">
+        <input type="search" id="asc-q" class="ms-search" placeholder="제목·가수·아티스트·태그로 찾기" value="${esc(ADMIN_SC_Q)}" aria-label="악보 검색">
+        <select id="asc-inst" class="asc-select" aria-label="악기">
+          <option value="">전체 악기</option>
+          ${INSTRUMENTS.map(i => `<option value="${esc(i)}" ${ADMIN_SC_INST === i ? "selected" : ""}>${esc(i)}</option>`).join("")}
+        </select>
+      </div>
+      <div class="ms-filters" id="asc-status" style="margin:10px 0 8px;">
+        ${statusChips.map(([k, l]) => `<button type="button" class="ms-filter ${ADMIN_SC_STATUS === k ? "active" : ""}" data-asc-status="${k}">${l}</button>`).join("")}
+      </div>
+      <div id="asc-count" class="ms-count"></div>
+      <div id="asc-list"></div>
+    </div>`;
+  document.getElementById("asc-q")?.addEventListener("input", (e) => { ADMIN_SC_Q = e.target.value; ADMIN_SC_PAGE = 1; renderAdminScoreList(); });
+  document.getElementById("asc-inst")?.addEventListener("change", (e) => { ADMIN_SC_INST = e.target.value; ADMIN_SC_PAGE = 1; renderAdminScoreList(); });
+  body.querySelectorAll("[data-asc-status]").forEach(b => b.addEventListener("click", () => {
+    ADMIN_SC_STATUS = b.dataset.ascStatus;
+    ADMIN_SC_PAGE = 1;
+    body.querySelectorAll("[data-asc-status]").forEach(x => x.classList.toggle("active", x === b));
+    renderAdminScoreList();
+  }));
+  renderAdminScoreList();
+}
+
+function adminScoreMatches(s) {
+  if (ADMIN_SC_STATUS === "sale" && s.status !== "승인") return false;
+  if (ADMIN_SC_STATUS === "stopped" && s.status !== "판매중지") return false;
+  if (ADMIN_SC_STATUS === "review" && s.status !== "심사중" && s.status !== "등록") return false;
+  if (ADMIN_SC_INST && s.instrument !== ADMIN_SC_INST) return false;
+  const q = ADMIN_SC_Q.trim().toLowerCase();
+  if (!q) return true;
+  return [s.title, s.artist, sellerName(s.sellerId), ...(s.tags || [])].some(t => String(t || "").toLowerCase().includes(q));
+}
+
+function renderAdminScoreList() {
+  const wrap = document.getElementById("asc-list");
+  const countEl = document.getElementById("asc-count");
+  if (!wrap) return;
+  const all = Object.values(STATE.scores).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+  const list = all.filter(adminScoreMatches);
+  if (countEl) countEl.textContent = list.length === all.length ? `전체 ${all.length}곡` : `${all.length}곡 중 ${list.length}곡`;
+  if (!list.length) { wrap.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:12px 0 0;">조건에 맞는 악보가 없어요.</p>`; return; }
+  const pages = Math.max(1, Math.ceil(list.length / ADMIN_SC_PAGE_SIZE));
+  ADMIN_SC_PAGE = Math.min(Math.max(1, ADMIN_SC_PAGE), pages);
+  const shown = list.slice((ADMIN_SC_PAGE - 1) * ADMIN_SC_PAGE_SIZE, ADMIN_SC_PAGE * ADMIN_SC_PAGE_SIZE);
+  wrap.innerHTML = `
+    <div class="asc-table">
+      <div class="asc-head" aria-hidden="true"><span>악보 · 아티스트</span><span>악기 · 난이도</span><span>가격</span><span>판매</span><span>상태</span><span></span></div>
+      ${shown.map(adminScoreRowHTML).join("")}
+    </div>
+    ${pages > 1 ? renderPager(ADMIN_SC_PAGE, pages) : ""}`;
+  wireAdminScoreList(wrap);
+}
+
+function adminScoreRowHTML(s) {
+  const busy = ADMIN_SC_BUSY === s.id;
+  const dis = busy ? "disabled" : "";
+  const sold = scorePurchaseCount(s.id);
+  const label = ADMIN_SC_LABEL[s.status] || s.status;
+  const stCls = s.status === "승인" ? "on" : s.status === "판매중지" ? "off" : "old";
+  const canToggle = s.status === "승인" || s.status === "판매중지";
+  const canDel = canDeleteScore(s.id).ok;
+  return `
+    <div class="asc-row ${ADMIN_SC_EDIT === s.id ? "open" : ""}" data-asc-row="${s.id}">
+      <div class="asc-main">
+        <button type="button" class="asc-title" data-asc-view="${s.id}" title="상세 페이지 보기">${esc(s.title)}</button>
+        <span class="asc-sub">${esc(s.artist)} · <span class="asc-seller">${esc(sellerName(s.sellerId))}</span></span>
+      </div>
+      <span class="asc-cell asc-meta">${esc(s.instrument)}<br><span class="asc-sub">${esc(s.difficulty)}</span></span>
+      <span class="asc-cell">${formatPoint(s.price)}</span>
+      <span class="asc-cell">${sold}건</span>
+      <span class="asc-cell"><span class="asc-st asc-st-${stCls}">${esc(label)}</span></span>
+      <span class="asc-actions">
+        <button type="button" class="sm-btn" data-asc-edit="${s.id}" ${dis}>${ADMIN_SC_EDIT === s.id ? "닫기" : "수정"}</button>
+        ${canToggle ? (s.status === "승인"
+          ? `<button type="button" class="sm-btn" data-asc-sale="${s.id}" data-on="0" ${dis}>판매 중지</button>`
+          : `<button type="button" class="sm-btn sm-btn-dark" data-asc-sale="${s.id}" data-on="1" ${dis}>다시 판매</button>`) : ""}
+        ${canDel ? (ADMIN_SC_DEL === s.id
+          ? `<button type="button" class="sm-btn sm-btn-danger" data-asc-del-yes="${s.id}" ${dis}>정말 삭제</button><button type="button" class="sm-btn" data-asc-del-no="${s.id}" ${dis}>취소</button>`
+          : `<button type="button" class="sm-link" data-asc-del="${s.id}" ${dis}>삭제</button>`) : ""}
+      </span>
+      <div class="sm-msg asc-msg" id="asc-msg-${s.id}" hidden></div>
+      ${ADMIN_SC_EDIT === s.id ? adminScoreEditHTML(s) : ""}
+    </div>`;
+}
+
+function adminScoreEditHTML(s) {
+  const dis = ADMIN_SC_BUSY === s.id ? "disabled" : "";
+  return `
+    <div class="sm-edit asc-edit">
+      <div class="sm-grid">
+        <label>곡 제목<input type="text" class="sm-in" id="asc-title-${s.id}" value="${esc(s.title)}" ${dis}></label>
+        <label>가수<input type="text" class="sm-in" id="asc-artist-${s.id}" value="${esc(s.artist)}" ${dis}></label>
+        <label>악기<select class="sm-in" id="asc-inst-${s.id}" ${dis}>${INSTRUMENTS.map(x => `<option value="${esc(x)}" ${s.instrument === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
+        <label>난이도<select class="sm-in" id="asc-diff-${s.id}" ${dis}>${ADMIN_SC_DIFF.map(x => `<option value="${esc(x)}" ${s.difficulty === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
+        <label>가격 (포인트)<input type="number" class="sm-in" id="asc-price-${s.id}" min="0" step="100" value="${esc(s.price)}" ${dis}></label>
+        <label><span>태그 <span class="sm-sub">(쉼표로 구분, 최대 5개)</span></span><input type="text" class="sm-in" id="asc-tags-${s.id}" value="${esc((s.tags || []).join(", "))}" ${dis}></label>
+      </div>
+      <label class="sm-full"><span>악보 소개 <span class="sm-sub">(선택)</span></span><textarea class="sm-in" id="asc-desc-${s.id}" rows="3" ${dis}>${esc(s.description || "")}</textarea></label>
+      <label class="sm-check"><input type="checkbox" id="asc-hasvideo-${s.id}" ${s.hasVideo ? "checked" : ""} ${dis}> 연주 영상이 있습니다</label>
+      <label class="sm-full">영상 링크<input type="text" class="sm-in" id="asc-videourl-${s.id}" value="${esc(s.videoUrl || "")}" placeholder="유튜브 링크 등" ${dis}></label>
+      <div class="sm-actions">
+        <button type="button" class="btn btn-primary admin-dark-btn" data-asc-save="${s.id}" style="border-radius:10px;" ${dis}>저장</button>
+        <button type="button" class="btn admin-stop-btn" data-asc-edit="${s.id}" style="border-radius:10px;background:#ffffff;" ${dis}>취소</button>
+      </div>
+    </div>`;
+}
+
+function ascMsg(id, text, isError) {
+  const el = document.getElementById(`asc-msg-${id}`);
+  if (!el) return;
+  el.textContent = text; el.hidden = !text; el.classList.toggle("is-error", !!isError);
+}
+
+function wireAdminScoreList(wrap) {
+  const me = getCurrentUser();
+  const meId = me ? me.id : "";
+  wrap.querySelectorAll("[data-page]").forEach(b => b.addEventListener("click", () => { ADMIN_SC_PAGE = Number(b.dataset.page); renderAdminScoreList(); }));
+  wrap.querySelectorAll("[data-page-nav]").forEach(b => b.addEventListener("click", () => {
+    if (b.disabled) return;
+    ADMIN_SC_PAGE += b.dataset.pageNav === "prev" ? -1 : 1;
+    renderAdminScoreList();
+  }));
+  wrap.querySelectorAll("[data-asc-view]").forEach(b => b.addEventListener("click", () => {
+    showView("buyer");
+    if (typeof goBuyer === "function") goBuyer("detail", { id: b.dataset.ascView });
+  }));
+  wrap.querySelectorAll("[data-asc-edit]").forEach(b => b.addEventListener("click", () => {
+    ADMIN_SC_EDIT = ADMIN_SC_EDIT === b.dataset.ascEdit ? null : b.dataset.ascEdit;
+    ADMIN_SC_DEL = null;
+    renderAdminScoreList();
+  }));
+  wrap.querySelectorAll("[data-asc-save]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.ascSave;
+    const v = k => (document.getElementById(`asc-${k}-${id}`) || {}).value || "";
+    const res = updateScoreBySeller(meId, id, {
+      title: v("title"), artist: v("artist"), instrument: v("inst"), difficulty: v("diff"), price: v("price"),
+      description: v("desc"), tags: v("tags").split(/[,，]/).map(t => t.trim()).filter(Boolean),
+      hasVideo: !!(document.getElementById(`asc-hasvideo-${id}`) || {}).checked, videoUrl: v("videourl")
+    });
+    if (res.ok) ADMIN_SC_EDIT = null;
+    renderAdminScoreList();
+    ascMsg(id, res.ok ? "저장했어요." : res.message, !res.ok);
+  }));
+  wrap.querySelectorAll("[data-asc-sale]").forEach(b => b.addEventListener("click", async () => {
+    const id = b.dataset.ascSale;
+    const onSale = b.dataset.on === "1";
+    ADMIN_SC_BUSY = id; renderAdminScoreList();
+    const res = await setScoreOnSale(meId, id, onSale);
+    ADMIN_SC_BUSY = null; renderAdminScoreList();
+    ascMsg(id, res.ok ? (onSale ? "다시 판매를 시작했어요." : "판매를 중지했어요. 이미 산 회원은 계속 받을 수 있어요.") : res.message, !res.ok);
+  }));
+  wrap.querySelectorAll("[data-asc-del]").forEach(b => b.addEventListener("click", () => { ADMIN_SC_DEL = b.dataset.ascDel; renderAdminScoreList(); }));
+  wrap.querySelectorAll("[data-asc-del-no]").forEach(b => b.addEventListener("click", () => { ADMIN_SC_DEL = null; renderAdminScoreList(); }));
+  wrap.querySelectorAll("[data-asc-del-yes]").forEach(b => b.addEventListener("click", async () => {
+    const id = b.dataset.ascDelYes;
+    const title = STATE.scores[id] ? STATE.scores[id].title : "";
+    ADMIN_SC_BUSY = id; renderAdminScoreList();
+    const res = await deleteScoreBySeller(meId, id);
+    ADMIN_SC_BUSY = null; ADMIN_SC_DEL = null; if (ADMIN_SC_EDIT === id) ADMIN_SC_EDIT = null;
+    renderAdminScoreList();
+    if (res.ok) toast(`"${title}" 악보를 삭제했어요.`); else ascMsg(id, res.message, true);
+  }));
 }

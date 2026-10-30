@@ -783,6 +783,9 @@ function selectedDifficulties(p) {
   return [];
 }
 
+/* 2026-10-30: 목록 "분량" 필터 — [값, 화면 이름, 최소 쪽수, 최대 쪽수] */
+const LIST_PAGE_RANGES = [["1-2", "1~2쪽", 1, 2], ["3-4", "3~4쪽", 3, 4], ["5+", "5쪽 이상", 5, 999]];
+
 function filterScores(p) {
   const q = (p.q || "").trim().toLowerCase();
   let list = approvedScores();
@@ -801,6 +804,12 @@ function filterScores(p) {
   if (p.video) list = list.filter(s => s.hasVideo);
   if (p.minPrice) list = list.filter(s => effectivePrice(s) >= Number(p.minPrice));
   if (p.maxPrice) list = list.filter(s => effectivePrice(s) <= Number(p.maxPrice));
+  // 2026-10-30: 분량(전체 페이지 수)·할인 중 필터
+  if (p.pages) {
+    const range = LIST_PAGE_RANGES.find(r => r[0] === p.pages);
+    if (range) list = list.filter(s => s.pageCount && s.pageCount >= range[2] && s.pageCount <= range[3]);
+  }
+  if (p.sale) list = list.filter(s => activeDiscount(s));
 
   const sort = p.sort || "popular";
   const byDate = (a, b) => new Date(b.createdAt) - new Date(a.createdAt);
@@ -811,6 +820,18 @@ function filterScores(p) {
   else if (sort === "rating") list.sort((a, b) => getScoreRating(b.id).avg - getScoreRating(a.id).avg || b.salesCount - a.salesCount);
   else list.sort((a, b) => b.salesCount - a.salesCount || b.viewCount - a.viewCount);
   return list;
+}
+
+/* 2026-10-30: 지금 걸려 있는 필터를 [지울 키, 화면 이름] 목록으로 */
+function activeFilterChips(p) {
+  const out = [];
+  if (p.instrument) out.push(["instrument", p.instrument]);
+  selectedDifficulties(p).forEach(d => out.push([`diff:${d}`, d]));
+  if (p.pages) { const r = LIST_PAGE_RANGES.find(x => x[0] === p.pages); if (r) out.push(["pages", r[1]]); }
+  if (p.video) out.push(["video", "연주영상 있음"]);
+  if (p.sale) out.push(["sale", "할인 중"]);
+  if (p.minPrice || p.maxPrice) out.push(["price", `${p.minPrice ? formatPoint(Number(p.minPrice)) : ""}~${p.maxPrice ? formatPoint(Number(p.maxPrice)) : ""}`]);
+  return out;
 }
 
 function renderListPage(el, p) {
@@ -849,9 +870,16 @@ function renderListPage(el, p) {
         <span class="filter-label">난이도</span>
         ${DIFF_CHECK_ORDER.map(d => `<label class="toggle"><input type="checkbox" data-f-diff value="${esc(d)}" ${checkedDiffs.includes(d) ? "checked" : ""}> ${esc(d)}</label>`).join("")}
       </div>
+      <div class="filter-line">
+        <span class="filter-label">분량</span>
+        <div class="chip-row">
+          ${[["", "전체"], ...LIST_PAGE_RANGES.map(r => [r[0], r[1]])].map(([v, l]) => `<button class="chip ${(p.pages || "") === v ? "active" : ""}" data-f-pages="${esc(v)}">${esc(l)}</button>`).join("")}
+        </div>
+      </div>
       <div class="filter-line" style="flex-wrap:wrap;">
         <span class="filter-label">조건</span>
         <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> 연주영상 있음</label>
+        <label class="toggle"><input type="checkbox" id="f-sale" ${p.sale ? "checked" : ""}> 할인 중</label>
         <span style="display:inline-flex;align-items:center;gap:6px;">
           <input class="field price-field" type="number" inputmode="numeric" min="0" step="500" id="f-min" placeholder="최소P" aria-label="최소 가격(포인트)" value="${esc(p.minPrice || "")}">
           ~
@@ -859,6 +887,11 @@ function renderListPage(el, p) {
           <button class="btn btn-small" id="f-price">가격 적용</button>
         </span>
       </div>
+      ${activeFilterChips(p).length ? `
+      <div class="filter-active">
+        ${activeFilterChips(p).map(([key, label]) => `<button type="button" class="filter-pill" data-f-clear="${key}" aria-label="${esc(label)} 조건 빼기">${esc(label)} <span aria-hidden="true">✕</span></button>`).join("")}
+        <button type="button" class="filter-reset" id="f-reset">필터 모두 지우기</button>
+      </div>` : ""}
     </div>
 
     <div class="toolbar">
@@ -887,6 +920,18 @@ function renderListPage(el, p) {
     update({ difficulties: next, difficulty: "" });
   }));
   document.getElementById("f-video")?.addEventListener("change", (e) => update({ video: e.target.checked }));
+  document.getElementById("f-sale")?.addEventListener("change", (e) => update({ sale: e.target.checked }));
+  el.querySelectorAll("[data-f-pages]").forEach(b => b.addEventListener("click", () => update({ pages: b.dataset.fPages })));
+  // 2026-10-30: 고른 조건을 한 줄로 보여주고, 하나씩 또는 한 번에 지운다(검색어·정렬은 그대로)
+  el.querySelectorAll("[data-f-clear]").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.fClear;
+    const patch = k === "price" ? { minPrice: "", maxPrice: "" }
+      : k === "difficulties" ? { difficulties: [], difficulty: "" }
+      : k.startsWith("diff:") ? { difficulties: selectedDifficulties(p).filter(d => d !== k.slice(5)), difficulty: "" }
+      : { [k]: k === "video" || k === "sale" ? false : "" };
+    update(patch);
+  }));
+  document.getElementById("f-reset")?.addEventListener("click", () => update({ instrument: "", difficulties: [], difficulty: "", pages: "", video: false, sale: false, minPrice: "", maxPrice: "" }));
   document.getElementById("f-sort")?.addEventListener("change", (e) => update({ sort: e.target.value }));
   // 2026-10-29: 가격 필터 사용성 개선 — 음수는 0으로, 최소가 최대보다 크면 자동으로 서로 바꾸고,
   // 입력칸에서 Enter 를 눌러도 "가격 적용"과 똑같이 적용된다.

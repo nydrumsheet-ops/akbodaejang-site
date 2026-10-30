@@ -353,6 +353,35 @@ a{color:var(--link)}
 .ms-filter:hover{background:#F5F2EE;border-color:#B9AFA4}
 .ms-filter.active{background:#33312E;border-color:#33312E;color:#ffffff}
 .ms-count{font-size:12px;color:var(--muted);margin:0 0 4px}
+/* 2026-10-30: 목록 필터 — 고른 조건 한 줄 + 모두 지우기 */
+.filter-active{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #EFE8E1}
+.filter-pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 12px;border:1px solid #F6C9AE;border-radius:999px;background:#FFF4EE;color:#C2541F;font-size:12px;font-weight:600;cursor:pointer}
+.filter-pill span{font-size:10px;opacity:.8}
+.filter-pill:hover{border-color:#E87949}
+.filter-reset{margin-left:4px;border:0;background:none;padding:0;color:#8A847D;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.filter-reset:hover{color:#302D2A}
+/* 2026-10-30: 관리자 "악보 관리" 탭 */
+.asc-toolbar{display:flex;gap:8px;flex-wrap:wrap}
+.asc-select{height:38px;padding:0 10px;border:1px solid #D5D0CA;border-radius:10px;background:#ffffff;font-size:14px;color:var(--text)}
+.asc-table{border:1px solid #D5D0CA;border-radius:10px;background:#ffffff;margin-top:6px}
+.asc-head,.asc-row{display:grid;grid-template-columns:minmax(0,1fr) 92px 76px 48px 84px auto;gap:12px;align-items:center;padding:10px 14px}
+.asc-head{font-size:12px;font-weight:600;color:var(--muted);background:#F5F2EE;border-bottom:1px solid #D5D0CA;border-radius:10px 10px 0 0}
+.asc-row{border-bottom:1px solid #EFE8E1;font-size:13px}
+.asc-row:last-child{border-bottom:none}
+.asc-main{display:flex;flex-direction:column;min-width:0}
+.asc-title{border:0;background:none;padding:0;text-align:left;font-size:14px;font-weight:700;color:#302a26;cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asc-title:hover{color:#E87949;text-decoration:underline}
+.asc-sub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.asc-seller{color:#8A847D}
+.asc-cell{color:#302D2A;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.asc-st{display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.asc-st-on{background:#E8F5EC;color:#2f7d4f}
+.asc-st-off{background:#EFE8E1;color:#625950}
+.asc-st-old{background:#FFF1D6;color:#8a6420}
+.asc-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+.asc-msg,.asc-edit{grid-column:1 / -1}
+.asc-row.open{background:#FBF9F6}
+@media (max-width:760px){.asc-head{display:none}.asc-row{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}.asc-cell{grid-column:1}.asc-actions{grid-column:2;grid-row:1 / span 5;align-self:start;flex-direction:column;align-items:stretch}}
 /* 2026-10-30: 관리자 "도구" 탭 — 끝난 작업용 기능 모음 */
 .adm-tools-head{margin-bottom:12px}
 .adm-tools-head p{margin:0 0 10px;font-size:13px;color:var(--muted)}
