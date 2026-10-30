@@ -488,6 +488,7 @@ async function load() {
   }
 
   STATE_BASELINE = cloneState(STATE); // 다음 save() 가 이것과 비교해서 바뀐 것만 찾는다
+  await loadSiteContent(); // 2026-10-31: 공지·배너 (실패해도 기본 배너로 계속)
 }
 
 /* ---------- 저장 (바뀐 부분만 찾아서 해당 테이블에 반영) ----------
@@ -2598,6 +2599,7 @@ function renderAll() {
 }
 
 function renderHeaderAuth() {
+  renderNoticeBar(); // 2026-10-31: 맨 위 공지 띠
   const bar = document.getElementById("header-auth");
   if (!bar) return;
 
@@ -2622,6 +2624,7 @@ function renderHeaderAuth() {
     document.getElementById("header-login-btn")?.addEventListener("click", () => openLoginModal("buyer"));
   } else {
     bar.innerHTML = `
+      ${ntBellHTML(user)}
       ${cartBtn}
       ${user.role === "buyer" ? artistLink : ""}
       <button id="header-my-btn" class="icon-btn" aria-label="마이페이지">
@@ -2638,6 +2641,12 @@ function renderHeaderAuth() {
     if (typeof startArtist === "function") startArtist();
   });
 
+  // 2026-10-31: 알림 종 — 헤더를 다시 그려도 열려 있던 패널은 그대로 다시 채운다
+  document.getElementById("header-nt-btn")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (NT_OPEN) closeNtPanel(); else openNtPanel();
+  });
+  if (NT_OPEN && user) renderNtPanel();
   document.getElementById("header-cart-btn")?.addEventListener("click", () => {
     requireLogin(() => { if (typeof goBuyer === "function") goBuyer("cart"); });
   });
@@ -2670,6 +2679,7 @@ function toggleAdminMenu() {
   const btn = document.getElementById("header-admin-btn");
   if (!menu || !btn) return;
   if (!menu.hidden) { closeAdminMenu(); return; }
+  closeNtPanel();
   // 열 때마다 지금 보고 있는 화면 기준으로 다시 그린다(✓ 표시)
   menu.innerHTML = visibleViewsForCurrentUser().map(v =>
     `<button type="button" role="menuitem" data-adm-view="${v}" class="${v === CURRENT_VIEW ? "active" : ""}">${ADMIN_MENU_LABELS[v]}</button>`
@@ -2693,6 +2703,384 @@ document.addEventListener("click", (e) => {
 });
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeAdminMenu(true);
+});
+
+/* ---------- 공지·배너 (2026-10-31 추가) ----------
+   Supabase site_content 테이블 한 곳에 홈 배너와 공지를 함께 둔다 (kind = "banner" | "notice", 나머지는 data(jsonb)).
+   다른 자료(STATE·save())와 섞지 않고 여기서 직접 읽고 쓴다.
+   테이블이 아직 없거나 읽기에 실패하면 기본 배너 3개로 그대로 보여주고, 관리자 화면에서는 저장만 막는다. */
+const SITE_CONTENT = { ready: false, error: "", banners: [], notices: [] };
+const BANNER_THEMES = { t1: "밝은 크림", t2: "주황", t3: "어두운 사진", t4: "베이지" };
+const BANNER_TARGETS = [
+  ["video", "연주영상 악보 목록"], ["new", "신규 악보"], ["requests", "신청곡"], ["artist", "아티스트 가입"],
+  ["charge", "포인트 충전"], ["notices", "공지사항"], ["url", "직접 입력한 주소"], ["none", "버튼 없음"]
+];
+const NOTICE_TAGS = ["", "안내", "이벤트", "아티스트", "점검"];
+const DEFAULT_BANNERS = [
+  { id: "banner_video", sort: 0, builtin: true, visible: true, theme: "t1", eyebrow: "악보는 영상과 함께", title: "연주 영상과 함께 보는 악보",
+    desc: "연주영상 표시가 있는 악보는\n판매 아티스트가 직접 연주한 영상을 함께 볼 수 있어요.", btnLabel: "연주영상 악보 보기", btnTarget: "video", btnUrl: "", startAt: "", endAt: "" },
+  { id: "banner_request", sort: 1, builtin: true, visible: true, theme: "t2", eyebrow: "찾는 악보가 없다면", title: "신청곡을 올려주세요",
+    desc: "누구나 무료로 올릴 수 있어요.\n신청이 많은 곡부터 채보해서\n악보로 만들어 드려요.", btnLabel: "신청곡 보러가기", btnTarget: "requests", btnUrl: "", startAt: "", endAt: "" },
+  { id: "banner_artist", sort: 2, builtin: true, visible: true, theme: "t3", eyebrow: "아티스트 모집", title: "내 악보를 올리고\n판매 금액의 {정산비율}를 정산받으세요",
+    desc: "적립금이 {최소출금} 이상이면 매달 {지급일} 신청 없이 자동으로 입금돼요.", btnLabel: "아티스트로 시작하기", btnTarget: "artist", btnUrl: "", startAt: "", endAt: "" }
+];
+
+function siteText(str) {
+  // {정산비율} 같은 글자는 지금 정책 값으로 바꾼 뒤, 안전하게 바꾸고 줄바꿈을 <br>로
+  const filled = String(str || "")
+    .replaceAll("{정산비율}", `${Math.round((1 - POLICY.commission.rate) * 100)}%`)
+    .replaceAll("{최소출금}", formatWon(POLICY.settlement.minWithdraw))
+    .replaceAll("{지급일}", `${POLICY.settlement.payoutDay}일`);
+  return esc(filled).replace(/\n/g, "<br>");
+}
+function todayKey() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+function bannerLive(b) {
+  if (!b.visible) return false;
+  const t = todayKey();
+  if (b.startAt && t < b.startAt) return false;
+  if (b.endAt && t > b.endAt) return false;
+  return true;
+}
+function activeBanners() {
+  return SITE_CONTENT.banners.filter(bannerLive);
+}
+function publishedNotices() {
+  return SITE_CONTENT.notices.filter(n => n.published).sort((a, b) => (b.pinned - a.pinned) || (a.createdAt < b.createdAt ? 1 : -1));
+}
+function pinnedNotice() {
+  return SITE_CONTENT.notices.find(n => n.pinned && n.published) || null;
+}
+
+async function loadSiteContent() {
+  const sb = getSb();
+  let rows = null;
+  if (sb) {
+    try {
+      const r = await sb.from("site_content").select("*");
+      if (r.error) throw r.error;
+      rows = r.data || [];
+      SITE_CONTENT.ready = true; SITE_CONTENT.error = "";
+    } catch (e) {
+      console.warn("[common] 공지·배너를 불러오지 못했습니다. 기본 배너로 보여줍니다.", e);
+      SITE_CONTENT.ready = false; SITE_CONTENT.error = (e && e.message) || "불러오기 실패";
+    }
+  }
+  const banners = [], notices = [];
+  for (const row of rows || []) {
+    const item = { ...(row.data || {}), id: row.id, sort: row.sort || 0 };
+    if (row.kind === "banner") banners.push(item);
+    else if (row.kind === "notice") notices.push(item);
+  }
+  SITE_CONTENT.banners = (banners.length ? banners : DEFAULT_BANNERS.map(b => ({ ...b }))).sort((a, b) => a.sort - b.sort);
+  SITE_CONTENT.notices = notices;
+}
+
+function siteRow(kind, item) {
+  const { id, sort, ...data } = item;
+  return { id, kind, sort: sort || 0, data, updated_at: nowISO() };
+}
+function siteContentGuard() {
+  const u = getCurrentUser();
+  if (!u || !u.isAdmin) return "관리자만 바꿀 수 있어요.";
+  if (!SITE_CONTENT.ready) return "공지·배너 저장 공간(site_content 테이블)이 아직 없어요. Supabase에서 안내드린 SQL을 먼저 실행해 주세요.";
+  if (!getSb()) return "서버에 연결하지 못했어요. 잠시 후 다시 시도해 주세요.";
+  return "";
+}
+// 배너는 순서·기본 배너 보존을 위해 목록 전체를 한 번에 저장한다(많아야 몇 개)
+async function saveBanners(list) {
+  const msg = siteContentGuard();
+  if (msg) return { ok: false, message: msg };
+  const rows = list.map((b, i) => siteRow("banner", { ...b, sort: i }));
+  const { error } = await getSb().from("site_content").upsert(rows);
+  if (error) return { ok: false, message: `저장하지 못했어요: ${error.message}` };
+  SITE_CONTENT.banners = list.map((b, i) => ({ ...b, sort: i }));
+  return { ok: true };
+}
+async function deleteBanner(id) {
+  const b = SITE_CONTENT.banners.find(x => x.id === id);
+  if (!b) return { ok: false, message: "배너를 찾을 수 없어요." };
+  if (b.builtin) return { ok: false, message: "기본 배너는 삭제 대신 숨김을 이용해 주세요." };
+  const msg = siteContentGuard();
+  if (msg) return { ok: false, message: msg };
+  const { error } = await getSb().from("site_content").delete().eq("id", id);
+  if (error) return { ok: false, message: `삭제하지 못했어요: ${error.message}` };
+  return saveBanners(SITE_CONTENT.banners.filter(x => x.id !== id));
+}
+async function saveNotice(notice) {
+  const msg = siteContentGuard();
+  if (msg) return { ok: false, message: msg };
+  if (!String(notice.title || "").trim()) return { ok: false, message: "제목을 입력해 주세요." };
+  const n = { ...notice, title: notice.title.trim(), createdAt: notice.createdAt || nowISO() };
+  // 상단 고정은 하나만 — 이 공지를 고정하면 다른 고정은 푼다
+  const others = n.pinned ? SITE_CONTENT.notices.filter(x => x.pinned && x.id !== n.id).map(x => ({ ...x, pinned: false })) : [];
+  const { error } = await getSb().from("site_content").upsert([n, ...others].map(x => siteRow("notice", x)));
+  if (error) return { ok: false, message: `저장하지 못했어요: ${error.message}` };
+  const byId = new Map(SITE_CONTENT.notices.map(x => [x.id, x]));
+  [n, ...others].forEach(x => byId.set(x.id, x));
+  SITE_CONTENT.notices = [...byId.values()];
+  return { ok: true };
+}
+async function deleteNotice(id) {
+  const msg = siteContentGuard();
+  if (msg) return { ok: false, message: msg };
+  const { error } = await getSb().from("site_content").delete().eq("id", id);
+  if (error) return { ok: false, message: `삭제하지 못했어요: ${error.message}` };
+  SITE_CONTENT.notices = SITE_CONTENT.notices.filter(x => x.id !== id);
+  return { ok: true };
+}
+
+/* 사이트 맨 위 공지 띠 — 상단 고정 공지 1개. ✕로 닫으면 그 공지는 이 브라우저에서 다시 띄우지 않는다 */
+function renderNoticeBar() {
+  const bar = document.getElementById("notice-bar");
+  if (!bar) return;
+  const n = pinnedNotice();
+  let closed = "";
+  try { closed = localStorage.getItem("akbo_notice_closed") || ""; } catch (e) { /* 저장이 막힌 브라우저 */ }
+  if (!n || closed === n.id) { bar.hidden = true; bar.innerHTML = ""; return; }
+  bar.hidden = false;
+  bar.innerHTML = `
+    <div class="container notice-row">
+      <span class="notice-label">${esc(n.tag || "공지")}</span>
+      <button type="button" class="notice-text" id="notice-bar-open">${esc(n.title)}</button>
+      <button type="button" class="notice-more" id="notice-bar-all">전체 공지 ›</button>
+      <button type="button" class="notice-x" id="notice-bar-close" aria-label="공지 닫기">✕</button>
+    </div>`;
+  const go = (params) => { if (typeof goBuyer === "function") { showView("buyer"); goBuyer("notices", params); } };
+  document.getElementById("notice-bar-open")?.addEventListener("click", () => go({ id: n.id }));
+  document.getElementById("notice-bar-all")?.addEventListener("click", () => go({}));
+  document.getElementById("notice-bar-close")?.addEventListener("click", () => {
+    try { localStorage.setItem("akbo_notice_closed", n.id); } catch (e) { /* 이번 화면에서만 닫힘 */ }
+    bar.hidden = true;
+  });
+}
+
+/* ---------- 사이트 알림 (2026-10-31 추가) ----------
+   새 테이블 없이 이미 있는 자료(신청곡·구독·문의·구매)에서 최근 30일 알림을 만들어 헤더 종 아이콘에 보여준다.
+   읽음 여부는 이 브라우저에만 저장한다(localStorage, 회원별 "마지막으로 본 시각").
+   - 구매회원: 신청곡 완성, 구독 아티스트 새 악보(아티스트·날짜별로 묶음), 내 문의 답변
+   - 아티스트: 새 고객 문의(답변 전), 악보 판매(날짜별로 묶음) */
+const NT_DAYS = 30;
+const NT_MAX = 30;
+let NT_OPEN = false;
+let NT_TAB = "all";          // all | buyer | artist
+let NT_PANEL_SEEN = null;    // 패널을 연 순간의 "마지막으로 본 시각" (그 뒤 알림을 "새 알림"으로 표시)
+
+function ntSeenKey(userId) { return `akbo_nt_seen_${userId}`; }
+function ntGetSeen(userId) {
+  try { return localStorage.getItem(ntSeenKey(userId)) || ""; } catch (e) { return ""; }
+}
+function ntSetSeen(userId, iso) {
+  try { localStorage.setItem(ntSeenKey(userId), iso); } catch (e) { /* 저장이 막힌 브라우저에서는 이번 화면에서만 읽음 처리 */ }
+}
+function ntDayKey(iso) {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${d.getMonth() + 1}-${d.getDate()}`;
+}
+function ntAgo(iso) {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "방금";
+  if (m < 60) return `${m}분 전`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}시간 전`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return "어제";
+  if (d < 7) return `${d}일 전`;
+  return formatDate(iso);
+}
+function ntIsSeller(user) { return !!user && (user.role === "seller" || user.role === "both"); }
+
+function buildNotifications(user) {
+  if (!user || !STATE) return [];
+  const since = Date.now() - NT_DAYS * 86400000;
+  const recent = iso => iso && new Date(iso).getTime() >= since;
+  const out = [];
+  const reqScoreIds = new Set();   // 신청곡 완성으로 이미 알린 악보는 "구독 아티스트 새 악보"에서 빼서 겹치지 않게 한다
+
+  // 구매회원 — 신청곡 완성
+  for (const r of Object.values(STATE.requests)) {
+    if (r.status !== "완료" || !r.fulfilledScoreId || !(r.buyerIds || []).includes(user.id)) continue;
+    const s = STATE.scores[r.fulfilledScoreId];
+    if (!s) continue;
+    reqScoreIds.add(s.id);
+    const at = s.approvedAt || s.createdAt;
+    if (!recent(at)) continue;
+    out.push({ id: `req_${r.id}`, group: "buyer", kind: "req", icon: "🎵", at,
+      html: `신청하신 <em>「${esc(r.title)}」 ${esc(r.instrument || "")}</em> 악보가 완성됐어요.`,
+      go: { view: "buyer", page: "detail", params: { id: s.id } } });
+  }
+
+  // 구매회원 — 구독 아티스트 새 악보 (아티스트·날짜별로 묶음)
+  const following = new Set(user.following || []);
+  const newBy = {};
+  for (const s of Object.values(STATE.scores)) {
+    if (s.status !== "승인" || !following.has(s.sellerId) || s.sellerId === user.id || reqScoreIds.has(s.id)) continue;
+    const at = s.approvedAt || s.createdAt;
+    if (!recent(at)) continue;
+    const key = `${s.sellerId}_${ntDayKey(at)}`;
+    if (!newBy[key]) newBy[key] = { sellerId: s.sellerId, list: [], at };
+    newBy[key].list.push(s);
+    if (at > newBy[key].at) newBy[key].at = at;
+  }
+  for (const [key, g] of Object.entries(newBy)) {
+    const name = typeof sellerName === "function" ? sellerName(g.sellerId) : ((STATE.users[g.sellerId] || {}).name || "아티스트");
+    const html = g.list.length === 1
+      ? `구독한 <em>${esc(name)}</em>님이 새 악보 <em>「${esc(g.list[0].title)}」</em>를 올렸어요.`
+      : `구독한 <em>${esc(name)}</em>님이 새 악보 ${g.list.length}곡을 올렸어요.`;
+    out.push({ id: `new_${key}`, group: "buyer", kind: "new", icon: "✨", at: g.at, html,
+      go: g.list.length === 1 ? { view: "buyer", page: "detail", params: { id: g.list[0].id } } : { view: "buyer", page: "artist", params: { id: g.sellerId } } });
+  }
+
+  // 구매회원 — 내 문의에 답변
+  for (const q of Object.values(STATE.inquiries)) {
+    if (q.buyerId !== user.id || !q.answer || !recent(q.answer.answeredAt)) continue;
+    out.push({ id: `ans_${q.id}`, group: "buyer", kind: "ans", icon: "💬", at: q.answer.answeredAt,
+      html: `문의 <em>「${esc(q.title)}」</em>에 답변이 달렸어요.`,
+      go: { view: "buyer", page: "mypage", params: { tab: "inquiry" } } });
+  }
+
+  if (ntIsSeller(user)) {
+    // 아티스트 — 아직 답하지 않은 새 문의
+    for (const q of Object.values(STATE.inquiries)) {
+      if (q.sellerId !== user.id || q.status === "답변완료" || !recent(q.createdAt)) continue;
+      out.push({ id: `q_${q.id}`, group: "artist", kind: "q", icon: "✉️", at: q.createdAt,
+        html: `새 문의가 왔어요: <em>「${esc(q.title)}」</em>`,
+        go: { view: "seller", tab: "inquiries" } });
+    }
+    // 아티스트 — 판매 (날짜별로 묶음, 환불 제외)
+    const sales = {};
+    for (const p of Object.values(STATE.purchases)) {
+      if (p.sellerId !== user.id || p.refunded || !recent(p.purchasedAt)) continue;
+      const key = ntDayKey(p.purchasedAt);
+      if (!sales[key]) sales[key] = { list: [], at: p.purchasedAt, earn: 0 };
+      sales[key].list.push(p);
+      sales[key].earn += Number(p.sellerEarning || 0);
+      if (p.purchasedAt > sales[key].at) sales[key].at = p.purchasedAt;
+    }
+    for (const [key, g] of Object.entries(sales)) {
+      const latest = g.list.slice().sort((a, b) => (a.purchasedAt < b.purchasedAt ? 1 : -1))[0];
+      const title = STATE.scores[latest.scoreId] ? STATE.scores[latest.scoreId].title : "악보";
+      const html = g.list.length === 1
+        ? `<em>「${esc(title)}」</em> 악보가 판매됐어요. +${formatPoint(Math.round(g.earn))} 정산 예정`
+        : `<em>「${esc(title)}」</em> 외 ${g.list.length - 1}건이 판매됐어요. +${formatPoint(Math.round(g.earn))} 정산 예정`;
+      out.push({ id: `sale_${key}`, group: "artist", kind: "sale", icon: "💰", at: g.at, html,
+        go: { view: "seller", tab: "sales" } });
+    }
+  }
+
+  return out.sort((a, b) => (a.at < b.at ? 1 : -1)).slice(0, NT_MAX);
+}
+
+function ntUnreadCount(user) {
+  const seen = ntGetSeen(user.id);
+  return buildNotifications(user).filter(n => !seen || n.at > seen).length;
+}
+
+function ntBellHTML(user) {
+  const n = ntUnreadCount(user);
+  return `
+    <span class="nt-wrap">
+      <button id="header-nt-btn" class="icon-btn nt-btn" aria-label="알림${n ? ` ${n}개` : ""}" aria-haspopup="dialog" aria-expanded="${NT_OPEN}">
+        <span class="icon-btn-glyph"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/></svg></span>
+        ${n ? `<span class="nt-dot">${n > 9 ? "9+" : n}</span>` : ""}
+      </button>
+      <div class="nt-panel" id="nt-panel" role="dialog" aria-label="알림" ${NT_OPEN ? "" : "hidden"}></div>
+    </span>`;
+}
+
+function renderNtPanel() {
+  const panel = document.getElementById("nt-panel");
+  const user = getCurrentUser();
+  if (!panel || !user) return;
+  const isSeller = ntIsSeller(user);
+  if (!isSeller && NT_TAB === "artist") NT_TAB = "all";
+  const all = buildNotifications(user);
+  const list = NT_TAB === "all" ? all : all.filter(n => n.group === NT_TAB);
+  const seen = NT_PANEL_SEEN;
+  const fresh = list.filter(n => !seen || n.at > seen);
+  const old = list.filter(n => seen && n.at <= seen);
+  const row = (n, isNew) => `
+    <button type="button" class="nt-item ${isNew ? "new" : ""}" data-nt="${esc(n.id)}">
+      <span class="nt-ic ${n.kind}" aria-hidden="true">${n.icon}</span>
+      <span class="nt-txt">${n.html}<span class="nt-time">${ntAgo(n.at)}</span></span>
+      ${isNew ? `<span class="nt-new-dot" aria-label="새 알림"></span>` : ""}
+    </button>`;
+  const tabs = [["all", "전체"], ["buyer", "구매·신청"]];
+  if (isSeller) tabs.push(["artist", "아티스트"]);
+  panel.innerHTML = `
+    <div class="nt-head"><b>알림</b>${fresh.length ? `<button type="button" class="nt-read" id="nt-read">모두 읽음</button>` : ""}</div>
+    <div class="nt-tabs">${tabs.map(([k, l]) => `<button type="button" class="nt-tab ${NT_TAB === k ? "on" : ""}" data-nt-tab="${k}">${l}</button>`).join("")}</div>
+    <div class="nt-list">
+      ${!list.length ? `<div class="nt-empty">아직 알림이 없어요.</div>` : ""}
+      ${fresh.length ? `<div class="nt-sec">새 알림</div>${fresh.map(n => row(n, true)).join("")}` : ""}
+      ${old.length ? `<div class="nt-sec">지난 알림</div>${old.map(n => row(n, false)).join("")}` : ""}
+    </div>
+    <div class="nt-foot">최근 ${NT_DAYS}일 알림만 보여요</div>`;
+  // 좁은 화면에서는 화면 폭에 맞춰 종 아이콘 바로 아래에 붙인다
+  const btn = document.getElementById("header-nt-btn");
+  panel.style.top = window.innerWidth <= 760 && btn ? `${Math.round(btn.getBoundingClientRect().bottom + 8)}px` : "";
+  panel.querySelectorAll("[data-nt-tab]").forEach(b => b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    NT_TAB = b.dataset.ntTab;
+    renderNtPanel();
+  }));
+  document.getElementById("nt-read")?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    NT_PANEL_SEEN = nowISO();
+    ntSetSeen(user.id, NT_PANEL_SEEN);
+    renderNtPanel();
+  });
+  panel.querySelectorAll("[data-nt]").forEach(b => b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const n = all.find(x => x.id === b.dataset.nt);
+    closeNtPanel();
+    if (n) ntGo(n.go);
+  }));
+}
+
+function ntGo(go) {
+  if (!go) return;
+  if (go.view === "seller") {
+    if (typeof SELLER_TAB !== "undefined") SELLER_TAB = go.tab;
+    showView("seller");
+    window.scrollTo(0, 0);
+    return;
+  }
+  if (CURRENT_VIEW !== "buyer") showView("buyer");
+  if (typeof goBuyer === "function") goBuyer(go.page, go.params);
+}
+
+function openNtPanel() {
+  const user = getCurrentUser();
+  if (!user) return;
+  closeAdminMenu();
+  NT_OPEN = true;
+  NT_PANEL_SEEN = ntGetSeen(user.id);   // 이번에 열기 전까지 본 시각 — 그 뒤 알림을 "새 알림"으로 보여준다
+  ntSetSeen(user.id, nowISO());          // 열었으니 숫자 배지는 지운다
+  document.querySelector("#header-nt-btn .nt-dot")?.remove();
+  document.getElementById("header-nt-btn")?.setAttribute("aria-expanded", "true");
+  const panel = document.getElementById("nt-panel");
+  if (panel) panel.hidden = false;
+  renderNtPanel();
+}
+
+function closeNtPanel() {
+  if (!NT_OPEN) return;
+  NT_OPEN = false;
+  const panel = document.getElementById("nt-panel");
+  if (panel) panel.hidden = true;
+  document.getElementById("header-nt-btn")?.setAttribute("aria-expanded", "false");
+}
+
+document.addEventListener("click", (e) => {
+  if (e.target.closest && e.target.closest(".nt-wrap")) return;
+  closeNtPanel();
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape" && NT_OPEN) { closeNtPanel(); document.getElementById("header-nt-btn")?.focus(); }
 });
 
 /* ---------- 헤더 검색창 · 악기 메뉴 (index.html 의 고정 영역) ---------- */
@@ -2760,6 +3148,7 @@ function initHeaderSearch() {
       else if (m === "requests") goBuyer("requests");
       else if (m === "new") goBuyer("list", { sort: "latest" });
       else if (m === "faq") goBuyer("support", { tab: "faq" });
+      else if (m === "notices") goBuyer("notices");
       else goBuyer("list", { instrument: m });
     });
   });

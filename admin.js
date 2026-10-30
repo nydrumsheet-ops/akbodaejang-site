@@ -49,6 +49,7 @@ function renderAdmin() {
     ["inquiries", "문의 관리", openInquiries],
     ["members", "회원관리", ""],
     ["scores", "악보 관리", ""],
+    ["content", "공지·배너", ""],
     ["tools", "도구", pendingReview]
   ];
 
@@ -166,6 +167,8 @@ function renderAdmin() {
     renderAdminMembers(body);
   } else if (ADMIN_TAB === "scores") {
     renderAdminScores(body);
+  } else if (ADMIN_TAB === "content") {
+    renderAdminContent(body);
   } else if (ADMIN_TAB === "inquiries") {
     renderAdminInquiries(body);
   } else if (ADMIN_TAB === "pdfupload") {
@@ -2887,5 +2890,211 @@ function wireAdminScoreList(wrap) {
     ADMIN_SC_BUSY = null; ADMIN_SC_DEL = null; if (ADMIN_SC_EDIT === id) ADMIN_SC_EDIT = null;
     renderAdminScoreList();
     if (res.ok) toast(`"${title}" 악보를 삭제했어요.`); else ascMsg(id, res.message, true);
+  }));
+}
+
+/* ============================================================
+   공지·배너 (2026-10-31 추가)
+   - 홈 배너: 순서(▲▼)·보이기/숨김·글자·버튼·배경 색·보이는 기간. 기본 배너 3개는 삭제 대신 숨김만.
+   - 공지사항: 쓰기·수정·공개/비공개·말머리·상단 고정(1개만, 사이트 맨 위 띠에 보임).
+   저장은 common.js 의 saveBanners/deleteBanner/saveNotice/deleteNotice 가 site_content 테이블에 바로 한다.
+   다시 그려져도 쓰던 글이 날아가지 않게, 입력하는 대로 ADMIN_CT_DRAFT 에 담아 둔다.
+   ============================================================ */
+let ADMIN_CT_EDIT = null;   // 펼친 항목 id, 또는 "new-banner" / "new-notice"
+let ADMIN_CT_DRAFT = null;
+let ADMIN_CT_BUSY = false;
+let ADMIN_CT_DEL = null;    // "정말 삭제" 확인 중인 id
+let ADMIN_CT_MSG = null;    // { key, text, error }
+
+function ctMsgHTML(key) {
+  if (!ADMIN_CT_MSG || ADMIN_CT_MSG.key !== key) return "";
+  return `<div class="sm-msg ${ADMIN_CT_MSG.error ? "is-error" : ""}" style="grid-column:1 / -1;">${esc(ADMIN_CT_MSG.text)}</div>`;
+}
+
+function renderAdminContent(body) {
+  const dis = ADMIN_CT_BUSY ? "disabled" : "";
+  const banners = SITE_CONTENT.banners;
+  const notices = SITE_CONTENT.notices.slice().sort((a, b) => (b.pinned - a.pinned) || (a.createdAt < b.createdAt ? 1 : -1));
+  const today = todayKey();
+  const bannerState = b => !b.visible ? "숨김" : (b.startAt && today < b.startAt) ? "기간 전" : (b.endAt && today > b.endAt) ? "기간 끝남" : "보이는 중";
+  const targetLabel = k => (BANNER_TARGETS.find(t => t[0] === k) || ["", "버튼 없음"])[1];
+  body.innerHTML = `
+    ${SITE_CONTENT.ready ? "" : `<div class="ct-warn">공지·배너 저장 공간(site_content 테이블)이 아직 없어서 지금은 기본 배너만 보이고, 저장할 수 없어요. Supabase에서 SQL을 한 번 실행하면 바로 쓸 수 있어요.</div>`}
+    <div style="${ADMIN_PANEL}">
+      <div class="ct-h"><h2>홈 배너</h2><button type="button" class="ct-add" data-ct-new="banner" ${dis}>+ 새 배너</button></div>
+      <p class="ct-sub">홈 맨 위에서 넘어가는 배너예요. 순서를 바꾸거나, 잠시 숨기거나, 글자를 고칠 수 있어요.</p>
+      ${ctMsgHTML("banners")}
+      <div class="ct-list">
+        ${ADMIN_CT_EDIT === "new-banner" ? `<div class="ct-row open">${ctBannerForm(null)}</div>` : ""}
+        ${banners.map((b, i) => `
+        <div class="ct-row ${bannerLive(b) ? "" : "off"} ${ADMIN_CT_EDIT === b.id ? "open" : ""}">
+          <div class="ct-ord">
+            <button type="button" data-ct-move="${esc(b.id)}" data-dir="-1" aria-label="위로" ${i === 0 || ADMIN_CT_BUSY ? "disabled" : ""}>▲</button>
+            <button type="button" data-ct-move="${esc(b.id)}" data-dir="1" aria-label="아래로" ${i === banners.length - 1 || ADMIN_CT_BUSY ? "disabled" : ""}>▼</button>
+          </div>
+          <div class="ct-thumb ct-${esc(b.theme || "t1")}"><span>${siteText(b.eyebrow)}</span><b>${siteText(b.title)}</b></div>
+          <div class="ct-info"><b>${siteText(b.title)}</b><span>${b.btnTarget && b.btnTarget !== "none" ? `버튼: ${esc(b.btnLabel)} → ${esc(targetLabel(b.btnTarget))}` : "버튼 없음"}${b.startAt || b.endAt ? ` · ${esc(b.startAt || "")} ~ ${esc(b.endAt || "")}` : ""}</span></div>
+          <button type="button" class="ct-sw ${b.visible ? "on" : ""}" data-ct-vis="${esc(b.id)}" aria-pressed="${!!b.visible}" ${dis}><i></i>${esc(bannerState(b))}</button>
+          <div class="ct-acts">
+            <button type="button" class="sm-btn" data-ct-edit="${esc(b.id)}" ${dis}>${ADMIN_CT_EDIT === b.id ? "닫기" : "수정"}</button>
+            ${b.builtin ? "" : ADMIN_CT_DEL === b.id ? `<button type="button" class="sm-btn sm-btn-danger" data-ct-del-yes="${esc(b.id)}" ${dis}>정말 삭제</button><button type="button" class="sm-btn" data-ct-del-no ${dis}>취소</button>` : `<button type="button" class="sm-link" data-ct-del="${esc(b.id)}" ${dis}>삭제</button>`}
+          </div>
+          ${ADMIN_CT_EDIT === b.id ? ctBannerForm(b) : ""}
+        </div>`).join("")}
+      </div>
+    </div>
+    <div style="${ADMIN_PANEL}">
+      <div class="ct-h"><h2>공지사항</h2><button type="button" class="ct-add" data-ct-new="notice" ${dis}>+ 공지 쓰기</button></div>
+      <p class="ct-sub">"상단 고정"한 공지 1개가 사이트 맨 위 띠에 보여요. 공개한 공지는 메뉴의 "공지" 목록에서 누구나 볼 수 있어요.</p>
+      ${ctMsgHTML("notices")}
+      <div class="ct-list">
+        ${ADMIN_CT_EDIT === "new-notice" ? `<div class="ct-nrow open">${ctNoticeForm(null)}</div>` : ""}
+        ${notices.length ? notices.map(n => `
+        <div class="ct-nrow ${ADMIN_CT_EDIT === n.id ? "open" : ""}">
+          <span class="ct-ntitle">${n.pinned ? `<span class="ct-pin">상단 고정</span>` : ""}${n.tag ? `<span class="ct-tag">${esc(n.tag)}</span>` : ""}${esc(n.title)}</span>
+          <span class="ct-date">${formatDate(n.createdAt)}</span>
+          <button type="button" class="ct-sw ${n.published ? "on" : ""}" data-ct-pub="${esc(n.id)}" aria-pressed="${!!n.published}" ${dis}><i></i>${n.published ? "공개" : "비공개"}</button>
+          <span class="ct-acts"><button type="button" class="sm-btn" data-ct-edit="${esc(n.id)}" ${dis}>${ADMIN_CT_EDIT === n.id ? "닫기" : "수정"}</button>${ADMIN_CT_DEL === n.id ? `<button type="button" class="sm-btn sm-btn-danger" data-ct-del-yes="${esc(n.id)}" ${dis}>정말 삭제</button><button type="button" class="sm-btn" data-ct-del-no ${dis}>취소</button>` : `<button type="button" class="sm-link" data-ct-del="${esc(n.id)}" ${dis}>삭제</button>`}</span>
+          ${ADMIN_CT_EDIT === n.id ? ctNoticeForm(n) : ""}
+        </div>`).join("") : (ADMIN_CT_EDIT === "new-notice" ? "" : `<p class="ct-empty">아직 쓴 공지가 없어요.</p>`)}
+      </div>
+    </div>`;
+  wireAdminContent(body);
+}
+
+function ctDraftFor(item, kind) {
+  const key = item ? item.id : `new-${kind}`;
+  if (!ADMIN_CT_DRAFT || ADMIN_CT_DRAFT._key !== key) {
+    ADMIN_CT_DRAFT = item ? { ...item, _key: key }
+      : kind === "banner"
+        ? { _key: key, visible: true, theme: "t4", eyebrow: "", title: "", desc: "", btnLabel: "", btnTarget: "none", btnUrl: "", startAt: "", endAt: "" }
+        : { _key: key, title: "", body: "", tag: "", pinned: false, published: true };
+  }
+  return ADMIN_CT_DRAFT;
+}
+
+function ctBannerForm(b) {
+  const d = ctDraftFor(b, "banner");
+  const dis = ADMIN_CT_BUSY ? "disabled" : "";
+  return `
+    <div class="ct-edit">
+      <label><span>작은 제목 <span class="ct-hint">(선택)</span></span><input class="sm-in" data-ct-f="eyebrow" value="${esc(d.eyebrow)}" ${dis}></label>
+      <label><span>큰 제목 <span class="ct-hint">(Enter로 줄바꿈)</span></span><textarea class="sm-in" rows="2" data-ct-f="title" ${dis}>${esc(d.title)}</textarea></label>
+      <label class="full"><span>설명 <span class="ct-hint">(Enter로 줄바꿈)</span></span><textarea class="sm-in" rows="3" data-ct-f="desc" ${dis}>${esc(d.desc)}</textarea></label>
+      <label>버튼 글자<input class="sm-in" data-ct-f="btnLabel" value="${esc(d.btnLabel)}" ${dis}></label>
+      <label>버튼 누르면<select class="sm-in" data-ct-f="btnTarget" ${dis}>${BANNER_TARGETS.map(([k, l]) => `<option value="${k}" ${d.btnTarget === k ? "selected" : ""}>${l}</option>`).join("")}</select></label>
+      ${d.btnTarget === "url" ? `<label class="full"><span>주소 <span class="ct-hint">(https:// 로 시작)</span></span><input class="sm-in" data-ct-f="btnUrl" value="${esc(d.btnUrl)}" placeholder="https://" ${dis}></label>` : ""}
+      <label>배경 색<span class="ct-colors">${Object.entries(BANNER_THEMES).map(([k, l]) => `<button type="button" class="ct-color ct-${k} ${d.theme === k ? "on" : ""}" data-ct-theme="${k}" title="${l}" aria-label="${l}" aria-pressed="${d.theme === k}" ${dis}></button>`).join("")}</span></label>
+      <label><span>보이는 기간 <span class="ct-hint">(비우면 계속)</span></span><span class="ct-dates"><input type="date" class="sm-in" data-ct-f="startAt" value="${esc(d.startAt)}" ${dis}> ~ <input type="date" class="sm-in" data-ct-f="endAt" value="${esc(d.endAt)}" ${dis}></span></label>
+      <p class="ct-hint full">{정산비율}·{최소출금}·{지급일} 은 지금 정책 값(${Math.round((1 - POLICY.commission.rate) * 100)}%·${formatWon(POLICY.settlement.minWithdraw)}·${POLICY.settlement.payoutDay}일)으로 자동으로 바뀌어요.</p>
+      <div class="full ct-btns">
+        <button type="button" class="btn btn-primary admin-dark-btn" data-ct-saveb="${esc(b ? b.id : "")}" style="border-radius:10px;" ${dis}>${b ? "저장" : "배너 추가"}</button>
+        <button type="button" class="btn admin-stop-btn" data-ct-cancel style="border-radius:10px;background:#ffffff;" ${dis}>취소</button>
+      </div>
+      ${ctMsgHTML(b ? b.id : "new-banner")}
+    </div>`;
+}
+
+function ctNoticeForm(n) {
+  const d = ctDraftFor(n, "notice");
+  const dis = ADMIN_CT_BUSY ? "disabled" : "";
+  return `
+    <div class="ct-edit">
+      <label class="full">제목<input class="sm-in" data-ct-f="title" value="${esc(d.title)}" ${dis}></label>
+      <label class="full">내용<textarea class="sm-in" rows="5" data-ct-f="body" ${dis}>${esc(d.body)}</textarea></label>
+      <label>말머리<select class="sm-in" data-ct-f="tag" ${dis}>${NOTICE_TAGS.map(t => `<option value="${t}" ${d.tag === t ? "selected" : ""}>${t || "없음"}</option>`).join("")}</select></label>
+      <span class="ct-checks">
+        <label class="sm-check"><input type="checkbox" data-ct-c="published" ${d.published ? "checked" : ""} ${dis}> 공개</label>
+        <label class="sm-check"><input type="checkbox" data-ct-c="pinned" ${d.pinned ? "checked" : ""} ${dis}> 상단 고정 (맨 위 띠에 보이기)</label>
+      </span>
+      <div class="full ct-btns">
+        <button type="button" class="btn btn-primary admin-dark-btn" data-ct-saven="${esc(n ? n.id : "")}" style="border-radius:10px;" ${dis}>${n ? "저장" : "공지 올리기"}</button>
+        <button type="button" class="btn admin-stop-btn" data-ct-cancel style="border-radius:10px;background:#ffffff;" ${dis}>취소</button>
+      </div>
+      ${ctMsgHTML(n ? n.id : "new-notice")}
+    </div>`;
+}
+
+function wireAdminContent(body) {
+  const rerender = () => renderAdminContent(body);
+  const run = async (key, fn, okText) => {
+    ADMIN_CT_BUSY = true; ADMIN_CT_MSG = null; rerender();
+    const res = await fn();
+    ADMIN_CT_BUSY = false;
+    ADMIN_CT_MSG = { key, text: res.ok ? okText : res.message, error: !res.ok };
+    if (res.ok && okText !== null) { ADMIN_CT_EDIT = null; ADMIN_CT_DRAFT = null; }
+    rerender();
+    if (res.ok && CURRENT_VIEW === "buyer") renderBuyer();
+    renderNoticeBar();
+    return res;
+  };
+  body.querySelectorAll("[data-ct-f]").forEach(inp => {
+    const ev = inp.tagName === "SELECT" || inp.type === "date" ? "change" : "input";
+    inp.addEventListener(ev, () => {
+      if (!ADMIN_CT_DRAFT) return;
+      ADMIN_CT_DRAFT[inp.dataset.ctF] = inp.value;
+      if (inp.dataset.ctF === "btnTarget") rerender(); // "직접 입력한 주소"면 주소 칸을 보여준다
+    });
+  });
+  body.querySelectorAll("[data-ct-c]").forEach(inp => inp.addEventListener("change", () => { if (ADMIN_CT_DRAFT) ADMIN_CT_DRAFT[inp.dataset.ctC] = inp.checked; }));
+  body.querySelectorAll("[data-ct-theme]").forEach(b => b.addEventListener("click", () => { if (ADMIN_CT_DRAFT) { ADMIN_CT_DRAFT.theme = b.dataset.ctTheme; rerender(); } }));
+  body.querySelectorAll("[data-ct-new]").forEach(b => b.addEventListener("click", () => {
+    ADMIN_CT_EDIT = `new-${b.dataset.ctNew}`; ADMIN_CT_DRAFT = null; ADMIN_CT_MSG = null; rerender();
+  }));
+  body.querySelectorAll("[data-ct-edit]").forEach(b => b.addEventListener("click", () => {
+    ADMIN_CT_EDIT = ADMIN_CT_EDIT === b.dataset.ctEdit ? null : b.dataset.ctEdit; ADMIN_CT_DRAFT = null; ADMIN_CT_MSG = null; rerender();
+  }));
+  body.querySelectorAll("[data-ct-cancel]").forEach(b => b.addEventListener("click", () => { ADMIN_CT_EDIT = null; ADMIN_CT_DRAFT = null; ADMIN_CT_MSG = null; rerender(); }));
+
+  // 배너
+  body.querySelectorAll("[data-ct-move]").forEach(b => b.addEventListener("click", () => {
+    const list = SITE_CONTENT.banners.slice();
+    const i = list.findIndex(x => x.id === b.dataset.ctMove), j = i + Number(b.dataset.dir);
+    if (i < 0 || j < 0 || j >= list.length) return;
+    [list[i], list[j]] = [list[j], list[i]];
+    run("banners", () => saveBanners(list), "순서를 바꿨어요.");
+  }));
+  body.querySelectorAll("[data-ct-vis]").forEach(b => b.addEventListener("click", () => {
+    const list = SITE_CONTENT.banners.map(x => x.id === b.dataset.ctVis ? { ...x, visible: !x.visible } : x);
+    const on = list.find(x => x.id === b.dataset.ctVis).visible;
+    run("banners", () => saveBanners(list), on ? "배너를 다시 보이게 했어요." : "배너를 숨겼어요.");
+  }));
+  body.querySelectorAll("[data-ct-saveb]").forEach(b => b.addEventListener("click", () => {
+    const d = ADMIN_CT_DRAFT;
+    const id = b.dataset.ctSaveb;
+    const key = id || "new-banner";
+    if (!d || !String(d.title || "").trim()) { ADMIN_CT_MSG = { key, text: "큰 제목을 입력해 주세요.", error: true }; rerender(); return; }
+    if (d.btnTarget === "url" && !/^https?:\/\//i.test(d.btnUrl || "")) { ADMIN_CT_MSG = { key, text: "주소는 https:// 로 시작해야 해요.", error: true }; rerender(); return; }
+    if (d.startAt && d.endAt && d.startAt > d.endAt) { ADMIN_CT_MSG = { key, text: "시작일이 종료일보다 늦어요.", error: true }; rerender(); return; }
+    const { _key, ...clean } = d;
+    const list = id
+      ? SITE_CONTENT.banners.map(x => x.id === id ? { ...x, ...clean, id } : x)
+      : [...SITE_CONTENT.banners, { ...clean, id: uid("banner"), builtin: false }];
+    run(key, () => saveBanners(list), id ? "저장했어요." : "배너를 추가했어요.").then(r => { if (r.ok) { ADMIN_CT_MSG = { key: "banners", text: id ? "저장했어요." : "배너를 추가했어요. 맨 아래에 붙었어요.", error: false }; rerender(); } });
+  }));
+
+  // 공지
+  body.querySelectorAll("[data-ct-pub]").forEach(b => b.addEventListener("click", () => {
+    const n = SITE_CONTENT.notices.find(x => x.id === b.dataset.ctPub);
+    if (!n) return;
+    run("notices", () => saveNotice({ ...n, published: !n.published }), n.published ? "비공개로 바꿨어요." : "공개했어요.");
+  }));
+  body.querySelectorAll("[data-ct-del]").forEach(b => b.addEventListener("click", () => { ADMIN_CT_DEL = b.dataset.ctDel; rerender(); }));
+  body.querySelectorAll("[data-ct-del-no]").forEach(b => b.addEventListener("click", () => { ADMIN_CT_DEL = null; rerender(); }));
+  body.querySelectorAll("[data-ct-del-yes]").forEach(b => b.addEventListener("click", () => {
+    const id = b.dataset.ctDelYes;
+    ADMIN_CT_DEL = null;
+    if (ADMIN_CT_EDIT === id) { ADMIN_CT_EDIT = null; ADMIN_CT_DRAFT = null; }
+    const isBanner = SITE_CONTENT.banners.some(x => x.id === id);
+    run(isBanner ? "banners" : "notices", () => isBanner ? deleteBanner(id) : deleteNotice(id), isBanner ? "배너를 삭제했어요." : "공지를 삭제했어요.");
+  }));
+  body.querySelectorAll("[data-ct-saven]").forEach(b => b.addEventListener("click", () => {
+    const d = ADMIN_CT_DRAFT;
+    const id = b.dataset.ctSaven;
+    const key = id || "new-notice";
+    if (!d) return;
+    const { _key, ...clean } = d;
+    const notice = id ? { ...SITE_CONTENT.notices.find(x => x.id === id), ...clean, id } : { ...clean, id: uid("notice"), createdAt: nowISO() };
+    run(key, () => saveNotice(notice), "").then(r => { if (r.ok) { ADMIN_CT_MSG = { key: "notices", text: id ? "저장했어요." : "공지를 올렸어요.", error: false }; rerender(); } });
   }));
 }

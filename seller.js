@@ -18,7 +18,7 @@ let SELLER_SCORE_BUSY = null;     // 저장·판매상태 변경·삭제 처리 
 let SELLER_MYSCORES_Q = "";       // 내 악보 검색어(제목·가수·태그) (2026-10-30 추가)
 let SELLER_MYSCORES_FILTER = "all"; // 내 악보 상태 필터: all | sale | stopped | discount (2026-10-30 추가)
 let SELLER_TAB = null;            // 판매자 센터 탭 (2026-10-30 추가): scores | register | sales | trend | inquiries | profile
-const SELLER_TABS = [["scores", "내 악보"], ["register", "악보 등록"], ["sales", "판매·정산"], ["trend", "신청곡 트렌드"], ["inquiries", "고객 문의"], ["profile", "프로필"]];
+const SELLER_TABS = [["scores", "내 악보"], ["register", "악보 등록"], ["sales", "판매·정산"], ["stats", "통계"], ["trend", "신청곡 트렌드"], ["inquiries", "고객 문의"], ["profile", "프로필"]];
 let SELLER_TREND_INST = "";      // 신청곡 트렌드 악기 필터, "" = 전체 (2026-10-16 추가)
 let SELLER_TREND_SORT = "requests"; // "requests"(신청 많은 순) | "likes"(좋아요 많은 순) | "latest"(최근 순)
 let SELLER_TREND_STATUS = "";    // "" = 전체, 그 외엔 REQUEST_STATUS 값
@@ -237,6 +237,8 @@ function renderSeller() {
       <div id="seller-withdraw-history"></div>
     </div>
 
+    <div data-seller-sec="stats" id="seller-stats" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;"></div>
+
     <div data-seller-sec="inquiries" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-top:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">고객 문의</h2>
       <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">구매자가 내 악보를 골라서 보낸 1:1 문의입니다. 다른 판매자 악보에 대한 문의는 보이지 않아요.</p>
@@ -348,6 +350,7 @@ function renderSeller() {
   renderWithdrawSection(user.id);
   renderSellerInquiries(user.id);
   renderSellerTrend();
+  renderSellerStats(user.id);
 }
 
 /* ============================================================
@@ -1796,4 +1799,144 @@ function renderSellerInquiries(sellerId) {
     renderAll();
     showSellerMsg(document.getElementById("seller-inquiry-msg"), "답변을 등록했습니다.", false);
   }));
+}
+
+/* ============================================================
+   내 악보 통계 (2026-10-31 추가) — 판매자 센터 "통계" 탭
+   판매·수익은 구매 기록(purchases, 환불 제외)으로 기간별로 센다.
+   조회수·찜·구독은 "언제"가 기록돼 있지 않아 누적으로만 보여준다.
+   ============================================================ */
+let SELLER_ST_DAYS = 30;       // 7 | 30 | 90 | 0(전체)
+let SELLER_ST_SORT = "sales";  // views | sales | conv | wish | rating
+let SELLER_ST_LIMIT = 20;
+
+function stDayStart(t) { const d = new Date(t); d.setHours(0, 0, 0, 0); return d.getTime(); }
+function stMD(t) { const d = new Date(t); return `${String(d.getMonth() + 1).padStart(2, "0")}.${String(d.getDate()).padStart(2, "0")}`; }
+function stPct(n) { return `${(n * 100).toFixed(1)}%`; }
+
+function renderSellerStats(userId) {
+  const el = document.getElementById("seller-stats");
+  if (!el) return;
+  const myScores = Object.values(STATE.scores).filter(s => s.sellerId === userId);
+  const allSales = Object.values(STATE.purchases).filter(p => p.sellerId === userId && !p.refunded);
+  const days = SELLER_ST_DAYS;
+  const now = Date.now();
+  const since = days ? stDayStart(now) - (days - 1) * 86400000 : 0;
+  const inRange = allSales.filter(p => new Date(p.purchasedAt).getTime() >= since);
+  const prev = days ? allSales.filter(p => { const t = new Date(p.purchasedAt).getTime(); return t >= since - days * 86400000 && t < since; }) : null;
+  const earn = list => list.reduce((s, p) => s + Number(p.sellerEarning || 0), 0);
+
+  // 찜: 내 악보를 찜 목록에 담은 횟수 합계
+  const wishBy = {};
+  for (const u of Object.values(STATE.users)) for (const id of u.wishlist || []) wishBy[id] = (wishBy[id] || 0) + 1;
+  const wishTotal = myScores.reduce((s, sc) => s + (wishBy[sc.id] || 0), 0);
+  const delta = (cur, before, fmt) => {
+    if (!prev) return `<em>전체 기간</em>`;
+    const d = cur - before;
+    if (!d) return `<em>직전 ${days}일과 같아요</em>`;
+    return `<em class="${d > 0 ? "up" : "down"}">${d > 0 ? "▲" : "▼"} ${fmt(Math.abs(d))} <span>직전 ${days}일보다</span></em>`;
+  };
+
+  // 막대: 7·30일은 하루, 90일은 1주, 전체는 1달 단위
+  const buckets = [];
+  if (days && days <= 30) {
+    for (let i = 0; i < days; i++) { const s = since + i * 86400000; buckets.push({ s, e: s + 86400000, label: stMD(s) }); }
+  } else if (days === 90) {
+    for (let i = 0; i < 13; i++) { const e = stDayStart(now) + 86400000 - (12 - i) * 7 * 86400000; const s = e - 7 * 86400000; buckets.push({ s, e, label: `${stMD(s)}~${stMD(e - 86400000)}` }); }
+  } else {
+    const first = allSales.length ? Math.min(...allSales.map(p => new Date(p.purchasedAt).getTime())) : now;
+    const d = new Date(first); d.setDate(1); d.setHours(0, 0, 0, 0);
+    while (d.getTime() <= now) {
+      const s = d.getTime(); d.setMonth(d.getMonth() + 1);
+      buckets.push({ s, e: d.getTime(), label: `${new Date(s).getFullYear()}.${String(new Date(s).getMonth() + 1).padStart(2, "0")}` });
+    }
+  }
+  const unit = days && days <= 30 ? "일별" : days === 90 ? "주별" : "월별";
+  for (const b of buckets) {
+    const list = allSales.filter(p => { const t = new Date(p.purchasedAt).getTime(); return t >= b.s && t < b.e; });
+    b.n = list.length; b.earn = earn(list);
+  }
+  const maxN = Math.max(1, ...buckets.map(b => b.n));
+  const step = maxN <= 4 ? 1 : Math.ceil(maxN / 4);
+  const top = Math.ceil(maxN / step) * step;
+  const gridVals = []; for (let v = step; v <= top; v += step) gridVals.push(v);
+  const xIdx = buckets.length <= 7 ? buckets.map((_, i) => i) : [0, Math.round((buckets.length - 1) / 4), Math.round((buckets.length - 1) / 2), Math.round((buckets.length - 1) * 3 / 4), buckets.length - 1];
+
+  // 악보별
+  const salesTotalBy = {}, salesRangeBy = {};
+  for (const p of allSales) salesTotalBy[p.scoreId] = (salesTotalBy[p.scoreId] || 0) + 1;
+  for (const p of inRange) salesRangeBy[p.scoreId] = (salesRangeBy[p.scoreId] || 0) + 1;
+  const rows = myScores.map(s => {
+    const views = Number(s.viewCount || 0), total = salesTotalBy[s.id] || 0;
+    return { s, views, sales: salesRangeBy[s.id] || 0, total, conv: views ? total / views : 0, wish: wishBy[s.id] || 0, rating: getScoreRating(s.id) };
+  });
+  const totViews = rows.reduce((a, r) => a + r.views, 0), totSales = rows.reduce((a, r) => a + r.total, 0);
+  const avgConv = totViews ? totSales / totViews : 0;
+  const missed = rows.filter(r => r.s.status === "승인" && r.views >= 30 && r.conv < avgConv * 0.7).sort((a, b) => b.views - a.views).slice(0, 3);
+  const sortKey = { views: r => r.views, sales: r => r.sales * 1e6 + r.total, conv: r => r.conv, wish: r => r.wish, rating: r => r.rating.avg };
+  rows.sort((a, b) => sortKey[SELLER_ST_SORT](b) - sortKey[SELLER_ST_SORT](a) || b.views - a.views);
+  const shown = rows.slice(0, SELLER_ST_LIMIT);
+  const periodName = days ? `${days}일` : "전체";
+  const th = (k, label) => `<th><button type="button" class="st-sort ${SELLER_ST_SORT === k ? "on" : ""}" data-st-sort="${k}">${label}${SELLER_ST_SORT === k ? " ▼" : ""}</button></th>`;
+
+  el.innerHTML = `
+    <div class="st-top">
+      <div><h2>내 악보 통계</h2><p>어떤 악보가 잘 팔리고, 어떤 악보가 보기만 하고 지나치는지 한눈에 봐요.</p></div>
+      <div class="st-period" role="group" aria-label="기간">${[[7, "7일"], [30, "30일"], [90, "90일"], [0, "전체"]].map(([v, l]) => `<button type="button" class="${days === v ? "on" : ""}" data-st-days="${v}" aria-pressed="${days === v}">${l}</button>`).join("")}</div>
+    </div>
+    <div class="st-kpis">
+      <div class="st-kpi"><span>판매</span><b>${inRange.length.toLocaleString("ko-KR")}건</b>${delta(inRange.length, prev ? prev.length : 0, n => `${n}건`)}</div>
+      <div class="st-kpi"><span>정산 수익</span><b>${formatPoint(Math.round(earn(inRange)))}</b>${delta(earn(inRange), prev ? earn(prev) : 0, n => formatPoint(Math.round(n)))}</div>
+      <div class="st-kpi"><span>구독자</span><b>${getFollowerCount(userId).toLocaleString("ko-KR")}명</b><em>누적</em></div>
+      <div class="st-kpi"><span>찜</span><b>${wishTotal.toLocaleString("ko-KR")}회</b><em>누적 · 내 악보 전체</em></div>
+    </div>
+    <div class="st-card">
+      <h3>${unit} 판매</h3><p class="s">막대에 마우스를 올리거나 눌러 보면 그 기간의 판매 건수와 수익이 보여요.</p>
+      ${allSales.length ? `
+      <div class="st-chart" role="img" aria-label="${unit} 판매 건수 막대그래프, 최근 ${periodName} 합계 ${inRange.length}건">
+        ${gridVals.map(v => `<div class="st-grid" style="bottom:${(v / top) * 100}%"><span>${v}</span></div>`).join("")}
+        <div class="st-bars">${buckets.map((b, i) => `<div class="st-hit" data-st-i="${i}"><div class="st-bar ${b.n ? "" : "zero"}" style="height:${b.n ? Math.max(2, (b.n / top) * 100) : 0}%"></div></div>`).join("")}</div>
+        <div class="st-tip" id="st-tip" hidden></div>
+      </div>
+      <div class="st-x">${buckets.map((b, i) => `<span>${xIdx.includes(i) ? esc(days === 90 ? b.label.split("~")[0] : b.label) : ""}</span>`).join("")}</div>`
+      : `<p class="st-empty">아직 판매 기록이 없어요. 첫 판매가 생기면 여기에 그래프가 그려져요.</p>`}
+    </div>
+    ${missed.length ? `
+    <div class="st-card">
+      <h3>놓치고 있는 악보</h3><p class="s">많이 보는데 잘 안 팔리는 악보예요. 미리보기·가격·소개글을 한번 점검해 보세요.</p>
+      ${missed.map(r => `<button type="button" class="st-miss" data-st-go="${esc(r.s.id)}"><span aria-hidden="true">👀</span><span><b>「${esc(r.s.title)}」</b> 조회 ${r.views.toLocaleString("ko-KR")}회에 판매 ${r.total}건 (구매율 ${stPct(r.conv)}) — 내 악보 평균 ${stPct(avgConv)}보다 낮아요.</span></button>`).join("")}
+    </div>` : ""}
+    <div class="st-card">
+      <h3>악보별 성과</h3><p class="s">제목을 누르면 상세 페이지로 가요. 칸 이름을 누르면 그 순서로 정렬돼요. 조회·구매율·찜은 누적이에요.</p>
+      ${rows.length ? `
+      <div class="st-tbl-wrap"><table class="st-tbl">
+        <thead><tr><th>악보</th>${th("views", "조회")}${th("sales", `판매 (${periodName})`)}${th("conv", "구매율")}${th("wish", "찜")}${th("rating", "별점")}</tr></thead>
+        <tbody>${shown.map(r => `<tr>
+          <td><button type="button" class="st-title" data-st-go="${esc(r.s.id)}">${esc(r.s.title)}</button><small>${esc(r.s.artist)}${r.s.status === "판매중지" ? " · 판매 중지" : ""}</small></td>
+          <td>${r.views.toLocaleString("ko-KR")}</td><td>${r.sales}건</td><td>${r.views ? stPct(r.conv) : "-"}</td><td>${r.wish}</td>
+          <td>${r.rating.count ? `★ ${r.rating.avg.toFixed(1)}` : `<span class="st-dim">-</span>`}</td></tr>`).join("")}</tbody>
+      </table></div>
+      ${rows.length > shown.length ? `<button type="button" class="st-more" id="st-more">더 보기 (${shown.length} / ${rows.length})</button>` : ""}`
+      : `<p class="st-empty">등록한 악보가 없어요.</p>`}
+    </div>`;
+
+  el.querySelectorAll("[data-st-days]").forEach(b => b.addEventListener("click", () => { SELLER_ST_DAYS = Number(b.dataset.stDays); renderSellerStats(userId); }));
+  el.querySelectorAll("[data-st-sort]").forEach(b => b.addEventListener("click", () => { SELLER_ST_SORT = b.dataset.stSort; renderSellerStats(userId); }));
+  document.getElementById("st-more")?.addEventListener("click", () => { SELLER_ST_LIMIT += 20; renderSellerStats(userId); });
+  el.querySelectorAll("[data-st-go]").forEach(b => b.addEventListener("click", () => { showView("buyer"); goBuyer("detail", { id: b.dataset.stGo }); }));
+  const tip = document.getElementById("st-tip");
+  const chart = el.querySelector(".st-chart");
+  const show = (hit) => {
+    const b = buckets[Number(hit.dataset.stI)];
+    if (!b || !tip || !chart) return;
+    el.querySelectorAll(".st-hit.on").forEach(x => x.classList.remove("on"));
+    hit.classList.add("on");
+    tip.innerHTML = `<b>${esc(b.label)}</b> · ${b.n}건${b.n ? ` · +${formatPoint(Math.round(b.earn))}` : ""}`;
+    tip.hidden = false;
+    const cr = chart.getBoundingClientRect(), hr = hit.getBoundingClientRect();
+    const x = hr.left - cr.left + hr.width / 2;
+    tip.style.left = `${Math.min(Math.max(x, tip.offsetWidth / 2), cr.width - tip.offsetWidth / 2)}px`;
+  };
+  el.querySelectorAll(".st-hit").forEach(h => { h.addEventListener("mouseenter", () => show(h)); h.addEventListener("click", () => show(h)); });
+  chart?.addEventListener("mouseleave", () => { if (tip) tip.hidden = true; el.querySelectorAll(".st-hit.on").forEach(x => x.classList.remove("on")); });
 }

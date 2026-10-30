@@ -234,6 +234,7 @@ function updateMenuHighlight() {
   }
   // 2026-10-20 추가: 헤더의 "FAQ" 메뉴는 고객센터 화면의 "자주 묻는 질문" 탭으로 연결된다.
   else if (page === "support" && (!params.tab || params.tab === "faq")) key = "faq";
+  else if (page === "notices") key = "notices";
   setActiveMenu(key);
 }
 
@@ -510,6 +511,7 @@ function renderBuyer() {
   else if (page === "mypage") renderMyPage(el, params);
   else if (page === "requests") renderRequestsPage(el);
   else if (page === "support") renderSupportPage(el, params);
+  else if (page === "notices") renderNoticesPage(el, params);
   else renderHomePage(el);
 
   updateMenuHighlight();
@@ -532,38 +534,9 @@ function renderHomePage(el) {
     .slice(0, 3);
 
   el.innerHTML = `
-    <div class="hero" id="hero">
+    <div class="hero" id="hero" ${activeBanners().length ? "" : "hidden"}>
       <div class="hero-track" id="hero-track">
-        <div class="hero-slide slide-1">
-          <div class="hero-inner">
-          <div class="hero-text">
-          <div class="eyebrow">악보는 영상과 함께</div>
-          <h2>연주 영상과 함께 보는 악보</h2>
-          <p>연주영상 표시가 있는 악보는<br>판매 아티스트가 직접 연주한 영상을 함께 볼 수 있어요.</p>
-          <button class="btn btn-primary" id="hero-video-btn" data-go="list:video:true" style="background:linear-gradient(90deg,#ffb36b 0%,#f07845 100%);border-color:transparent;">연주영상 악보 보기</button>
-          </div>
-          </div>
-        </div>
-        <div class="hero-slide slide-2">
-          <div class="hero-inner">
-          <div class="hero-text">
-          <div class="eyebrow">찾는 악보가 없다면</div>
-          <h2>신청곡을 올려주세요</h2>
-          <p>누구나 무료로 올릴 수 있어요.<br>신청이 많은 곡부터 채보해서<br>악보로 만들어 드려요.</p>
-          <button class="btn btn-accent" id="hero-request-btn" data-go="requests">신청곡 보러가기</button>
-          </div>
-          </div>
-        </div>
-        <div class="hero-slide slide-3">
-          <div class="hero-inner">
-          <div class="hero-text">
-          <div class="eyebrow">아티스트 모집</div>
-          <h2>내 악보를 올리고<br>판매 금액의 ${Math.round((1 - POLICY.commission.rate) * 100)}%를 정산받으세요</h2>
-          <p>적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이면 매달 ${POLICY.settlement.payoutDay}일 신청 없이 자동으로 입금돼요.</p>
-          <button class="btn" id="hero-artist-btn" style="background:linear-gradient(90deg,#ffb36b 0%,#f07845 100%);border-color:transparent;border-radius:16px;">아티스트로 시작하기</button>
-          </div>
-          </div>
-        </div>
+        ${heroSlidesHTML()}
       </div>
       <!-- 2026-10-30: 배너 넘기기 — 막대/점 대신 좌·우 화살표 아이콘 -->
       <button type="button" class="hero-arrow hero-prev" id="hero-prev" aria-label="이전 배너">
@@ -692,7 +665,7 @@ function renderHomePage(el) {
     el.querySelectorAll("[data-pop-inst]").forEach(x => x.classList.toggle("active", x === b));
     renderPopRow();
   }));
-  document.getElementById("hero-artist-btn")?.addEventListener("click", startArtist);
+  el.querySelectorAll("[data-hero-act]").forEach(b => b.addEventListener("click", () => heroAction(b.dataset.heroAct, b.dataset.heroUrl)));
   document.getElementById("ib-artist")?.addEventListener("click", startArtist);
   document.getElementById("ib-guide")?.addEventListener("click", () => {
     requireLogin(() => goBuyer("mypage", { tab: "points" }));
@@ -719,18 +692,82 @@ function renderPopRow() {
   bindCards(wrap);
 }
 
+/* 2026-10-31: 홈 배너는 관리자 "공지·배너" 탭에서 정한 목록(SITE_CONTENT)으로 그린다 */
+const HERO_GRAD_BTN = "background:linear-gradient(90deg,#ffb36b 0%,#f07845 100%);border-color:transparent;";
+function heroSlidesHTML() {
+  const themeCls = { t1: "slide-1", t2: "slide-2", t3: "slide-3", t4: "slide-4" };
+  return activeBanners().map(b => {
+    const theme = themeCls[b.theme] ? b.theme : "t1";
+    let btn = "";
+    if (b.btnTarget && b.btnTarget !== "none" && String(b.btnLabel || "").trim()) {
+      const cls = theme === "t2" ? "btn btn-accent" : theme === "t3" ? "btn" : "btn btn-primary";
+      const style = theme === "t2" ? "" : HERO_GRAD_BTN + (theme === "t3" ? "border-radius:16px;" : "");
+      btn = `<button class="${cls}" data-hero-act="${esc(b.btnTarget)}" data-hero-url="${esc(b.btnUrl || "")}" style="${style}">${esc(b.btnLabel)}</button>`;
+    }
+    return `
+        <div class="hero-slide ${themeCls[theme]}">
+          <div class="hero-inner">
+          <div class="hero-text">
+          ${b.eyebrow ? `<div class="eyebrow">${siteText(b.eyebrow)}</div>` : ""}
+          <h2>${siteText(b.title)}</h2>
+          ${b.desc ? `<p>${siteText(b.desc)}</p>` : ""}
+          ${btn}
+          </div>
+          </div>
+        </div>`;
+  }).join("");
+}
+function heroAction(act, url) {
+  if (act === "video") goBuyer("list", { video: true });
+  else if (act === "new") goBuyer("list", { sort: "latest" });
+  else if (act === "requests") goBuyer("requests");
+  else if (act === "artist") startArtist();
+  else if (act === "charge") requireLogin(() => goBuyer("mypage", { tab: "points" }));
+  else if (act === "notices") goBuyer("notices");
+  else if (act === "url" && /^https?:\/\//i.test(url || "")) {
+    if (url.startsWith(location.origin)) location.href = url; else window.open(url, "_blank", "noopener");
+  }
+}
+
+/* 2026-10-31: 공지사항 목록 — 누르면 그 자리에서 펼쳐진다 */
+function renderNoticesPage(el, p) {
+  const list = publishedNotices();
+  const openId = p && p.id;
+  el.innerHTML = `
+    <div class="breadcrumb"><button data-go="home">홈</button> › 공지사항</div>
+    <h1 class="page-title">공지사항</h1>
+    ${list.length ? `<div class="ntc-list">${list.map(n => `
+      <div class="ntc-item ${openId === n.id ? "open" : ""}">
+        <button type="button" class="ntc-head" data-ntc="${esc(n.id)}" aria-expanded="${openId === n.id}">
+          ${n.pinned ? `<span class="ntc-pin">고정</span>` : ""}${n.tag ? `<span class="ntc-tag">${esc(n.tag)}</span>` : ""}
+          <span class="ntc-title">${esc(n.title)}</span>
+          <span class="ntc-date">${formatDate(n.createdAt)}</span>
+        </button>
+        ${openId === n.id ? `<div class="ntc-body">${n.body ? esc(n.body).replace(/\n/g, "<br>") : "<span style=\"color:var(--muted)\">내용이 없어요.</span>"}</div>` : ""}
+      </div>`).join("")}</div>` : `<div class="empty">아직 공지가 없어요.</div>`}`;
+  bindCards(el);
+  el.querySelectorAll("[data-ntc]").forEach(b => b.addEventListener("click", () => {
+    goBuyer("notices", openId === b.dataset.ntc ? {} : { id: b.dataset.ntc }, { keepScroll: true });
+  }));
+}
+
 function setupHero() {
   // 2026-10-30: 아래 막대/점 대신 좌·우 화살표로 넘긴다(끝에서 처음으로 순환). 휴대폰은 좌우로 밀어도 넘어간다.
   const hero = document.getElementById("hero");
   const track = document.getElementById("hero-track");
   if (!hero || !track) return;
   const count = track.children.length;
+  if (!count) return;
+  // 2026-10-31: 배너가 1개면 화살표·자동 넘김 없이 그대로 둔다
+  hero.querySelectorAll(".hero-arrow").forEach(a => { a.hidden = count < 2; });
   let idx = 0;
   const go = (i) => {
     idx = (i + count) % count;
     track.style.transform = `translateX(-${idx * 100}%)`;
-    hero.dataset.slide = String(idx); // 어두운 3번째 배너에서는 화살표를 흰색으로
+    hero.dataset.slide = String(idx);
+    hero.dataset.dark = track.children[idx] && track.children[idx].classList.contains("slide-3") ? "1" : ""; // 어두운 배너에서는 화살표를 흰색으로
   };
+  if (count < 2) { go(0); return; }
   const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
   const restart = () => {
     if (HERO_TIMER) clearInterval(HERO_TIMER);
