@@ -2130,6 +2130,7 @@ function resetLoginForm() {
     const el = document.getElementById(id);
     if (el) el.textContent = "";
   }
+  document.querySelectorAll("[data-google-login]").forEach(b => { b.disabled = false; });
 }
 
 /* 로그인은 화면을 막지 않는다. 계정이 필요한 버튼을 누르는 순간에만
@@ -2352,6 +2353,24 @@ async function submitSetPassword() {
   toast("비밀번호가 설정되었습니다.");
 }
 
+/* 2026-11-01: 구글 간편 로그인.
+   구글 계정 선택 화면으로 갔다가 사이트로 돌아오면, Supabase 가 로그인을 확정하면서 SIGNED_IN 이벤트가 오고
+   이메일 로그인과 똑같이 handleSupabaseSignedIn 이 처리한다(같은 이메일의 기존 회원이면 그 계정으로 이어짐). */
+async function signInWithGoogle(btn) {
+  const errorEl = document.getElementById((btn && btn.dataset.googleLogin) || "login-error");
+  const sb = getSb();
+  if (!sb) { if (errorEl) errorEl.textContent = "로그인 기능을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."; return; }
+  if (errorEl) errorEl.textContent = "";
+  if (btn) btn.disabled = true;
+  const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${location.origin}/` } });
+  if (error) {
+    if (btn) btn.disabled = false;
+    const notReady = /not enabled|unsupported provider/i.test(error.message || "");
+    if (errorEl) errorEl.textContent = notReady ? "구글 로그인은 준비 중이에요. 이메일로 로그인해주세요." : "구글 로그인 중 문제가 생겼습니다: " + error.message;
+  }
+  // 성공하면 브라우저가 구글 화면으로 넘어간다
+}
+
 /* Supabase 로그인이 실제로 확정되는 순간(이메일 인증 완료 포함) 호출된다.
    같은 이메일의 기존 회원 데이터가 있으면 그대로 이어서 쓰고, 없으면
    (회원가입 때 임시로 남겨둔 이름·역할을 참고해) 새 회원으로 만든다. */
@@ -2370,7 +2389,9 @@ async function handleSupabaseSignedIn(session) {
     // 관리자 지정 이메일(STATE.adminEmails)로 로그인하면 기존 회원이어도 관리자 권한을 붙여준다
     if (isAdminEmail(email)) user.isAdmin = true;
   } else {
-    let name = email.split("@")[0];
+    // 2026-11-01: 구글로 처음 온 회원은 구글 계정 이름을 쓴다
+    const meta = session.user.user_metadata || {};
+    let name = String(meta.full_name || meta.name || "").trim() || email.split("@")[0];
     let role = "buyer";
     try {
       const raw = localStorage.getItem(PENDING_SIGNUP_KEY);
@@ -3197,6 +3218,7 @@ async function initCommon() {
   document.getElementById("setpassword-new2")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitSetPassword(); });
 
   document.getElementById("go-signup-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("signup"); });
+  document.querySelectorAll("[data-google-login]").forEach(b => b.addEventListener("click", () => signInWithGoogle(b)));
   document.getElementById("go-login-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("login"); });
   document.getElementById("go-forgot-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("forgot"); });
   document.getElementById("forgot-back-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("login"); });
