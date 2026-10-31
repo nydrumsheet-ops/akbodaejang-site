@@ -2356,15 +2356,19 @@ async function submitSetPassword() {
 /* 2026-11-01: 구글 간편 로그인.
    구글 계정 선택 화면으로 갔다가 사이트로 돌아오면, Supabase 가 로그인을 확정하면서 SIGNED_IN 이벤트가 오고
    이메일 로그인과 똑같이 handleSupabaseSignedIn 이 처리한다(같은 이메일의 기존 회원이면 그 계정으로 이어짐). */
+const OAUTH_PENDING_KEY = "akbo_oauth_pending";
 async function signInWithGoogle(btn) {
   const errorEl = document.getElementById((btn && btn.dataset.googleLogin) || "login-error");
   const sb = getSb();
   if (!sb) { if (errorEl) errorEl.textContent = "로그인 기능을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."; return; }
   if (errorEl) errorEl.textContent = "";
   if (btn) btn.disabled = true;
+  // 구글에서 돌아왔을 때 "방금 구글 로그인을 눌렀다"는 표시 (initSupabaseAuth 에서 확인 후 지운다)
+  try { sessionStorage.setItem(OAUTH_PENDING_KEY, String(Date.now())); } catch (e) { /* 저장이 막힌 브라우저 */ }
   const { error } = await sb.auth.signInWithOAuth({ provider: "google", options: { redirectTo: `${location.origin}/` } });
   if (error) {
     if (btn) btn.disabled = false;
+    try { sessionStorage.removeItem(OAUTH_PENDING_KEY); } catch (e) { /* 무시 */ }
     const notReady = /not enabled|unsupported provider/i.test(error.message || "");
     if (errorEl) errorEl.textContent = notReady ? "구글 로그인은 준비 중이에요. 이메일로 로그인해주세요." : "구글 로그인 중 문제가 생겼습니다: " + error.message;
   }
@@ -2431,13 +2435,23 @@ function initSupabaseAuth() {
     console.error("[common] Supabase 로그인 라이브러리를 불러오지 못했습니다. index.html 의 스크립트 태그를 확인해주세요.");
     return;
   }
+  // 2026-11-01 버그 수정: 구글에서 돌아오면 Supabase 가 페이지를 여는 순간(이 리스너를 붙이기 전) 로그인을 확정해서
+  // SIGNED_IN 을 놓친다. 그래서 "방금 구글 로그인을 눌렀다" 표시가 있으면 INITIAL_SESSION 의 세션으로 로그인을 마무리한다.
+  const takeOauthPending = () => {
+    let pending = false;
+    try { pending = !!sessionStorage.getItem(OAUTH_PENDING_KEY); sessionStorage.removeItem(OAUTH_PENDING_KEY); } catch (e) { /* 무시 */ }
+    return pending;
+  };
   sb.auth.onAuthStateChange((event, session) => {
     if (event === "PASSWORD_RECOVERY") {
       resetLoginForm();
       showLoginPane("setpassword");
       document.getElementById("login-modal")?.classList.add("open");
     } else if (event === "SIGNED_IN" && session) {
+      takeOauthPending();
       handleSupabaseSignedIn(session);
+    } else if (event === "INITIAL_SESSION" && session && takeOauthPending()) {
+      setTimeout(() => handleSupabaseSignedIn(session), 0); // 리스너 안에서 바로 load() 등 다른 요청을 하지 않도록 한 박자 뒤에
     }
   });
 }
