@@ -1461,10 +1461,29 @@ function renderMyPage(el, p) {
     const originalText = b.textContent;
     b.textContent = "준비 중...";
     try {
-      const urlRes = await getScoreDownloadUrl(STATE.purchases[b.dataset.download]?.scoreId);
+      /* 2026-11-03 보안: "다운로드했음"을 파일 주소를 만들기 "전에" 서버에 먼저 기록한다.
+         예전에는 파일을 받은 뒤 브라우저가 기록해서, 파일 주소만 직접 만들면 받고 나서도 환불이 됐다.
+         서버 함수가 실패하면 파일을 주지 않는다. */
+      const purchaseId = b.dataset.download;
+      const sb = getSb();
+      if (!sb) { toast("서버에 연결할 수 없어요. 잠시 후 다시 시도해주세요.", true); return; }
+      const { data: markRes, error: markErr } = await sb.rpc("rpc_mark_downloaded", { p_purchase_id: purchaseId });
+      if (markErr || !markRes || !markRes.ok) {
+        toast((markRes && markRes.message) || "다운로드를 준비하지 못했어요. 잠시 후 다시 시도해주세요.", true);
+        return;
+      }
+      const purchase = STATE.purchases[purchaseId];
+      if (purchase && !purchase.downloaded) {
+        purchase.downloaded = true;
+        purchase.downloadedAt = markRes.downloaded_at || nowISO();
+        // 서버에 이미 기록됐으므로 다음 save() 가 다시 보내지 않게 비교 기준도 맞춘다
+        if (STATE_BASELINE && STATE_BASELINE.purchases[purchaseId]) {
+          STATE_BASELINE.purchases[purchaseId].downloaded = true;
+          STATE_BASELINE.purchases[purchaseId].downloadedAt = purchase.downloadedAt;
+        }
+      }
+      const urlRes = await getScoreDownloadUrl(purchase?.scoreId);
       if (!urlRes.ok) { toast(urlRes.message, true); return; }
-      const res = downloadPurchase(b.dataset.download);
-      if (!res.ok) { toast(res.message, true); return; }
       const a = document.createElement("a");
       a.href = urlRes.url;
       a.download = "";
