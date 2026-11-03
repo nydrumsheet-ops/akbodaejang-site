@@ -406,10 +406,35 @@ async function loadFromSupabaseTables() {
   for (const r of [uR, sR, pR, rR, cR, wR, rvR, iR, phR, rbR, rlR, aaR]) {
     if (r.error) throw r.error;
   }
+  /* 2026-11-01 보안 강화: users·purchases 는 이제 본인(관리자는 전체) 것만 읽힌다.
+     아티스트 이름·구독자 수·인기순처럼 다른 회원 정보가 필요한 곳은 개인정보를 뺀 공개용 목록
+     (users_public, purchases_public)으로 채운다. 공개용 목록이 아직 없는 서버여도(보안 SQL 적용 전)
+     오류 없이 예전처럼 동작하도록, 실패하면 그냥 건너뛴다. */
+  const [upR, ppR] = await Promise.all([
+    sb.from("users_public").select("*"),
+    sb.from("purchases_public").select("*")
+  ]);
 
   const state = emptyState();
+  if (!upR.error && Array.isArray(upR.data)) {
+    for (const row of upR.data) {
+      const u = userFromRow({ ...row, points: 0, is_first_charge: false, is_admin: false });
+      u._partial = true; // 공개 정보만 있는 다른 회원 — 저장할 때 절대 서버로 보내지 않는다
+      state.users[row.id] = u;
+    }
+  }
   for (const row of uR.data) state.users[row.id] = userFromRow(row);
   for (const row of sR.data) state.scores[row.id] = scoreFromRow(row);
+  if (!ppR.error && Array.isArray(ppR.data)) {
+    for (const row of ppR.data) {
+      state.purchases[row.id] = {
+        id: row.id, buyerId: `anon_${row.buyer_key}`, scoreId: row.score_id, sellerId: row.seller_id,
+        price: row.price, commissionRate: null, sellerEarning: null, purchasedAt: row.purchased_at,
+        downloaded: false, downloadedAt: null, refunded: row.refunded, refundedAt: null, refundDeadline: null,
+        _partial: true // 인기순·함께 구매 계산용. 누가 샀는지는 알 수 없다
+      };
+    }
+  }
   for (const row of pR.data) state.purchases[row.id] = purchaseFromRow(row);
   for (const row of rR.data) state.requests[row.id] = requestFromRow(row);
   for (const row of cR.data) state.charges[row.id] = chargeFromRow(row);
@@ -512,7 +537,7 @@ async function tryStep(label, fn) {
 }
 
 async function deleteMissing(sb, table, baseMap, curMap) {
-  const removedIds = Object.keys(baseMap).filter(id => !curMap[id]);
+  const removedIds = Object.keys(baseMap).filter(id => !curMap[id] && !(baseMap[id] && baseMap[id]._partial));
   if (!removedIds.length) return;
   const { error } = await sb.from(table).delete().in("id", removedIds);
   if (error) throw error;
@@ -521,6 +546,7 @@ async function deleteMissing(sb, table, baseMap, curMap) {
 async function upsertChanged(sb, table, baseMap, curMap, toRow) {
   const rows = [];
   for (const id of Object.keys(curMap)) {
+    if (curMap[id] && curMap[id]._partial) continue; // 공개 정보만 받아 온 남의 데이터는 저장하지 않는다 (2026-11-01)
     const b = baseMap[id];
     const row = toRow(curMap[id]);
     if (!b || JSON.stringify(toRow(b)) !== JSON.stringify(row)) rows.push(row);
@@ -1043,6 +1069,12 @@ function getPopularScores(days, instrument) {
 function chargePoints(userId, amount) {
   const user = STATE.users[userId];
   if (!user) return { ok: false, message: "사용자를 찾을 수 없습니다." };
+  /* 2026-11-01 보안: 실제 결제(PG) 없이 포인트가 생기던 임시 충전이다. 서버도 이제 일반 회원의
+     포인트 변경을 막으므로, PG 연결 전까지는 관리자 테스트용으로만 남겨 둔다. */
+  const me = getCurrentUser();
+  if (!me || !me.isAdmin) {
+    return { ok: false, message: "포인트 충전은 결제 연결 후 열려요. 테스트 포인트가 필요하면 관리자에게 요청해주세요." };
+  }
   if (!amount || amount <= 0) return { ok: false, message: "충전 금액이 올바르지 않습니다." };
 
   const bonus = calcChargeBonus(user, amount);
@@ -2109,7 +2141,8 @@ function rejectArtistApplication(appId, adminId, reason) {
    ============================================================ */
 
 function findUserByEmail(email) {
-  return Object.values(STATE.users).find(u => u.email.toLowerCase() === email.toLowerCase()) || null;
+  const e = String(email || "").toLowerCase();
+  return Object.values(STATE.users).find(u => !u._partial && String(u.email || "").toLowerCase() === e) || null;
 }
 
 function showLoginPane(pane) {
