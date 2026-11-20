@@ -968,8 +968,12 @@ async function deleteScoreBySeller(sellerId, scoreId) {
   if (sb) {
     try { if (s.fileUrl) await sb.storage.from("scores").remove([s.fileUrl]); } catch (e) { console.error("[common] 악보 파일 삭제 오류", e); }
     try {
-      const imgs = [1, 2, 3, 4, 5].map(i => `${s.sellerId}/${scoreId}-p${i}.png`).concat(`${s.sellerId}/${scoreId}-card.png`);
-      await sb.storage.from("previews").remove(imgs);
+      // 2026-11-19: 카드 썸네일·미리보기 이미지 저장 포맷을 PNG에서 WebP로 바꿨다(Phase 1).
+      // 이 악보가 언제 등록됐는지에 따라 .png(기존) 또는 .webp(신규) 둘 중 하나로 저장돼 있으므로,
+      // 둘 다 지워본다 — Storage의 remove()는 그 경로에 파일이 없어도 에러 없이 넘어간다.
+      const pngImgs = [1, 2, 3, 4, 5].map(i => `${s.sellerId}/${scoreId}-p${i}.png`).concat(`${s.sellerId}/${scoreId}-card.png`, `${s.sellerId}/${scoreId}.png`);
+      const webpImgs = [1, 2, 3, 4, 5].map(i => `${s.sellerId}/${scoreId}-p${i}.webp`).concat(`${s.sellerId}/${scoreId}-card.webp`, `${s.sellerId}/${scoreId}.webp`);
+      await sb.storage.from("previews").remove([...pngImgs, ...webpImgs]);
     } catch (e) { console.error("[common] 미리보기 이미지 삭제 오류", e); }
   }
   delete STATE.scores[scoreId];
@@ -1535,7 +1539,7 @@ async function generateScorePreviewImage(file) {
       const cropCtx = cropCanvas.getContext("2d");
       cropCtx.drawImage(fullCanvas, 0, 0, fullCanvas.width, cropHeight, 0, 0, fullCanvas.width, cropHeight);
 
-      const blob = await new Promise(resolve => cropCanvas.toBlob(resolve, "image/png", 0.92));
+      const blob = await new Promise(resolve => cropCanvas.toBlob(resolve, "image/webp", 0.92));
       return blob || null;
     } catch (e) {
       console.error("[common] 미리보기 이미지 생성 오류", e);
@@ -1592,7 +1596,7 @@ async function generateScoreCardThumbnail(file) {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       await page.render({ canvasContext: ctx, viewport }).promise;
 
-      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/png", 0.92));
+      const blob = await new Promise(resolve => canvas.toBlob(resolve, "image/webp", 0.92));
       return blob || null;
     } catch (e) {
       console.error("[common] 카드 썸네일 생성 오류", e);
@@ -1614,10 +1618,10 @@ async function uploadScoreCardThumbnail(sellerId, scoreId, blob) {
   const sb = getSb();
   if (!sb) return { ok: false, message: "서버 연결 준비 중입니다. 잠시 후 다시 시도해주세요." };
 
-  const path = `${sellerId}/${scoreId}-card.png`;
+  const path = `${sellerId}/${scoreId}-card.webp`;
   let error = null;
   try {
-    const res = await sb.storage.from("previews").upload(path, blob, { upsert: true, contentType: "image/png" });
+    const res = await sb.storage.from("previews").upload(path, blob, { upsert: true, contentType: "image/webp" });
     error = res.error;
   } catch (e) {
     error = e;
@@ -1641,10 +1645,10 @@ async function uploadScorePreviewImage(sellerId, scoreId, blob) {
   const sb = getSb();
   if (!sb) return { ok: false, message: "서버 연결 준비 중입니다. 잠시 후 다시 시도해주세요." };
 
-  const path = `${sellerId}/${scoreId}.png`;
+  const path = `${sellerId}/${scoreId}.webp`;
   let error = null;
   try {
-    const res = await sb.storage.from("previews").upload(path, blob, { upsert: true, contentType: "image/png" });
+    const res = await sb.storage.from("previews").upload(path, blob, { upsert: true, contentType: "image/webp" });
     error = res.error;
   } catch (e) {
     error = e;
@@ -1713,7 +1717,7 @@ async function generateScorePreviewImages(file, maxPages) {
           sourceCanvas = cropCanvas;
         }
 
-        const blob = await new Promise(resolve => sourceCanvas.toBlob(resolve, "image/png", 0.92));
+        const blob = await new Promise(resolve => sourceCanvas.toBlob(resolve, "image/webp", 0.92));
         if (blob) images.push(blob);
       }
       return images;
@@ -1737,9 +1741,9 @@ async function uploadScorePreviewImages(sellerId, scoreId, blobs) {
 
   const urls = [];
   for (let i = 0; i < blobs.length; i++) {
-    const path = `${sellerId}/${scoreId}-p${i + 1}.png`;
+    const path = `${sellerId}/${scoreId}-p${i + 1}.webp`;
     try {
-      const res = await sb.storage.from("previews").upload(path, blobs[i], { upsert: true, contentType: "image/png" });
+      const res = await sb.storage.from("previews").upload(path, blobs[i], { upsert: true, contentType: "image/webp" });
       if (res.error) { console.error("[common] 미리보기 이미지 업로드 오류", res.error); continue; }
       const { data } = sb.storage.from("previews").getPublicUrl(path);
       if (data && data.publicUrl) urls.push(data.publicUrl);
