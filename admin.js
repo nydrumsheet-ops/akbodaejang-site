@@ -156,8 +156,8 @@ function renderAdmin() {
             ["2", "채보 진행", `신청 많은 순으로 위에 보여요.<br>신청곡을 눌러 열고 "채보중"을 누르세요.<br>구매자 신청곡 화면에도 상태가 바로 바뀌어 보여요.`],
             ["3", "작업 완료", `판매자가 그 곡을 등록하고 심사에서 승인되면,<br>신청곡을 열어 그 악보를 고르고 "작업 완료"를 누르세요.<br>구매자 신청곡 화면에 완료로 표시되고, 신청자도<br>다른 구매자와 동일하게 정가로 구매할 수 있어요.`]
           ].map(([n, t, d]) => `
-            <div style="padding:14px;border-radius:12px;background:#efefef;">
-              <div style="font-size:12px;font-weight:800;color:var(--primary);">STEP ${n}</div>
+            <div style="padding:14px;border-radius:12px;background:#ffffff;border:1px solid #E6E6E6;"><!-- 2026-11-21: 회색 바탕 → 흰 카드 + 옅은 테두리 -->
+              <div style="font-size:12px;font-weight:800;color:var(--muted);">STEP ${n}</div>
               <div style="font-weight:700;margin:4px 0;">${t}</div>
               <div style="font-size:12px;color:var(--muted);line-height:1.6;">${d}</div>
             </div>`).join("")}
@@ -679,7 +679,7 @@ function renderAdminRequests() {
   listEl.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px;">
       ${[["접수", count("접수")], ["채보중", count("채보중")], ["완료", count("완료")], ["신청한 사람(누적)", `${people}명`]].map(([l, v]) => `
-        <div style="padding:12px;border-radius:12px;background:#efefef;">
+        <div style="padding:12px;border-radius:12px;background:#ffffff;border:1px solid #E6E6E6;">
           <div style="font-size:12px;color:var(--muted);">${l}</div>
           <div style="font-size:18px;font-weight:800;margin-top:2px;">${v}</div>
         </div>`).join("")}
@@ -2713,6 +2713,7 @@ async function runReviewUpload() {
 let ADMIN_SC_Q = "";
 let ADMIN_SC_STATUS = "all";   // all | sale | stopped | review
 let ADMIN_SC_INST = "";
+let ADMIN_SC_SORT = { key: "created", dir: "desc" }; // 2026-11-21: 칸 이름을 눌러 정렬 (created | title | inst | price | sold | status)
 let ADMIN_SC_PAGE = 1;
 let ADMIN_SC_EDIT = null;
 let ADMIN_SC_DEL = null;
@@ -2742,6 +2743,7 @@ function renderAdminScores(body) {
     </div>`;
   document.getElementById("asc-q")?.addEventListener("input", (e) => { ADMIN_SC_Q = e.target.value; ADMIN_SC_PAGE = 1; renderAdminScoreList(); });
   document.getElementById("asc-inst")?.addEventListener("change", (e) => { ADMIN_SC_INST = e.target.value; ADMIN_SC_PAGE = 1; renderAdminScoreList(); });
+  if (typeof enhanceSelect === "function") enhanceSelect(document.getElementById("asc-inst")); // 2026-11-21: 펼친 목록이 검게 나오던 기본 select → 흰 목록
   body.querySelectorAll("[data-asc-status]").forEach(b => b.addEventListener("click", () => {
     ADMIN_SC_STATUS = b.dataset.ascStatus;
     ADMIN_SC_PAGE = 1;
@@ -2767,6 +2769,25 @@ function renderAdminScoreList() {
   if (!wrap) return;
   const all = Object.values(STATE.scores).sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
   const list = all.filter(adminScoreMatches);
+  // 2026-11-21: 칸 이름을 눌러 정렬
+  const { key, dir } = ADMIN_SC_SORT;
+  if (key !== "created") {
+    const diffOrder = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"];
+    const stOrder = { "승인": 0, "판매중지": 1, "심사중": 2, "등록": 2, "반려": 3 };
+    const val = {
+      title: s => String(s.title || ""),
+      inst: s => `${INSTRUMENTS.indexOf(s.instrument)}`.padStart(2, "0") + diffOrder.indexOf(s.difficulty),
+      price: s => Number(s.price || 0),
+      sold: s => scorePurchaseCount(s.id),
+      status: s => stOrder[s.status] ?? 9
+    }[key];
+    const sign = dir === "asc" ? 1 : -1;
+    list.sort((a, b) => {
+      const x = val(a), y = val(b);
+      const c = typeof x === "number" ? x - y : String(x).localeCompare(String(y), "ko");
+      return c * sign || new Date(b.createdAt) - new Date(a.createdAt);
+    });
+  }
   if (countEl) countEl.textContent = list.length === all.length ? `전체 ${all.length}곡` : `${all.length}곡 중 ${list.length}곡`;
   if (!list.length) { wrap.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:12px 0 0;">조건에 맞는 악보가 없어요.</p>`; return; }
   const pages = Math.max(1, Math.ceil(list.length / ADMIN_SC_PAGE_SIZE));
@@ -2774,11 +2795,21 @@ function renderAdminScoreList() {
   const shown = list.slice((ADMIN_SC_PAGE - 1) * ADMIN_SC_PAGE_SIZE, ADMIN_SC_PAGE * ADMIN_SC_PAGE_SIZE);
   wrap.innerHTML = `
     <div class="asc-table">
-      <div class="asc-head" aria-hidden="true"><span>악보 · 아티스트</span><span>악기 · 난이도</span><span>가격</span><span>판매</span><span>상태</span><span></span></div>
+      <div class="asc-head">${[["title", "악보 · 아티스트"], ["inst", "악기 · 난이도"], ["price", "가격"], ["sold", "판매"], ["status", "상태"]].map(([k, l]) => {
+        const on = ADMIN_SC_SORT.key === k;
+        return `<button type="button" class="asc-sort ${on ? "on" : ""}" data-asc-sort="${k}" aria-label="${l} 순으로 정렬">${l}<span aria-hidden="true">${on ? (ADMIN_SC_SORT.dir === "asc" ? "▲" : "▼") : "↕"}</span></button>`;
+      }).join("")}<span></span></div>
       ${shown.map(adminScoreRowHTML).join("")}
     </div>
     ${pages > 1 ? renderPager(ADMIN_SC_PAGE, pages) : ""}`;
   wireAdminScoreList(wrap);
+  wrap.querySelectorAll("[data-asc-sort]").forEach(b => b.addEventListener("click", () => {
+    const k = b.dataset.ascSort;
+    if (ADMIN_SC_SORT.key === k) ADMIN_SC_SORT = { key: k, dir: ADMIN_SC_SORT.dir === "asc" ? "desc" : "asc" };
+    else ADMIN_SC_SORT = { key: k, dir: (k === "price" || k === "sold") ? "desc" : "asc" };
+    ADMIN_SC_PAGE = 1;
+    renderAdminScoreList();
+  }));
 }
 
 function adminScoreRowHTML(s) {
