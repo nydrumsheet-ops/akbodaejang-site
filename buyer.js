@@ -934,7 +934,7 @@ function renderListPage(el, p) {
             <input class="field price-field" type="number" inputmode="numeric" min="0" step="500" id="f-min" placeholder="최소P" aria-label="최소 가격(포인트)" value="${esc(p.minPrice || "")}">
             ~
             <input class="field price-field" type="number" inputmode="numeric" min="0" step="500" id="f-max" placeholder="최대P" aria-label="최대 가격(포인트)" value="${esc(p.maxPrice || "")}">
-            <button class="btn btn-small" id="f-price">적용</button>
+            <button class="btn btn-small" id="f-price" style="flex-shrink:0;white-space:nowrap;">적용</button>
           </span>
         </div>
       </div>
