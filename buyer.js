@@ -1154,14 +1154,14 @@ function renderDetailPage(el, p) {
       <div class="section-head"><h2>악보 상세 정보</h2></div>
       <div class="info-table-wrap">
         <div class="spec-grid">
-          <div class="spec-item"><span class="spec-k">악기</span><span class="spec-v">${esc(s.instrument)}</span></div>
-          <div class="spec-item"><span class="spec-k">난이도</span><span class="spec-v">${esc(s.difficulty)}</span></div>
-          <div class="spec-item"><span class="spec-k">파일</span><span class="spec-v">PDF</span></div>
+          <div class="spec-item"><span class="ico ico-music spec-ico" aria-hidden="true"></span><span class="spec-k">악기</span><span class="spec-v">${esc(s.instrument)}</span></div>
+          <div class="spec-item"><span class="ico ico-gauge spec-ico" aria-hidden="true"></span><span class="spec-k">난이도</span><span class="spec-v">${esc(s.difficulty)}</span></div>
+          <div class="spec-item"><span class="ico ico-file-text spec-ico" aria-hidden="true"></span><span class="spec-k">파일</span><span class="spec-v">PDF</span></div>
           ${/* 2026-10-29: 페이지 행을 항상 표시(6칸이라 2열 표의 빈 칸도 사라짐). 페이지 수가 아직 저장되지 않은 기존 악보는 "-"로 표시하고,
                관리자 > 기존 악보 페이지 수 일괄 계산을 돌리면 숫자로 채워진다. */""}
-          <div class="spec-item${s.pageCount ? "" : " spec-meta"}"><span class="spec-k">전체 페이지</span><span class="spec-v">${s.pageCount ? `${s.pageCount}페이지` : "-"}</span></div>
-          <div class="spec-item spec-meta"><span class="spec-k">등록일</span><span class="spec-v">${formatDate(s.approvedAt || s.createdAt)}</span></div>
-          <div class="spec-item spec-meta"><span class="spec-k">조회 · 판매</span><span class="spec-v">${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</span></div>
+          <div class="spec-item${s.pageCount ? "" : " spec-meta"}"><span class="ico ico-layers spec-ico" aria-hidden="true"></span><span class="spec-k">전체 페이지</span><span class="spec-v">${s.pageCount ? `${s.pageCount}페이지` : "-"}</span></div>
+          <div class="spec-item spec-meta"><span class="ico ico-calendar spec-ico" aria-hidden="true"></span><span class="spec-k">등록일</span><span class="spec-v">${formatDate(s.approvedAt || s.createdAt)}</span></div>
+          <div class="spec-item spec-meta"><span class="ico ico-eye spec-ico" aria-hidden="true"></span><span class="spec-k">조회 · 판매</span><span class="spec-v">${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</span></div>
         </div>
       </div>
     </div>
