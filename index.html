@@ -14,7 +14,7 @@
 --c-ink:#332d28;--c-ink-2:#443a33;--c-body:#6b6158;--c-body-mid:#756b61;/* 2026-11-21: 보조 글씨가 희미하다는 의견 — #978d7e(대비 3.3:1)→#756b61(5.2:1) */--c-mute:#cbc3b5;--c-hairline:#e6e6e6;
 --c-accent:#f07a45;--c-accent-hover:#ed851d;
 /* 2026-11-21: 버튼 채움 주황 3단계 — hover 때 갈색으로 탁해지지 않게 채도는 유지하고 밝기만 낮춤 */
---accent-fill:#f07a45;--accent-fill-hover:#ee652b;--accent-fill-press:#e2561c;--accent-tint:#fff4ee;--accent-tint-line:#f6c9ae;--hover-gray:#f5f5f5;--hover-gray-line:#d6d6d6;--c-accent-soft:#fde3d4;--c-accent-ink:#b6610c;--c-on-accent:#ffffff;
+--accent-fill:#d4541f;--accent-fill-hover:#c4461a;--accent-fill-press:#b33e15;--accent-tint:#fff4ee;--accent-tint-line:#f6c9ae;--hover-gray:#f5f5f5;--hover-gray-line:#d6d6d6;--c-accent-soft:#fde3d4;--c-accent-ink:#b6610c;--c-on-accent:#ffffff;
 --c-danger:#b42318;--c-success:#2f7a4a;--c-card-border:transparent;
 }
 /* Semantic aliases — components use ONLY these */
@@ -294,7 +294,7 @@ a{color:var(--link)}
 .site-header{background:#ffffff;border-bottom:1px solid var(--border);position:sticky;top:0;z-index:40}
 .header-row{display:flex;align-items:center;gap:20px;padding-block:14px}
 .logo{font:700 25px/1 var(--font-display);letter-spacing:-0.03em;color:var(--text);text-decoration:none;white-space:nowrap;display:flex;align-items:baseline;gap:8px}
-.logo small{font:var(--type-eyebrow);letter-spacing:var(--eyebrow-tracking);text-transform:uppercase;color:var(--accent-ink);background:var(--accent-soft);padding:4px 7px;border-radius:var(--radius-pill)}
+.logo small{font:var(--type-eyebrow);letter-spacing:var(--eyebrow-tracking);text-transform:uppercase;color:#984F08;background:var(--accent-soft);padding:4px 7px;border-radius:var(--radius-pill)}
 .search-wrap{flex:1;position:relative;min-width:0;max-width:640px}
 #header-search-form{display:flex}
 #header-search{width:100%;height:48px;padding:0 52px 0 16px;border:1px solid #c7c7c7;border-radius:var(--radius-control);font:var(--type-body);background:var(--surface-field);color:var(--text);outline:none;transition:border-color var(--dur-fast) var(--ease),box-shadow var(--dur-fast) var(--ease)}
@@ -379,7 +379,7 @@ a{color:var(--link)}
 .asc-seller{color:#756b61}
 .asc-cell{color:var(--ink-solid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .asc-st{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:600}
-.asc-st-on{background:#E8F5EC;color:#2f7d4f}
+.asc-st-on{background:#E8F5EC;color:#1d6a3d}
 .asc-st-off{background:#E6E6E6;color:#625950}
 .asc-st-old{background:#FFF1D6;color:#8a6420}
 .asc-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
@@ -431,7 +431,7 @@ textarea.sm-in{resize:vertical}
 /* 2026-10-30: 헤더 "관리자 페이지" 목록(스토어/판매자 센터/관리자) */
 /* 2026-10-31: 헤더 알림 */
 .nt-wrap{position:relative;display:inline-flex}
-.nt-dot{position:absolute;top:3px;left:22px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:#E87949;color:#fff;font:700 10px/17px var(--font-mono);text-align:center;box-shadow:0 0 0 2px var(--surface-page)}
+.nt-dot{position:absolute;top:3px;left:22px;min-width:17px;height:17px;padding:0 4px;border-radius:999px;background:var(--accent-fill);color:#fff;font:700 10px/17px var(--font-mono);text-align:center;box-shadow:0 0 0 2px var(--surface-page)}
 .nt-panel{position:absolute;top:calc(100% + 8px);right:-8px;width:360px;max-width:calc(100vw - 24px);background:#ffffff;border:1px solid #E6E6E6;border-radius:14px;box-shadow:0 12px 32px rgba(48,42,38,.14);z-index:210;overflow:hidden;text-align:left}
 .nt-panel[hidden]{display:none}
 .nt-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px}
@@ -683,7 +683,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .chip-row::-webkit-scrollbar{display:none}
 .chip{flex-shrink:0;height:34px;padding:0 14px;border-radius:10px;border:1px solid #e0e3e9;background:#ffffff;font:500 13px/1 var(--font-text);cursor:pointer;color:#636873;white-space:nowrap;transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease)}
 .chip:hover{background:#f7f8fa;border-color:#c7ccd6}
-.chip.active{background:#efefef;color:var(--c-ink);border-color:#efefef}
+.chip.active{background:var(--ink-solid);color:#ffffff;border-color:var(--ink-solid)} /* 2026-11-21: 옅은 회색이라 선택된 게 잘 안 보이던 문제 → 진한 칠 (판매자·관리자 필터와 같게) */
 /* 2026-10-29: 고객센터 탭(자주 묻는 질문 / 1:1 문의) — 외곽선 없음, hover는 배경 없이 글자만 검정 */
 .chip[data-support-tab]{border-color:transparent}
 .chip[data-support-tab]:hover,.chip[data-support-tab].active{background:#ffffff;border-color:transparent;color:#000000}
@@ -693,7 +693,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 /* 2026-10-29: 관리자 상단 메뉴 탭 — 고객센터 탭·문의 필터와 같은 방식 */
 .chip[data-admin-tab]{border-color:transparent;background:transparent}
 .chip[data-admin-tab]:hover,.chip[data-admin-tab].active{background:transparent;border-color:transparent;color:#000000}
-.chip.active[data-pop-period],.chip.active[data-pop-inst]{background:#efefef;border-color:#efefef;color:var(--c-ink)}
+.chip.active[data-pop-period],.chip.active[data-pop-inst]{background:var(--ink-solid);border-color:var(--ink-solid);color:#ffffff}
 .hero{position:relative;border-radius:0;overflow:hidden;width:100vw;margin-left:calc(50% - 50vw);margin-right:calc(50% - 50vw)}
 .hero-track{display:flex;transition:transform var(--dur-slow) var(--ease)}
 .hero-slide{flex:0 0 100%;display:flex;align-items:center;min-height:300px;padding-block:44px 52px}
@@ -870,7 +870,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .thumb-title{position:absolute;left:40px;right:40px;top:14px;font-size:10px;color:var(--text-muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 .thumb-art{position:absolute;right:10px;bottom:10px;height:26px;min-width:26px;padding:0 10px;border-radius:var(--radius-pill);background:var(--c-canvas);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;z-index:1;border:1.75px solid #ececec;font:600 12px/1 var(--font-text);color:var(--text-primary);white-space:nowrap}
 .rank-num{position:absolute;top:10px;left:10px;z-index:2;width:30px;height:30px;border-radius:6px;background:var(--c-canvas);font:700 14px/1 var(--font-mono);display:flex;align-items:center;justify-content:center;color:var(--text)}
-.rank-num.top{background:var(--accent);color:var(--text-inverse)}
+.rank-num.top{background:var(--accent-fill);color:var(--text-inverse)}
 .video-flag{position:absolute;left:10px;top:10px;z-index:2;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:#ffffff;border:1px solid #efefef;border-radius:50%;color:#f07845;font-size:11px;box-shadow:var(--shadow-sm)}
 .diff-badge{position:absolute;top:8px;right:8px;z-index:2;font:700 12px/1 var(--font-text);padding:6px 10px;border-radius:var(--radius-pill);box-shadow:var(--shadow-sm)}
 .cart-btn{flex-shrink:0;width:34px;height:34px;border-radius:6px;border:1px solid #E6E6E6;background:#ffffff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color 180ms ease,border-color 180ms ease}
@@ -967,7 +967,7 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 /* 2026-11-21: 악기·분량 칩과 같은 알약 모양으로 통일 — 체크박스는 숨기고 선택 시 배경색만 바뀐다(칩과 동일한 방식) */
 .toggle{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:10px;border:1px solid #e0e3e9;background:#ffffff;font:500 13px/1 var(--font-text);color:#636873;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease)}
 .toggle:hover{background:#f7f8fa;border-color:#c7ccd6}
-.toggle:has(input:checked){background:#efefef;color:var(--c-ink);border-color:#efefef}
+.toggle:has(input:checked){background:var(--ink-solid);color:#ffffff;border-color:var(--ink-solid)}
 /* 2026-10-29: 목록 필터 가격 입력칸 — 옆 "적용" 버튼(36px)과 높이를 맞춤 */
 .field.price-field{width:96px;height:36px;padding:0 10px}
 .toggle input{position:absolute;opacity:0;width:0;height:0;margin:0;pointer-events:none;}
