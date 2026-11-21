@@ -253,7 +253,7 @@ function initialOf(name) {
 
 function starsText(avg) {
   const full = Math.round(avg);
-  return "★★★★★".slice(0, full) + "☆☆☆☆☆".slice(0, 5 - full);
+  return Array.from({ length: 5 }, (_, i) => `<span class="ico ${i < full ? "ico-star-solid" : "ico-star"}"${i < full ? "" : ' style="color:var(--text-faint)"'}></span>`).join("");
 }
 
 function approvedScores() {
@@ -429,7 +429,7 @@ function scoreCard(s, opts) {
           ? `<img src="${esc(cardPreviewSrc)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;" onerror="this.style.display='none';">
              <img src="${esc(cardPreviewSrc)}" alt="" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;z-index:1;pointer-events:none;filter:blur(6px);-webkit-mask-image:linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,.6) 47%, #000 54%, #000 100%);mask-image:linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,.6) 47%, #000 54%, #000 100%);" onerror="this.style.display='none';">`
           : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${esc(s.instrument)}</div>`}
-        ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag">▶</span>` : ""}
+        ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag"><span class="ico ico-play-solid"></span></span>` : ""}
       </div>
       <div class="card-body">
         <div class="card-seller"><span class="avatar" style="${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</div>
@@ -438,7 +438,7 @@ function scoreCard(s, opts) {
         <div class="card-foot">
           <button type="button" class="cart-btn" data-cart="${s.id}" aria-label="장바구니 담기">${cartIcon()}</button>
           <div class="card-foot-right">
-            ${r.count ? `<span class="rating"><b>★</b> ${r.avg} (${r.count})</span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
+            ${r.count ? `<span class="rating"><b><span class="ico ico-star-solid"></span></b> ${r.avg} (${r.count})</span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
             <span class="price">${priceHtml(s)}</span>
           </div>
         </div>
@@ -894,7 +894,7 @@ function renderListPage(el, p) {
   el.innerHTML = `
     <div class="breadcrumb"><button data-go="home">홈</button> › ${title}</div>
     <h1 class="page-title">${title}</h1>
-    <p class="muted" style="margin:0 0 16px;">${list.length}개의 악보${p.q ? ` <button class="more-link" id="clear-q">검색어 지우기 ✕</button>` : ""}</p>
+    <p class="muted" style="margin:0 0 16px;">${list.length}개의 악보${p.q ? ` <button class="more-link" id="clear-q">검색어 지우기 <span class="ico ico-x"></span></button>` : ""}</p>
 
     <div class="panel filter-panel">
       <div class="filter-line">
@@ -926,7 +926,7 @@ function renderListPage(el, p) {
       </div>
       ${activeFilterChips(p).length ? `
       <div class="filter-active">
-        ${activeFilterChips(p).map(([key, label]) => `<button type="button" class="filter-pill" data-f-clear="${key}" aria-label="${esc(label)} 조건 빼기">${esc(label)} <span aria-hidden="true">✕</span></button>`).join("")}
+        ${activeFilterChips(p).map(([key, label]) => `<button type="button" class="filter-pill" data-f-clear="${key}" aria-label="${esc(label)} 조건 빼기">${esc(label)} <span aria-hidden="true" class="ico ico-x"></span></button>`).join("")}
         <button type="button" class="filter-reset" id="f-reset">필터 모두 지우기</button>
       </div>` : ""}
     </div>
@@ -1051,14 +1051,14 @@ function renderDetailPage(el, p) {
   } else if (bought) {
     buyArea = `${s.status === "판매중지" ? `<p class="muted" style="margin:14px 0 0;font-size:13px;">지금은 판매가 중지된 악보예요. 이미 구매하셨으니 내 악보함에서 그대로 받을 수 있어요.</p>` : ""}
       <div class="buy-row" style="grid-template-columns:1fr;">
-        <button class="btn btn-primary" id="d-library">✓ 구매 완료 · 내 악보함에서 받기</button>
+        <button class="btn btn-primary" id="d-library"><span class="ico ico-check"></span> 구매 완료 · 내 악보함에서 받기</button>
       </div>`;
   } else {
     buyArea = `
       <div class="buy-row">
         <button class="btn btn-primary" id="d-buy">바로 구매</button>
         <button class="btn" id="d-cart">${inCart ? "장바구니 보기" : "장바구니 담기"}</button>
-        <button class="btn wish-big" id="d-wish" aria-label="${wished ? "찜 해제" : "찜하기"}" style="color:${wished ? "var(--hot)" : "var(--text)"};">${wished ? "♥" : "♡"}</button>
+        <button class="btn wish-big" id="d-wish" aria-label="${wished ? "찜 해제" : "찜하기"}" style="color:${wished ? "var(--hot)" : "var(--text)"};"><span class="ico ${wished ? "ico-heart-solid" : "ico-heart"}"></span></button>
       </div>
       ${user ? `
       <div class="buy-points">
@@ -1068,7 +1068,7 @@ function renderDetailPage(el, p) {
         </div>
         ${user.points < effectivePrice(s)
           ? `<div class="buy-points-short">${formatPoint(effectivePrice(s) - user.points)} 부족</div>`
-          : `<div class="buy-points-ok">✓ 포인트로 바로 구매할 수 있어요</div>`}
+          : `<div class="buy-points-ok"><span class="ico ico-check"></span> 포인트로 바로 구매할 수 있어요</div>`}
       </div>` : ""}`;
   }
 
@@ -1100,7 +1100,7 @@ function renderDetailPage(el, p) {
                <iframe src="${esc(ytEmbed)}" title="${esc(s.title)} 연주 영상" loading="lazy" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
              </div>`
           : `<a class="video-card" href="${esc(s.videoUrl || "#")}" target="_blank" rel="noopener">
-               <span class="video-play">▶</span>
+               <span class="video-play"><span class="ico ico-play-solid"></span></span>
                <span><span class="vc-title">연주 영상 보기</span><br><span class="vc-sub">${esc(sellerName(s.sellerId))}님이 직접 연주한 영상 (새 창으로 열려요)</span></span>
              </a>`) : ""}
       </div>
@@ -1109,7 +1109,7 @@ function renderDetailPage(el, p) {
         <div class="tags">
           <span class="tag">${esc(s.instrument)}</span>
           <span class="tag tag-diff" style="${diffTagStyle(s.difficulty)}">${esc(s.difficulty)}</span>
-          ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);">▶ 연주영상</span>` : ""}
+          ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);"><span class="ico ico-play-solid"></span> 연주영상</span>` : ""}
         </div>
         <h1 class="detail-title" style="margin-top:8px;">${esc(s.title)}</h1>
         <div class="detail-artist">${esc(s.artist)}</div>
@@ -1159,7 +1159,7 @@ function renderDetailPage(el, p) {
         ${bought && !reviewed ? `
           <div style="padding-bottom:14px;margin-bottom:6px;border-bottom:1px solid var(--border);">
             <div style="font-weight:700;margin-bottom:6px;">이 악보 어떠셨어요?</div>
-            <div class="star-pick" id="star-pick">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-star="${n}" class="${REVIEW_DRAFT.rating >= n ? "on" : ""}" aria-label="${n}점">★</button>`).join("")}</div>
+            <div class="star-pick" id="star-pick">${[1, 2, 3, 4, 5].map(n => `<button type="button" data-star="${n}" class="${REVIEW_DRAFT.rating >= n ? "on" : ""}" aria-label="${n}점"><span class="ico ico-star-solid"></span></button>`).join("")}</div>
             <div style="display:flex;gap:8px;margin:8px 0;flex-wrap:wrap;align-items:center;">
               <span class="muted" style="font-size:12px;">체감 난이도</span>
               <select class="field" id="rv-diff" style="width:auto;"><option value="">선택 안 함</option>${DIFF_ORDER_5.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")}</select>
@@ -1295,7 +1295,7 @@ function renderArtistPage(el, p) {
           <span>연주영상 <b>${videoCount}</b></span>
         </div>
       </div>
-      ${me && me.id === u.id ? `<span class="muted">내 아티스트 페이지</span>` : `<button class="btn ${following ? "" : "btn-primary"}" id="a-follow">${following ? "✓ 구독중" : "+ 구독하기"}</button>`}
+      ${me && me.id === u.id ? `<span class="muted">내 아티스트 페이지</span>` : `<button class="btn ${following ? "" : "btn-primary"}" id="a-follow">${following ? '<span class="ico ico-check"></span> 구독중' : "+ 구독하기"}</button>`}
     </div>
 
     <div class="toolbar" style="margin-top:20px;">
@@ -1414,7 +1414,7 @@ function renderMyPage(el, p) {
   else if (tab === "inquiry") body = `<div id="mypage-qna-mount"></div>`;
   else if (tab === "wish") {
     const list = user.wishlist.map(id => STATE.scores[id]).filter(s => s && s.status === "승인");
-    body = list.length ? `<div class="score-grid">${list.map(s => scoreCard(s)).join("")}</div>` : `<div class="empty">찜한 악보가 없어요. 악보 카드의 ♡를 눌러 담아보세요.</div>`;
+    body = list.length ? `<div class="score-grid">${list.map(s => scoreCard(s)).join("")}</div>` : `<div class="empty">찜한 악보가 없어요. 악보 카드의 <span class="ico ico-heart"></span>를 눌러 담아보세요.</div>`;
   } else if (tab === "following") {
     const list = user.following.map(id => STATE.users[id]).filter(Boolean);
     body = list.length ? `<div class="artist-grid">${list.map(a => artistCard(a)).join("")}</div>` : `<div class="empty">구독한 아티스트가 없어요.</div>`;
