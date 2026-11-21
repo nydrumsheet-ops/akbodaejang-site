@@ -515,6 +515,7 @@ function renderBuyer() {
   else renderHomePage(el);
 
   updateMenuHighlight();
+  if (typeof updateAllScrollFades === "function") updateAllScrollFades();
 }
 
 /* ============================================================
