@@ -1413,9 +1413,17 @@ function renderCartPage(el) {
   }));
   document.getElementById("cart-charge")?.addEventListener("click", () => goBuyer("mypage", { tab: "points", backCart: true }));
   document.getElementById("cart-buy")?.addEventListener("click", async () => {
+    // 2026-11-21 추가: 장바구니에 담긴 것 중 이미 구매한 악보가 있으면(결제 직전 자동 제외됨),
+    // 구매 완료 메시지에 몇 건이 제외됐는지 안내한다(팀채팅 공유안건 2번 반영).
+    const cartBeforeIds = [...(user.cart || [])];
+    const excludedAlready = cartBeforeIds.filter(id => {
+      const sc = STATE.scores[id];
+      return sc && hasPurchased(user.id, id);
+    }).length;
     const res = await purchaseCart(user.id);
     if (!res.ok) { toast(res.message, true); renderBuyer(); return; }
-    toast(`${res.count}개 악보 구매 완료 (${formatPoint(res.total)})`);
+    const doneMsg = `${res.count}개 악보 구매 완료 (${formatPoint(res.total)})`;
+    toast(excludedAlready > 0 ? `${doneMsg} · 이미 구매하신 ${excludedAlready}건은 제외했습니다` : doneMsg);
     goBuyer("mypage", { tab: "library" });
   });
 }
