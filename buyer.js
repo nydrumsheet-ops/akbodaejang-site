@@ -308,7 +308,8 @@ function diffTagStyle(difficulty) {
   return `background:${c.bg};box-shadow:inset 0 0 0 1px ${c.border};color:${c.fg};`;
 }
 function cartIcon() {
-  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  // 2026-11-21: 선이 굵어 거슬린다는 의견 — 2 → 1.25 로 가늘게
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
     <circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle>
     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
   </svg>`;
