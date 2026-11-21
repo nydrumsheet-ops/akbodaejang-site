@@ -895,6 +895,11 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .filter-line{display:flex;align-items:center;gap:12px;min-width:0}
 .filter-label{font:var(--type-eyebrow);letter-spacing:.08em;color:var(--text-muted);width:48px;flex-shrink:0}
 .filter-line .chip-row{flex:1;min-width:0}
+.filter-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:none;padding:0;font:var(--type-label);font-weight:700;color:var(--text);cursor:pointer}
+.filter-toggle .ft-arrow{font-size:11px;color:var(--text-muted);transition:transform var(--dur-fast) var(--ease)}
+.filter-toggle.is-open .ft-arrow{transform:rotate(180deg)}
+.filter-body{display:flex;flex-direction:column;gap:10px;margin-top:14px}
+.filter-body[hidden]{display:none}
 .toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:16px}
 .toolbar select,.field{height:44px;padding:0 12px;border:1px solid var(--border-field);border-radius:var(--radius-field);font-size:14px;background:var(--surface-field);color:var(--text);outline:none}
 .toolbar select:focus,.field:focus{border-color:var(--accent);box-shadow:var(--focus-ring)}

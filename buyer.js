@@ -898,32 +898,38 @@ function renderListPage(el, p) {
     <p class="muted" style="margin:0 0 16px;">${list.length}개의 악보${p.q ? ` <button class="more-link" id="clear-q">검색어 지우기 <span class="ico ico-x"></span></button>` : ""}</p>
 
     <div class="panel filter-panel">
-      <div class="filter-line">
-        <span class="filter-label">악기</span>
-        <div class="chip-row">
-          ${["", ...INSTRUMENTS].map(i => `<button class="chip ${(p.instrument || "") === i ? "active" : ""}" data-f-inst="${esc(i)}">${i ? esc(i) : "전체"}</button>`).join("")}
+      <button type="button" class="filter-toggle${activeFilterChips(p).length ? " is-open" : ""}" id="filter-toggle" aria-expanded="${activeFilterChips(p).length ? "true" : "false"}" aria-controls="filter-body">
+        <span>상세 필터</span>
+        <span class="ft-arrow" aria-hidden="true">▾</span>
+      </button>
+      <div class="filter-body" id="filter-body" ${activeFilterChips(p).length ? "" : "hidden"}>
+        <div class="filter-line">
+          <span class="filter-label">악기</span>
+          <div class="chip-row">
+            ${["", ...INSTRUMENTS].map(i => `<button class="chip ${(p.instrument || "") === i ? "active" : ""}" data-f-inst="${esc(i)}">${i ? esc(i) : "전체"}</button>`).join("")}
+          </div>
         </div>
-      </div>
-      <div class="filter-line" style="flex-wrap:wrap;">
-        <span class="filter-label">난이도</span>
-        ${DIFF_CHECK_ORDER.map(d => `<label class="toggle"><input type="checkbox" data-f-diff value="${esc(d)}" ${checkedDiffs.includes(d) ? "checked" : ""}> ${esc(d)}</label>`).join("")}
-      </div>
-      <div class="filter-line">
-        <span class="filter-label">분량</span>
-        <div class="chip-row">
-          ${[["", "전체"], ...LIST_PAGE_RANGES.map(r => [r[0], r[1]])].map(([v, l]) => `<button class="chip ${(p.pages || "") === v ? "active" : ""}" data-f-pages="${esc(v)}">${esc(l)}</button>`).join("")}
+        <div class="filter-line" style="flex-wrap:wrap;">
+          <span class="filter-label">난이도</span>
+          ${DIFF_CHECK_ORDER.map(d => `<label class="toggle"><input type="checkbox" data-f-diff value="${esc(d)}" ${checkedDiffs.includes(d) ? "checked" : ""}> ${esc(d)}</label>`).join("")}
         </div>
-      </div>
-      <div class="filter-line" style="flex-wrap:wrap;">
-        <span class="filter-label">조건</span>
-        <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> 연주영상 있음</label>
-        <label class="toggle"><input type="checkbox" id="f-sale" ${p.sale ? "checked" : ""}> 할인 중</label>
-        <span style="display:inline-flex;align-items:center;gap:6px;">
-          <input class="field price-field" type="number" inputmode="numeric" min="0" step="500" id="f-min" placeholder="최소P" aria-label="최소 가격(포인트)" value="${esc(p.minPrice || "")}">
-          ~
-          <input class="field price-field" type="number" inputmode="numeric" min="0" step="500" id="f-max" placeholder="최대P" aria-label="최대 가격(포인트)" value="${esc(p.maxPrice || "")}">
-          <button class="btn btn-small" id="f-price">가격 적용</button>
-        </span>
+        <div class="filter-line">
+          <span class="filter-label">분량</span>
+          <div class="chip-row">
+            ${[["", "전체"], ...LIST_PAGE_RANGES.map(r => [r[0], r[1]])].map(([v, l]) => `<button class="chip ${(p.pages || "") === v ? "active" : ""}" data-f-pages="${esc(v)}">${esc(l)}</button>`).join("")}
+          </div>
+        </div>
+        <div class="filter-line" style="flex-wrap:wrap;">
+          <span class="filter-label">조건</span>
+          <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> 연주영상 있음</label>
+          <label class="toggle"><input type="checkbox" id="f-sale" ${p.sale ? "checked" : ""}> 할인 중</label>
+          <span style="display:inline-flex;align-items:center;gap:6px;">
+            <input class="field price-field" type="number" inputmode="numeric" min="0" step="500" id="f-min" placeholder="최소P" aria-label="최소 가격(포인트)" value="${esc(p.minPrice || "")}">
+            ~
+            <input class="field price-field" type="number" inputmode="numeric" min="0" step="500" id="f-max" placeholder="최대P" aria-label="최대 가격(포인트)" value="${esc(p.maxPrice || "")}">
+            <button class="btn btn-small" id="f-price">가격 적용</button>
+          </span>
+        </div>
       </div>
       ${activeFilterChips(p).length ? `
       <div class="filter-active">
@@ -951,6 +957,17 @@ function renderListPage(el, p) {
   `;
 
   bindCards(el);
+  // 2026-11-21: 필터 패널이 화면을 너무 많이 차지해 답답해 보이던 문제 —
+  // 기본은 접어두고, 토글 버튼으로 펼치고 접는다(선택된 조건이 있으면 자동으로 펼쳐둠).
+  document.getElementById("filter-toggle")?.addEventListener("click", (e) => {
+    const body = document.getElementById("filter-body");
+    const btn = e.currentTarget;
+    if (!body) return;
+    const willOpen = body.hidden;
+    body.hidden = !willOpen;
+    btn.classList.toggle("is-open", willOpen);
+    btn.setAttribute("aria-expanded", String(willOpen));
+  });
   el.querySelectorAll("[data-f-inst]").forEach(b => b.addEventListener("click", () => update({ instrument: b.dataset.fInst })));
   el.querySelectorAll("[data-f-diff]").forEach(cb => cb.addEventListener("change", () => {
     const cur = selectedDifficulties(p);
