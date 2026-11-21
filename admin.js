@@ -221,7 +221,7 @@ function statTile(label, value, sub, spark) {
     <div style="padding:14px;border-radius:14px;background:var(--card);border:1px solid var(--border);min-width:0;">
       <div style="font-size:12px;color:var(--muted);">${label}</div>
       <div style="font-size:20px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${value}</div>
-      ${sub ? `<div style="font-size:11px;color:var(--muted);margin-top:2px;">${sub}</div>` : ""}
+      ${sub ? `<div style="font-size:12px;color:var(--muted);margin-top:2px;">${sub}</div>` : ""}
       ${spark || ""}
     </div>`;
 }
@@ -396,7 +396,7 @@ function renderAdminMetrics(body) {
           </div>`).join("") : `<p style="margin:0;font-size:13px;color:var(--muted);">이 기간에 판매가 없어요.</p>`}
       </div>
     </div>
-    <p style="font-size:11px;color:var(--muted);margin:0;">지금 숫자는 이 브라우저에 저장된 데이터 기준이에요. 공용 서버를 연결하면 전체 회원 기준으로 바뀝니다.</p>
+    <p style="font-size:12px;color:var(--muted);margin:0;">지금 숫자는 이 브라우저에 저장된 데이터 기준이에요. 공용 서버를 연결하면 전체 회원 기준으로 바뀝니다.</p>
   `;
 
   body.querySelectorAll("[data-metric-days]").forEach(b => b.addEventListener("click", () => {
@@ -680,7 +680,7 @@ function renderAdminRequests() {
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px;">
       ${[["접수", count("접수")], ["채보중", count("채보중")], ["완료", count("완료")], ["신청한 사람(누적)", `${people}명`]].map(([l, v]) => `
         <div style="padding:12px;border-radius:12px;background:#efefef;">
-          <div style="font-size:11px;color:var(--muted);">${l}</div>
+          <div style="font-size:12px;color:var(--muted);">${l}</div>
           <div style="font-size:18px;font-weight:800;margin-top:2px;">${v}</div>
         </div>`).join("")}
     </div>
@@ -698,7 +698,7 @@ function renderAdminRequests() {
           <button data-req-open="${r.id}" style="all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:12px;width:100%;padding:14px;">
             <span style="width:44px;text-align:center;flex-shrink:0;">
               <b style="display:block;font-size:18px;">${r.buyerIds.length}</b>
-              <span style="font-size:10px;color:var(--muted);">명 신청</span>
+              <span style="font-size:12px;color:var(--muted);">명 신청</span>
             </span>
             <span style="flex:1;min-width:0;">
               <b style="display:block;font-size:14px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(r.title)}</b>
@@ -805,12 +805,12 @@ function requestDetailHTML(r) {
           ${["접수", "채보중"].map(st => `
             <button data-req-status="${st}" class="btn btn-small req-status-btn ${r.status === st ? "is-current" : ""}" ${r.status === st ? "disabled" : ""}>${r.status === st ? "✓ " : ""}${st}</button>`).join("")}
         </div>
-        <div style="font-size:11px;color:var(--muted);margin-top:8px;line-height:1.5;">채보를 시작하면 "채보중"으로 바꿔주세요. 완료는 아래 ②에서 악보를 연결하면 돼요.</div>
+        <div style="font-size:12px;color:var(--muted);margin-top:8px;line-height:1.5;">채보를 시작하면 "채보중"으로 바꿔주세요. 완료는 아래 ②에서 악보를 연결하면 돼요.</div>
       </div>
       ${requesterList}
       <div style="${box}grid-column:1/-1;">
         <div style="font-weight:700;font-size:13px;margin-bottom:4px;">② 완성된 악보 연결하고 완료하기</div>
-        <div style="font-size:11px;color:var(--muted);margin-bottom:8px;">스토어에 승인된 ${esc(r.instrument)} 악보 중에서 고르세요. 아직 없으면 판매자 등록 → 악보 심사 승인 후 다시 오세요.</div>
+        <div style="font-size:12px;color:var(--muted);margin-bottom:8px;">스토어에 승인된 ${esc(r.instrument)} 악보 중에서 고르세요. 아직 없으면 판매자 등록 → 악보 심사 승인 후 다시 오세요.</div>
         <input id="req-score-search" class="field" placeholder="악보 제목·가수·판매자로 찾기" value="${esc(ADMIN_REQ_SEARCH)}" style="margin-bottom:8px;">
         <div style="max-height:240px;overflow-y:auto;border:1px solid var(--border);border-radius:10px;background:var(--card);">
           ${candidates.length ? candidates.map(s => {
@@ -819,7 +819,7 @@ function requestDetailHTML(r) {
               <span style="width:18px;height:18px;border-radius:50%;border:2px solid ${on ? "var(--primary)" : "var(--border)"};display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">${on ? `<span style="width:8px;height:8px;border-radius:50%;background:var(--primary);"></span>` : ""}</span>
               <span style="flex:1;min-width:0;">
                 <b style="display:block;font-size:13px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(s.title)}</b>
-                <span style="display:block;font-size:11px;color:var(--muted);">${esc(s.artist)} · ${esc(sellerNameOf(s.sellerId))} · ${esc(s.difficulty)} · 승인 ${formatDate(s.approvedAt || s.createdAt)}</span>
+                <span style="display:block;font-size:12px;color:var(--muted);">${esc(s.artist)} · ${esc(sellerNameOf(s.sellerId))} · ${esc(s.difficulty)} · 승인 ${formatDate(s.approvedAt || s.createdAt)}</span>
               </span>
             </button>`;
           }).join("") : `<div style="padding:14px;font-size:12px;color:var(--muted);">${q ? "검색 결과가 없어요." : `승인된 ${esc(r.instrument)} 악보가 아직 없어요.`}</div>`}
