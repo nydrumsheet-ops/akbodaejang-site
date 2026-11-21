@@ -568,7 +568,8 @@ function renderHomePage(el) {
     <div class="lvl-band">
       <div class="lvl-head"><h2>지금의 나에게, 알맞은 난이도</h2><span class="lvl-sub">쉬운 곡부터 한 단계씩</span></div>
       <div class="lvl-steps">
-        ${DIFF_ORDER_5.map((d, n) => { const cnt = approvedScores().filter(x => x.difficulty === d).length; return `<button class="lvl-step" data-go="list:difficulties:${esc(d)}"><span class="lvl-meter" aria-hidden="true"><i style="width:${(n + 1) * 20}%;"></i></span><b>${esc(d)}</b><span class="lvl-step-desc">${esc(DIFF_INTRO[d] || "")}</span><span class="lvl-step-count">${cnt}곡</span></button>`; }).join("")}
+        ${DIFF_ORDER_5.map((d, n) => `<button class="lvl-step" data-go="list:difficulties:${esc(d)}"><span class="lvl-meter" aria-hidden="true"><i style="width:${(n + 1) * 20}%;"></i></span><b>${esc(d)}</b><span class="lvl-step-desc">${esc(DIFF_INTRO[d] || "")}</span></button>`).join("")}
+        <!-- 2026-11-21: 난이도별 "N곡" 표시 삭제 — 곡 수가 늘면 의미가 옅고, 오픈 초기엔 적은 숫자가 오히려 비어 보임 -->
       </div>
     </div>
 
