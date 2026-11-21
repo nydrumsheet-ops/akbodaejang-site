@@ -569,7 +569,7 @@ function renderBulkPanelHTML() {
   return `
     <div id="sb-body">
       <div style="display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;margin-bottom:4px;">
-        <h2 style="margin:0;font-size:17px;flex:1;">여러 곡 한꺼번에 등록</h2>
+        <h2 style="margin:0;font-size:17px;flex:1;">여러 곡 일괄 등록하기</h2>
         ${n && !SB_RUNNING ? `<button id="sb-clear-btn" type="button" class="sb-link">목록 비우기</button>` : ""}
       </div>
       <p style="margin:0 0 14px;font-size:13px;color:var(--muted);line-height:1.6;">
@@ -584,7 +584,7 @@ function renderBulkPanelHTML() {
       </div>
       <div id="sb-msg" style="font-size:13px;margin-top:10px;color:${SB_MSG && SB_MSG.isError ? "#c0392b" : "var(--text)"};${SB_MSG ? "" : "display:none;"}">${SB_MSG ? esc(SB_MSG.text) : ""}</div>
       ${n ? `
-      <div style="margin-top:14px;padding:10px 12px;border:1px solid #E6E6E6;border-radius:10px;background:#EFEFEF;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+      <div class="sb-defaults" style="margin-top:14px;padding:10px 12px;border:1px solid #E6E6E6;border-radius:10px;background:#ffffff;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
         <span style="font-size:13px;font-weight:600;margin-right:4px;">모든 곡에 한 번에 적용</span>
         <select id="sb-def-inst" aria-label="악기 한 번에 적용" ${dis} ${field}>
           <option value="">악기 선택</option>
@@ -781,6 +781,11 @@ function wireBulkPanel(sellerId) {
   };
   body.addEventListener("input", onField);
   body.addEventListener("change", onField);
+  // 2026-11-21: 악기·난이도 기본 select → 흰 목록 (맥 다크 모드에서 검게 펼쳐지던 문제)
+  if (typeof enhanceSelect === "function") {
+    enhanceSelect(document.getElementById("sb-def-inst"));
+    body.querySelectorAll("select.sb-in").forEach(sel => enhanceSelect(sel, { full: true, placeholder: true }));
+  }
   // 휴대폰: 요약 줄이나 화살표를 누르면 그 곡을 펼쳐서 고친다
   body.addEventListener("click", (e) => {
     const tg = e.target.closest && e.target.closest("[data-sb-toggle]");
