@@ -1255,9 +1255,32 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 .ads-pill.ok{background:#E3F4E8;color:#2f7d4f}
 .ads-beta-list{display:flex;flex-wrap:wrap;gap:6px}
 .ads-beta-list button{border:none;background:transparent;cursor:pointer;padding:0 0 0 4px}
+/* 2026-11-21: 목록 정렬 — 직접 만든 흰 목록 (기본 select 대신) */
+.sort-menu{position:relative}
+.sort-btn{display:inline-flex;align-items:center;gap:8px;height:44px;padding:0 12px 0 14px;border:1px solid #E6E6E6;border-radius:var(--radius-field);background:#ffffff;color:var(--text);font-size:14px;cursor:pointer;transition:border-color .18s var(--ease),background-color .18s var(--ease)}
+.sort-btn:hover{border-color:#cfcfcf}
+.sort-btn[aria-expanded="true"]{border-color:var(--text)}
+.sort-btn svg{transition:transform .18s var(--ease)}
+.sort-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
+.sort-btn:focus-visible{outline:2px solid var(--ink-solid);outline-offset:2px}
+.sort-list{position:absolute;right:0;top:calc(100% + 6px);z-index:30;min-width:150px;margin:0;padding:6px;list-style:none;background:#ffffff;border:1px solid #E6E6E6;border-radius:10px;box-shadow:0 8px 24px rgba(0,0,0,.10)}
+.sort-list[hidden]{display:none}
+.sort-list button{display:flex;align-items:center;justify-content:space-between;gap:12px;width:100%;height:38px;padding:0 10px;border:0;border-radius:6px;background:transparent;color:var(--text);font-size:14px;cursor:pointer;text-align:left;white-space:nowrap}
+.sort-list button:hover,.sort-list button:focus-visible{background:#f2f2f2;outline:none}
+.sort-list button.on{font-weight:700}
+.sort-list button.on::after{content:"✓";font-weight:700}
+/* 2026-11-21: 헤더 버튼(알림·장바구니·내 정보·아티스트 가입·로그인·로그아웃·관리자 페이지) 반응 통일 —
+   마우스 올림: 연회색 배경 + 검정 글자 / 누름: 조금 더 진한 회색 + 살짝 눌림 / 열린 상태(관리자 목록·알림)도 연회색 */
+#header-auth .icon-btn,#header-auth .auth-btn,#header-artist-link{transition:background-color .18s var(--ease),color .18s var(--ease),transform .08s var(--ease);border-radius:var(--radius-control)}
+#header-artist-link{height:36px;padding:0 10px}
+@media (hover:hover){#header-auth .icon-btn:hover,#header-auth .auth-btn:hover,#header-artist-link:hover{background:#f2f2f2;color:var(--text)}}
+#header-auth .icon-btn:active,#header-auth .auth-btn:active,#header-artist-link:active{background:#e8e8e8;color:var(--text);transform:scale(.96)}
+#header-auth #header-admin-btn.is-open,#header-auth .nt-btn[aria-expanded="true"]{background:#f2f2f2;color:var(--text)}
+#header-auth .icon-btn:focus-visible,#header-auth .auth-btn:focus-visible,#header-artist-link:focus-visible{outline:2px solid var(--ink-solid);outline-offset:2px}
+@media (prefers-reduced-motion:reduce){#header-auth .icon-btn:active,#header-auth .auth-btn:active,#header-artist-link:active{transform:none}}
 </style>
 </head>
-<body>
+<body ontouchstart=""><!-- ontouchstart: 아이폰에서도 누르는 순간(:active) 효과가 보이게 (2026-11-21) -->
 
 <div id="notice-bar" class="notice-bar" hidden></div>
 <header class="site-header">
