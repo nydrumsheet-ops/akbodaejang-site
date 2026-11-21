@@ -514,6 +514,7 @@ async function load() {
 
   STATE_BASELINE = cloneState(STATE); // 다음 save() 가 이것과 비교해서 바뀐 것만 찾는다
   await loadSiteContent(); // 2026-10-31: 공지·배너 (실패해도 기본 배너로 계속)
+  if (typeof loadAdSettings === "function") await loadAdSettings(); // 2026-11-21: 광고 스위치 (ads.js, 실패하면 광고 기반 기능은 꺼진 채로 계속)
 }
 
 /* ---------- 저장 (바뀐 부분만 찾아서 해당 테이블에 반영) ----------
