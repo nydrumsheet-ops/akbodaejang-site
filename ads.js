@@ -8,14 +8,17 @@
    이 파일이 하는 일
    1) 광고 스위치(ad_settings 테이블) 읽기·저장 — 전체 / 악기(카테고리)별 / 베타 판매자 / 무료 신규 악보 칸
    2) 목록의 "무료 신규 악보" 칸 — 검색 결과 6번째, 악기·전체 목록 11번째 자리 (인기순일 때만)
-   3) 악보 카드 노출·클릭 기록(score_events 테이블, 서버 함수 rpc_log_score_events 로만 기록)
-   4) 판매자 센터 › 통계 탭 아래 카드 3개 (목록 노출·클릭 / 악보 개선 팁 / 광고 오픈 예정 안내)
+   3) 악보 카드 노출·관심·클릭 기록(score_events 테이블, 서버 함수 rpc_log_score_events 로만 기록)
+      - 노출: 카드가 절반 이상, 1초 이상 보임
+      - 관심: PC에서 카드에 마우스를 1.5초 이상 올려둠(지나가기만 한 건 제외), 또는 카드에서 장바구니·찜을 누름
+      - 클릭: 카드를 눌러 상세 페이지로 감
+   4) 판매자 센터 › 통계 탭 아래 카드 3개 (목록 노출·관심·클릭 / 악보 개선 팁 / 광고 오픈 예정 안내)
    5) 관리자 화면 › "광고 설정" 탭
 
    다른 파일과의 연결 (각각 한두 줄, typeof 로 확인 후 호출 — ads.js 가 없어도 기존 화면은 그대로 동작)
    - common.js  load()             → loadAdSettings()
    - buyer.js   renderListPage()   → adsArrangeList()      / scoreCard(opts.slot) 로 "신규" 표시
-   - buyer.js   renderBuyer()      → adsAfterBuyerRender()  (노출·클릭 기록)
+   - buyer.js   renderBuyer()      → adsAfterBuyerRender()  (노출·관심·클릭 기록)
    - seller.js  renderSellerStats()→ adsRenderSellerCards()
    - admin.js   "광고 설정" 탭      → renderAdminAds()
 
@@ -35,6 +38,7 @@ const AD_POLICY = {
   newScoreDays: 14,                     // 등록 후 며칠까지 "신규 악보"로 볼지
   openCondition: { sellers: 20, scores: 200 }, // 악기별 광고 오픈 조건 (예시값 — 기획서 10장, 대표님 결정 필요)
   impression: { ratio: 0.5, ms: 1000 }, // 카드가 절반 이상, 1초 이상 보이면 노출 1회
+  interestHoverMs: 1500,                // PC에서 카드 위에 마우스가 1.5초 이상 머물면 관심 1회
   flushMs: 5000,                        // 기록을 모아서 5초마다 서버로 보낸다
   // 아래는 광고 상품을 열 때 쓸 값 (지금은 쓰지 않음)
   minBid: 30,
@@ -150,6 +154,7 @@ let ADS_QUEUE = [];
 let ADS_FLUSH_TIMER = null;
 let ADS_OBSERVER = null;
 const ADS_TIMERS = new Map();
+const ADS_HOVER_TIMERS = new Map();
 let ADS_SEEN = new Set();    // 같은 화면에서 같은 카드를 두 번 세지 않도록
 let ADS_ROUTE_SIG = "";
 
@@ -207,11 +212,14 @@ document.addEventListener("visibilitychange", () => { if (document.visibilitySta
 window.addEventListener("pagehide", adsFlush);
 
 /* renderBuyer() 가 화면을 다 그린 뒤 부른다. 화면 안의 악보 카드를 지켜보다가
-   절반 이상·1초 이상 보이면 노출, 눌러서 상세로 가면 클릭으로 기록한다. */
+   절반 이상·1초 이상 보이면 노출, 마우스가 1.5초 이상 머물거나 장바구니·찜을 누르면 관심,
+   눌러서 상세로 가면 클릭으로 기록한다. */
 function adsAfterBuyerRender(el, route) {
   if (ADS_OBSERVER) { ADS_OBSERVER.disconnect(); ADS_OBSERVER = null; }
   ADS_TIMERS.forEach(t => clearTimeout(t));
   ADS_TIMERS.clear();
+  ADS_HOVER_TIMERS.forEach(t => clearTimeout(t));
+  ADS_HOVER_TIMERS.clear();
   if (!el || !AD_SETTINGS.ready) return;
 
   const surface = adsSurfaceOf(route);
@@ -250,10 +258,41 @@ function adsAfterBuyerRender(el, route) {
     ADS_OBSERVER = obs;
   }
 
-  // 카드 안의 장바구니 버튼은 클릭을 막아두었으므로(stopPropagation) 상세로 가는 클릭만 잡힌다.
-  cards.forEach(card => card.addEventListener("click", () => {
-    adsQueue("click", card.dataset.scoreId, surface, card.dataset.slot || "organic", query);
-  }));
+  // 관심: 같은 화면에서 카드마다 한 번만 센다.
+  const markInterest = (card) => {
+    const id = card.dataset.scoreId;
+    const slot = card.dataset.slot || "organic";
+    const key = `interest|${surface}|${id}|${slot}`;
+    if (ADS_SEEN.has(key)) return;
+    ADS_SEEN.add(key);
+    adsQueue("interest", id, surface, slot, query);
+  };
+  // 마우스를 쓰는 기기(PC)에서만 "올려둠"을 센다. 휴대폰은 화면을 누르면 마우스 이벤트가 흉내로 생기므로 제외한다.
+  const canHover = !!(window.matchMedia && window.matchMedia("(hover: hover) and (pointer: fine)").matches);
+
+  cards.forEach(card => {
+    if (canHover) {
+      card.addEventListener("mouseenter", () => {
+        if (ADS_HOVER_TIMERS.has(card)) return;
+        ADS_HOVER_TIMERS.set(card, setTimeout(() => {
+          ADS_HOVER_TIMERS.delete(card);
+          if (card.isConnected) markInterest(card);
+        }, AD_POLICY.interestHoverMs));
+      });
+      card.addEventListener("mouseleave", () => {
+        clearTimeout(ADS_HOVER_TIMERS.get(card));
+        ADS_HOVER_TIMERS.delete(card);
+      });
+    }
+    // 장바구니·찜 버튼은 카드로 클릭이 올라가지 않게 막혀 있어서(stopPropagation), 먼저 받는 단계(capture)에서 잡는다.
+    card.addEventListener("click", (e) => {
+      if (e.target && e.target.closest && e.target.closest("[data-cart], [data-wish]")) markInterest(card);
+    }, true);
+    // 상세로 가는 클릭 (장바구니·찜 버튼 클릭은 여기까지 오지 않는다)
+    card.addEventListener("click", () => {
+      adsQueue("click", card.dataset.scoreId, surface, card.dataset.slot || "organic", query);
+    });
+  });
 }
 
 /* ---------- 4. 판매자 센터 › 통계 탭 카드 ---------- */
@@ -312,8 +351,8 @@ async function adsRenderSellerCards(el, userId, days) {
   wrap.className = "ads-seller";
   wrap.innerHTML = `
     <div class="st-card" id="ads-ev-card">
-      <h3>목록 노출 · 클릭</h3>
-      <p class="s">${AD_SETTINGS.ready ? "불러오는 중이에요…" : "노출·클릭 기록은 준비 중이에요."}</p>
+      <h3>목록 노출 · 관심 · 클릭</h3>
+      <p class="s">${AD_SETTINGS.ready ? "불러오는 중이에요…" : "노출·관심·클릭 기록은 준비 중이에요."}</p>
     </div>
     ${adsTipsCardHTML(myScores)}
     ${adsComingSoonCardHTML(myScores)}`;
@@ -336,43 +375,45 @@ async function adsRenderSellerCards(el, userId, days) {
 
   const periodName = days ? `최근 ${days}일` : "전체 기간";
   if (failed) {
-    card.innerHTML = `<h3>목록 노출 · 클릭</h3><p class="st-empty">지금은 불러오지 못했어요. 잠시 후 다시 열어 주세요.</p>`;
+    card.innerHTML = `<h3>목록 노출 · 관심 · 클릭</h3><p class="st-empty">지금은 불러오지 못했어요. 잠시 후 다시 열어 주세요.</p>`;
     return;
   }
   const by = {};
   const bySurface = {};
   for (const r of rows) {
-    const imp = Number(r.impressions || 0), clk = Number(r.clicks || 0);
-    const x = by[r.score_id] || (by[r.score_id] = { imp: 0, clk: 0, newImp: 0 });
-    x.imp += imp; x.clk += clk;
+    const imp = Number(r.impressions || 0), int = Number(r.interests || 0), clk = Number(r.clicks || 0);
+    const x = by[r.score_id] || (by[r.score_id] = { imp: 0, int: 0, clk: 0, newImp: 0 });
+    x.imp += imp; x.int += int; x.clk += clk;
     if (r.slot_type === "new") x.newImp += imp;
     const sf = bySurface[r.surface] || (bySurface[r.surface] = { imp: 0, clk: 0 });
     sf.imp += imp; sf.clk += clk;
   }
   const totImp = Object.values(by).reduce((a, x) => a + x.imp, 0);
+  const totInt = Object.values(by).reduce((a, x) => a + x.int, 0);
   const totClk = Object.values(by).reduce((a, x) => a + x.clk, 0);
   const pct = (c, i) => (i ? `${((c / i) * 100).toFixed(1)}%` : "-");
   const list = Object.entries(by)
     .map(([id, x]) => ({ s: STATE.scores[id], ...x }))
     .filter(r => r.s)
-    .sort((a, b) => b.imp - a.imp || b.clk - a.clk)
+    .sort((a, b) => b.imp - a.imp || b.int - a.int || b.clk - a.clk)
     .slice(0, 20);
 
   card.innerHTML = `
-    <h3>목록 노출 · 클릭 <span class="ads-dim">(${periodName})</span></h3>
-    <p class="s">구매자 화면에서 악보 카드가 절반 이상, 1초 넘게 보이면 노출 1회, 눌러서 상세 페이지로 들어가면 클릭 1회예요. 같은 사람이 30분 안에 반복한 것과 내가 본 것은 세지 않아요.</p>
-    ${totImp || totClk ? `
+    <h3>목록 노출 · 관심 · 클릭 <span class="ads-dim">(${periodName})</span></h3>
+    <p class="s">구매자 화면에서 악보 카드가 절반 이상, 1초 넘게 보이면 노출, 카드에 마우스를 1.5초 넘게 올려두거나(PC) 카드에서 장바구니·찜을 누르면 관심, 눌러서 상세 페이지로 들어가면 클릭 1회예요. 같은 사람이 30분 안에 반복한 것과 내가 본 것은 세지 않아요.
+    노출에 비해 관심이 적으면 썸네일·제목을, 관심에 비해 클릭이 적으면 가격·난이도 표시를 점검해 보세요.</p>
+    ${totImp || totInt || totClk ? `
     <div class="ads-kpis">
       <div><span>노출</span><b>${totImp.toLocaleString("ko-KR")}회</b></div>
+      <div><span>관심</span><b>${totInt.toLocaleString("ko-KR")}회</b></div>
       <div><span>클릭</span><b>${totClk.toLocaleString("ko-KR")}회</b></div>
-      <div><span>클릭률</span><b>${pct(totClk, totImp)}</b></div>
     </div>
-    <p class="ads-surf">${Object.entries(bySurface).sort((a, b) => b[1].imp - a[1].imp).map(([k, v]) => `${esc(ADS_SURFACE_LABEL[k] || k)} ${v.imp.toLocaleString("ko-KR")}회`).join(" · ")}</p>
+    <p class="ads-surf">관심률 ${pct(totInt, totImp)} · 클릭률 ${pct(totClk, totImp)} — ${Object.entries(bySurface).sort((a, b) => b[1].imp - a[1].imp).map(([k, v]) => `${esc(ADS_SURFACE_LABEL[k] || k)} ${v.imp.toLocaleString("ko-KR")}회`).join(" · ")}</p>
     <div class="st-tbl-wrap"><table class="st-tbl">
-      <thead><tr><th>악보</th><th>노출</th><th>클릭</th><th>클릭률</th><th>신규 칸 노출</th></tr></thead>
+      <thead><tr><th>악보</th><th>노출</th><th>관심</th><th>클릭</th><th>클릭률</th><th>신규 칸 노출</th></tr></thead>
       <tbody>${list.map(r => `<tr>
         <td><button type="button" class="st-title" data-ads-go="${esc(r.s.id)}">${esc(r.s.title)}</button><small>${esc(r.s.artist)}</small></td>
-        <td>${r.imp.toLocaleString("ko-KR")}</td><td>${r.clk.toLocaleString("ko-KR")}</td><td>${pct(r.clk, r.imp)}</td>
+        <td>${r.imp.toLocaleString("ko-KR")}</td><td>${r.int.toLocaleString("ko-KR")}</td><td>${r.clk.toLocaleString("ko-KR")}</td><td>${pct(r.clk, r.imp)}</td>
         <td>${r.newImp ? r.newImp.toLocaleString("ko-KR") : `<span class="st-dim">-</span>`}</td></tr>`).join("")}</tbody>
     </table></div>`
     : `<p class="st-empty">아직 기록이 없어요. 구매자가 목록에서 내 악보를 보기 시작하면 여기에 쌓여요.</p>`}`;
@@ -437,6 +478,7 @@ function renderAdminAds(body) {
   const sellerLabel = id => { const u = STATE.users[id]; return u ? `${(u.sellerInfo && u.sellerInfo.displayName) || u.name} (${u.email || "이메일 없음"})` : `알 수 없는 회원 (${id})`; };
   const summary = ADS_ADMIN_SUMMARY || [];
   const sumImp = summary.reduce((a, r) => a + Number(r.impressions || 0), 0);
+  const sumInt = summary.reduce((a, r) => a + Number(r.interests || 0), 0);
   const sumClk = summary.reduce((a, r) => a + Number(r.clicks || 0), 0);
   const slotName = { organic: "일반", new: "신규 칸", ad: "광고" };
 
@@ -486,21 +528,22 @@ function renderAdminAds(body) {
     </div>
 
     <div style="${ADMIN_PANEL}">
-      <h2 style="margin:0 0 4px;font-size:17px;">노출 · 클릭 (최근 7일)</h2>
-      <p style="margin:0 0 10px;font-size:13px;color:var(--muted);line-height:1.6;">구매자 화면의 악보 카드 노출(절반 이상·1초 이상)과 상세 페이지로 들어간 클릭이에요. 광고 오픈 시점을 정하는 참고 자료예요.</p>
+      <h2 style="margin:0 0 4px;font-size:17px;">노출 · 관심 · 클릭 (최근 7일)</h2>
+      <p style="margin:0 0 10px;font-size:13px;color:var(--muted);line-height:1.6;">구매자 화면의 악보 카드 노출(절반 이상·1초 이상), 관심(PC에서 마우스 1.5초 이상 또는 카드에서 장바구니·찜), 상세 페이지로 들어간 클릭이에요. 광고 오픈 시점을 정하는 참고 자료예요.</p>
       ${!AD_SETTINGS.ready ? `<p class="st-empty" style="margin:0;">SQL 실행 후에 기록이 쌓여요.</p>`
         : ADS_ADMIN_SUMMARY === null ? `<p class="st-empty" style="margin:0;">불러오는 중이에요…</p>`
         : summary.length ? `
         <div class="ads-kpis">
           <div><span>노출</span><b>${sumImp.toLocaleString("ko-KR")}회</b></div>
+          <div><span>관심</span><b>${sumInt.toLocaleString("ko-KR")}회</b></div>
           <div><span>클릭</span><b>${sumClk.toLocaleString("ko-KR")}회</b></div>
-          <div><span>클릭률</span><b>${sumImp ? ((sumClk / sumImp) * 100).toFixed(1) + "%" : "-"}</b></div>
         </div>
+        <p class="ads-surf">관심률 ${sumImp ? ((sumInt / sumImp) * 100).toFixed(1) + "%" : "-"} · 클릭률 ${sumImp ? ((sumClk / sumImp) * 100).toFixed(1) + "%" : "-"}</p>
         <div class="st-tbl-wrap"><table class="st-tbl">
-          <thead><tr><th>위치</th><th>칸</th><th>노출</th><th>클릭</th><th>클릭률</th></tr></thead>
+          <thead><tr><th>위치</th><th>칸</th><th>노출</th><th>관심</th><th>클릭</th><th>클릭률</th></tr></thead>
           <tbody>${summary.slice().sort((a, b) => Number(b.impressions) - Number(a.impressions)).map(r => `<tr>
             <td>${esc(ADS_SURFACE_LABEL[r.surface] || r.surface)}</td><td>${esc(slotName[r.slot_type] || r.slot_type)}</td>
-            <td>${Number(r.impressions).toLocaleString("ko-KR")}</td><td>${Number(r.clicks).toLocaleString("ko-KR")}</td>
+            <td>${Number(r.impressions).toLocaleString("ko-KR")}</td><td>${Number(r.interests || 0).toLocaleString("ko-KR")}</td><td>${Number(r.clicks).toLocaleString("ko-KR")}</td>
             <td>${Number(r.impressions) ? ((Number(r.clicks) / Number(r.impressions)) * 100).toFixed(1) + "%" : "-"}</td></tr>`).join("")}</tbody>
         </table></div>`
         : `<p class="st-empty" style="margin:0;">아직 기록이 없어요.</p>`}
