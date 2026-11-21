@@ -65,7 +65,7 @@ function renderSeller() {
           style="flex:1;min-width:160px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
         <button id="sp-save"
           style="padding:10px 16px;border:1px solid var(--border);border-radius:8px;background:#F5F2EE;font-size:13px;cursor:pointer;"
-          onmouseover="this.style.background='#F5F2EE';this.style.borderColor='#B9AFA4';this.style.color='#302D2A'"
+          onmouseover="this.style.background='#F5F2EE';this.style.borderColor='#B9AFA4';this.style.color='var(--ink-solid)'"
           onmouseout="this.style.background='#F5F2EE';this.style.borderColor='var(--border)';this.style.color=''">
           활동명 저장
         </button>
@@ -177,8 +177,8 @@ function renderSeller() {
         </label>
 
         <button id="sf-submit"
-          style="margin-top:6px;padding:13px;font-size:15px;border:none;border-radius:10px;background:#33312e;color:var(--on-accent);cursor:pointer;"
-          onmouseover="this.style.background='#1f1e1c'" onmouseout="this.style.background='#33312e'">
+          style="margin-top:6px;padding:13px;font-size:15px;border:none;border-radius:10px;background:var(--ink-solid);color:var(--on-accent);cursor:pointer;"
+          onmouseover="this.style.background='var(--ink-solid-hover)'" onmouseout="this.style.background='var(--ink-solid)'">
           등록하기
         </button>
 
@@ -451,7 +451,7 @@ function bulkStatus(r) {
   const k = bulkKind(r);
   return ({
     done: ["완료", "#2f7d4f"], running: ["등록 중…", "#9a3208"], fail: ["실패", "#c0392b"],
-    excluded: ["제외", "#8A847D"], need: ["입력 필요", "#c45a1c"], ready: ["준비됨", "#302D2A"]
+    excluded: ["제외", "#8A847D"], need: ["입력 필요", "#c45a1c"], ready: ["준비됨", "var(--ink-solid)"]
   })[k];
 }
 

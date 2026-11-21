@@ -448,7 +448,7 @@ function renderAdminMembers(body) {
       <div id="admin-admins-msg" style="font-size:13px;margin:0 0 10px;"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
         <input id="admin-admin-email" class="field" type="email" style="flex:1;min-width:220px;" placeholder="등록할 관리자 이메일">
-        <button id="admin-admin-add" class="btn btn-primary" style="background:#33312e;border-color:#33312e;border-radius:11px;" onmouseover="this.style.background='#1f1e1c';this.style.borderColor='#1f1e1c'" onmouseout="this.style.background='#33312e';this.style.borderColor='#33312e'">등록</button>
+        <button id="admin-admin-add" class="btn btn-primary" style="background:var(--ink-solid);border-color:var(--ink-solid);border-radius:11px;" onmouseover="this.style.background='var(--ink-solid-hover)';this.style.borderColor='var(--ink-solid-hover)'" onmouseout="this.style.background='var(--ink-solid)';this.style.borderColor='var(--ink-solid)'">등록</button>
       </div>
       <div>
         ${adminEmails.map(e => {
