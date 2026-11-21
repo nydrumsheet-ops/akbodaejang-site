@@ -1343,6 +1343,11 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 .fpick.has-file .fpick-name{color:var(--ink-solid);font-weight:600}
 .sm-btn.on{border-color:var(--ink-solid);font-weight:600}
 .adm-menu-logout{display:none !important}
+/* 2026-11-21: 입력칸 테두리가 진한 갈색(#756b61, 글자색 변수와 같이 묶여 있었음)이라 검게 튀던 문제 → 버튼 테두리와 같은 연회색.
+   눌렀을 때(포커스) 오렌지 테두리+오렌지 번짐 → 진한 글자색 테두리 + 옅은 회색 번짐 */
+.toolbar select,.field,.sort-dd-btn,#login-modal input{border-color:#d6d6d6}
+.toolbar select:hover,.field:hover,#login-modal input:hover{border-color:#bdbdbd}
+.toolbar select:focus,.field:focus,#login-modal input:focus{border-color:var(--ink-solid);box-shadow:0 0 0 3px rgba(0,0,0,.06)}
 @media (max-width:760px){#header-auth .adm-menu-wrap ~ #logout-btn{display:none}.adm-menu-logout{display:flex !important;border-top:1px solid #EEEEEE !important}}
 @media (max-width:480px){.st-tbl td:first-child{min-width:0}.st-tbl td:first-child small{display:none}.st-tbl{font-size:12px}}
 .aa-email-row .cs-wrap{flex:none}
