@@ -524,7 +524,7 @@ function renderAdminAds(body) {
 
     <div style="display:flex;gap:8px;justify-content:flex-end;margin-bottom:16px;">
       <button type="button" class="btn btn-small" id="ads-cancel" ${changed && !ADS_ADMIN_BUSY ? "" : "disabled"}>되돌리기</button>
-      <button type="button" class="btn btn-small btn-primary" id="ads-save" ${changed && !dis ? "" : "disabled"}>${ADS_ADMIN_BUSY ? "저장 중…" : "변경 내용 저장"}</button>
+      <button type="button" class="btn btn-small btn-primary admin-dark-btn" id="ads-save" ${changed && !dis ? "" : "disabled"}>${ADS_ADMIN_BUSY ? "저장 중…" : "변경 내용 저장"}</button>
     </div>
 
     <div style="${ADMIN_PANEL}">
