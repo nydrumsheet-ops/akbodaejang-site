@@ -1846,7 +1846,9 @@ function renderSellerStats(userId) {
   } else if (days === 90) {
     for (let i = 0; i < 13; i++) { const e = stDayStart(now) + 86400000 - (12 - i) * 7 * 86400000; const s = e - 7 * 86400000; buckets.push({ s, e, label: `${stMD(s)}~${stMD(e - 86400000)}` }); }
   } else {
-    const first = allSales.length ? Math.min(...allSales.map(p => new Date(p.purchasedAt).getTime())) : now;
+    // 2026-11-21: 판매가 없던 달도 빈칸으로 보여주도록 최근 12개월은 항상 그린다 (첫 판매가 더 오래됐으면 그때부터)
+    const twelveAgo = new Date(now); twelveAgo.setDate(1); twelveAgo.setMonth(twelveAgo.getMonth() - 11);
+    const first = Math.min(allSales.length ? Math.min(...allSales.map(p => new Date(p.purchasedAt).getTime())) : now, twelveAgo.getTime());
     const d = new Date(first); d.setDate(1); d.setHours(0, 0, 0, 0);
     while (d.getTime() <= now) {
       const s = d.getTime(); d.setMonth(d.getMonth() + 1);
@@ -1918,7 +1920,7 @@ function renderSellerStats(userId) {
         <tbody>${shown.map(r => `<tr>
           <td><button type="button" class="st-title" data-st-go="${esc(r.s.id)}">${esc(r.s.title)}</button><small>${esc(r.s.artist)}${r.s.status === "판매중지" ? " · 판매 중지" : ""}</small></td>
           <td>${r.views.toLocaleString("ko-KR")}</td><td>${r.sales}건</td><td>${r.views ? (isHiConv(r) ? `<b class="st-hi">▲ ${stPct(r.conv)}</b>` : stPct(r.conv)) : "-"}</td><td>${r.wish}</td>
-          <td>${r.rating.count ? `★ ${r.rating.avg.toFixed(1)}` : `<span class="st-dim">-</span>`}</td></tr>`).join("")}</tbody>
+          <td>${r.rating.count ? r.rating.avg.toFixed(1) : `<span class="st-dim">-</span>`}</td></tr>`).join("")}</tbody>
       </table></div>
       ${rows.length > shown.length ? `<button type="button" class="st-more" id="st-more">더 보기 (${shown.length} / ${rows.length})</button>` : ""}`
       : `<p class="st-empty">등록한 악보가 없어요.</p>`}
