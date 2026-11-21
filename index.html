@@ -683,6 +683,20 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .hero-inner{width:100%;max-width:1040px;margin:0 auto;padding-inline:24px;box-sizing:border-box}
 .hero-text{display:flex;flex-direction:column;gap:14px;min-width:0}
 .hero-text .btn,.hero-slide .btn{align-self:flex-start;margin-top:6px}
+/* 2026-11-21: 배너 안 버튼 반응 보강 — 마우스 올림: 2px 떠오름 + 그림자 + 살짝 진하게 / 누름: 95%로 눌림 + 그림자 줄임 + 더 진하게.
+   주황 그라데이션은 버튼에 직접 지정돼 있어 배경색 hover가 덮이므로, 진하게 하는 효과는 안쪽 그림자(inset)로 준다(글자 색은 그대로). */
+.hero-slide .btn{transition:transform .18s var(--ease),box-shadow .18s var(--ease),background-color var(--dur-fast) var(--ease)}
+@media (hover:hover) and (pointer:fine){
+.hero-slide .btn:hover:not(:disabled){transform:translateY(-2px);box-shadow:0 8px 18px rgba(240,120,69,.35),inset 0 0 0 999px rgba(0,0,0,.05)}
+.hero-slide.slide-2 .btn:hover:not(:disabled){box-shadow:0 8px 18px rgba(0,0,0,.22)}
+.hero-slide.slide-3 .btn:hover:not(:disabled){box-shadow:0 8px 22px rgba(0,0,0,.5),inset 0 0 0 999px rgba(0,0,0,.05)}
+}
+.hero-slide .btn:active:not(:disabled){transform:translateY(0) scale(.95);box-shadow:0 2px 6px rgba(240,120,69,.3),inset 0 0 0 999px rgba(0,0,0,.12);transition-duration:.06s}
+.hero-slide.slide-2 .btn:active:not(:disabled){box-shadow:0 2px 6px rgba(0,0,0,.2),inset 0 0 0 999px rgba(0,0,0,.25)}
+.hero-slide.slide-3 .btn:active:not(:disabled){box-shadow:0 2px 8px rgba(0,0,0,.45),inset 0 0 0 999px rgba(0,0,0,.12)}
+.hero-slide .btn:focus-visible{outline:2px solid var(--ink-solid);outline-offset:3px}
+.hero-slide.slide-3 .btn:focus-visible{outline-color:#ffffff}
+@media (prefers-reduced-motion:reduce){.hero-slide .btn:hover:not(:disabled),.hero-slide .btn:active:not(:disabled){transform:none}}
 .hero-slide h2{margin:0;font:var(--type-display-lg);line-height:calc(44px * 1.05 * var(--display-scale) + 1px);letter-spacing:var(--display-tracking);text-wrap:balance}
 .hero-slide p{margin:0;font:var(--type-body);color:var(--text-body);max-width:520px}
 .hero-slide .eyebrow{font:var(--type-eyebrow);letter-spacing:var(--eyebrow-tracking);text-transform:uppercase;color:var(--accent-ink)}
