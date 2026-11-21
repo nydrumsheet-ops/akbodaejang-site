@@ -531,9 +531,9 @@ textarea.sm-in{resize:vertical}
 .st-kpi{border:1px solid #E6E6E6;border-radius:12px;background:#ffffff;padding:14px;min-width:0}
 .st-kpi span{display:block;font-size:12px;color:#756b61}
 .st-kpi b{display:block;margin-top:4px;font-size:22px;color:var(--ink-solid);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.st-kpi em{display:block;font-style:normal;font-size:12px;color:#756b61}
-.st-kpi em span{display:inline;color:#756b61;font-size:12px}
-.st-kpi em.up{color:#2f7a4a}.st-kpi em.down{color:#b42318}
+.st-kpi em{display:block;margin-top:2px;font-style:normal;font-size:13px;color:#756b61}
+.st-kpi em span{display:inline;color:#756b61;font-size:12px;font-weight:400}
+.st-kpi em.up{color:#1f7a45;font-weight:700}/* 2026-11-21: 증감 표시가 약하다는 의견 — 13px·굵게 */.st-kpi em.down{color:#b42318;font-weight:700}
 .st-card{border:1px solid #E6E6E6;border-radius:12px;background:#ffffff;padding:16px;margin-bottom:16px}
 .st-card:last-child{margin-bottom:0}
 .st-card h3{margin:0 0 2px;font-size:14px}
@@ -1296,6 +1296,10 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 .score-card:hover .card-title{text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
 }
 @media (prefers-reduced-motion:reduce){.score-card:hover .thumb,.score-card:hover .thumb img{transform:none}}
+/* 2026-11-21: 통계 — 구매율 높은 악보 강조 */
+.st-hi{color:#1f7a45;font-weight:700}
+/* 2026-11-21: 관리자 악보 관리 — 긴 제목이 줄을 밀어내지 않게 (버튼은 기본적으로 내용 폭 아래로 줄어들지 않아서 넘쳤음) */
+.asc-title{display:block;width:100%;max-width:100%;min-width:0}
 </style>
 </head>
 <body ontouchstart=""><!-- ontouchstart: 아이폰에서도 누르는 순간(:active) 효과가 보이게 (2026-11-21) -->
