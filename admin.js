@@ -999,8 +999,8 @@ function renderAdminArtistAppList() {
         </div>
         <div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.7;">
           이름 ${esc(a.name)} · 휴대폰 ${esc(a.phone)} · 이메일 ${esc(a.email)}<br>
-          판매자 영상: <a href="${esc(a.videoUrl)}" target="_blank" rel="noopener" style="color:var(--primary-dark);">${esc(a.videoUrl)}</a><br>
-          악보/MR 샘플: <a href="${esc(a.sampleFileUrl)}" target="_blank" rel="noopener" style="color:var(--primary-dark);">파일 열기</a><br>
+          판매자 영상: <a href="${esc(a.videoUrl)}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:underline;text-underline-offset:2px;">${esc(a.videoUrl)}</a><br>
+          악보/MR 샘플: <a href="${esc(a.sampleFileUrl)}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:underline;text-underline-offset:2px;">파일 열기</a><br>
           신청일 ${formatDate(a.createdAt)}${a.status === "거절" && a.rejectReason ? ` · 거절 사유: ${esc(a.rejectReason)}` : ""}
         </div>
         ${a.status === "심사대기" ? `
@@ -1108,7 +1108,7 @@ function renderAdminPayoutBatch() {
     wrap.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:0 0 8px;">다음 지급일(${dateText})에 지급할 판매자가 아직 없어요.</p>`;
   } else {
     wrap.innerHTML = `
-      <div style="padding:12px;border-radius:10px;background:#efefef;margin-bottom:10px;font-size:13px;">
+      <div style="padding:12px;border-radius:10px;background:#ffffff;border:1px solid #E6E6E6;margin-bottom:10px;font-size:13px;">
         다음 지급일 <b>${dateText}</b> · 대상 <b>${batch.items.length}명</b> · 합계 <b>${formatWon(batch.total)}</b>
       </div>
       <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;">
@@ -2009,7 +2009,7 @@ function renderAdminPdfUpload(body) {
         그 폴더를 통째로 고를 수 있고, 이름이 맞는 파일만 하나씩 업로드해서 악보에 연결합니다.<br>
         지금까지 연결됨: <b>${st.done} / ${st.total}</b>곡
       </p>
-      <div style="padding:12px;border-radius:10px;background:#efefef;font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
+      <div style="padding:12px;border-radius:10px;background:#ffffff;border:1px solid #E6E6E6;font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
         이름이 너무 달라 자동으로 맞추지 못한 악보, 또는 폴더 안에 파일 자체가 없는 악보는
         이 목록에 들어있지 않습니다 — 그런 악보는 아래 "추가 매칭"·"검토 필요" 섹션에서 처리합니다.
         이미 연결된 악보는 다시 눌러도 건너뛰니, 중간에 멈췄다가 같은 폴더로 다시 시작해도 안전합니다.
@@ -2017,7 +2017,7 @@ function renderAdminPdfUpload(body) {
       <input type="file" id="admin-pdf-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button id="admin-pdf-pick-btn" class="btn btn-primary admin-dark-btn" style="border-radius:12px;" ${ADMIN_PDF_RUNNING ? "disabled" : ""}>
-          ${ADMIN_PDF_RUNNING ? "업로드 진행 중..." : `"판매용 악보" 폴더 선택해서 업로드 시작`}
+          ${ADMIN_PDF_RUNNING ? "업로드 진행 중..." : "PDF 파일 일괄 업로드"}
         </button>
         ${ADMIN_PDF_RUNNING ? `<button id="admin-pdf-stop-btn" class="admin-stop-btn" style="padding:9px 14px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">중단</button>` : ""}
       </div>
