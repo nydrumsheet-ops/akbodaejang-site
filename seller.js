@@ -1939,4 +1939,5 @@ function renderSellerStats(userId) {
   };
   el.querySelectorAll(".st-hit").forEach(h => { h.addEventListener("mouseenter", () => show(h)); h.addEventListener("click", () => show(h)); });
   chart?.addEventListener("mouseleave", () => { if (tip) tip.hidden = true; el.querySelectorAll(".st-hit.on").forEach(x => x.classList.remove("on")); });
+  if (typeof adsRenderSellerCards === "function") adsRenderSellerCards(el, userId, days); // 2026-11-21 광고 기반: 목록 노출·클릭 / 개선 팁 / 광고 오픈 예정 카드 (ads.js)
 }
