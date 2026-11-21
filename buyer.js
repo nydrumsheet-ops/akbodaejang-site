@@ -41,8 +41,11 @@ const FAQ_LIST = [
     a: () => `수수료는 ${Math.round(POLICY.commission.rate * 100)}%예요. 나머지는 전부 판매자 몫이에요.` },
   { id: "f6", cat: "정산", q: "정산은 언제 들어오나요?",
     a: () => `출금 신청은 따로 안 해요. 적립금이 ${formatWon(POLICY.settlement.minWithdraw)} 이상이고 정산 계좌가 등록돼 있으면, 매달 ${POLICY.settlement.payoutDay}일에 자동으로 입금돼요.` },
-  { id: "f7", cat: "계정", q: "비밀번호는 어떻게 바꾸나요?",
-    a: () => `지금은 이름과 이메일만으로 로그인하는 시험 버전이라 비밀번호가 없어요. 정식 오픈 전에 추가될 예정이에요.` },
+  // 2026-11-21: 옛 시험 버전 안내(비밀번호 없음)를 지금 방식으로 고침 + 가입 이메일을 잊었을 때 질문 추가
+  { id: "f7", cat: "계정", q: "비밀번호를 잊어버렸어요. 어떻게 바꾸나요?",
+    a: () => `로그인 창의 "비밀번호를 잊으셨나요?"를 누르고 가입한 이메일을 입력하면 재설정 메일이 와요. 메일의 링크를 눌러 새 비밀번호를 정하면 돼요. 구글로 가입했다면 비밀번호 없이 "구글로 로그인"을 누르면 돼요.` },
+  { id: "f10", cat: "계정", q: "가입한 이메일(아이디)이 기억나지 않아요.",
+    a: () => `구글로 가입했다면 "구글로 로그인"을 눌러보세요. 아니라면 자주 쓰는 이메일로 비밀번호 재설정을 해보세요. 가입된 이메일이면 메일이 와요. 그래도 모르겠다면 고객센터(${SUPPORT_PHONE})로 연락주세요.` },
   // 2026-10-20 추가(mydrumsheet.com FAQ 이전): 중복 이메일 가입 제한은 Supabase Auth 공통 동작이라
   // 이 사이트에도 그대로 적용된다.
   { id: "f9", cat: "계정", q: "회원가입이 안 돼요. 왜 그런가요?",
@@ -1709,7 +1712,7 @@ function myPointsHTML(user, p) {
           return `<button class="tier-btn" data-charge="${t.amount}">${formatWon(t.amount)}<small>${formatPoint(pts)} 적립${bonus ? ` (+${Math.round(bonus * 100)}%)` : ""}</small></button>`;
         }).join("")}
       </div>
-      <p class="muted" style="margin:10px 0 0;font-size:11px;">지금은 실제 결제 없이 바로 충전되는 시험 버전이에요. 결제대행(PG) 연결은 오픈 전에 붙입니다.</p>
+      <p class="muted" style="margin:10px 0 0;font-size:12px;">지금은 실제 결제 없이 바로 충전되는 시험 버전이에요. 결제대행(PG) 연결은 오픈 전에 붙입니다.</p>
     </div>
     <div class="panel" style="margin-top:12px;">
       <h2 style="margin:0 0 8px;font-size:17px;">포인트 내역</h2>
@@ -1879,7 +1882,7 @@ function renderRequestsPage(el) {
         <input class="field" id="rq-artist" placeholder="가수 또는 작곡가 (아는 것만 입력)">
         <select class="field" id="rq-inst">${INSTRUMENTS.map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("")}</select>
         <button class="btn btn-primary" id="rq-submit">신청하기</button>
-        <p class="muted" style="margin:0;font-size:11px;">같은 곡·악기를 이미 누가 신청했다면 그 신청에 함께 이름이 올라가요.</p>
+        <p class="muted" style="margin:0;font-size:12px;">같은 곡·악기를 이미 누가 신청했다면 그 신청에 함께 이름이 올라가요.</p>
       </div>
       <div>
         <div class="chip-row" style="margin-bottom:8px;">
@@ -2025,6 +2028,7 @@ function renderSupportQna(body, user) {
       <div class="panel">
         <p class="muted" style="margin:0;">로그인하면 1:1 문의를 쓰고, 내 문의 내역과 답변을 볼 수 있어요.</p>
         <button class="btn btn-primary" id="qna-login-btn" style="margin-top:10px;">로그인</button>
+        <p class="muted" style="margin:12px 0 0;font-size:13px;">로그인이 안 되거나 가입한 이메일이 기억나지 않으면 고객센터 <a href="tel:${SUPPORT_PHONE.replace(/-/g, "")}" style="color:var(--text);font-weight:700;">${SUPPORT_PHONE}</a>로 연락주세요.</p>
       </div>`;
     document.getElementById("qna-login-btn")?.addEventListener("click", () => requireLogin(() => renderBuyer()));
     return;
@@ -2052,7 +2056,7 @@ function renderSupportQna(body, user) {
           </select>
           <input class="field" id="qna-title" placeholder="제목">
           <textarea class="field" id="qna-content" rows="4" placeholder="문의 내용을 적어주세요" style="font-family:inherit;resize:vertical;"></textarea>
-          <p class="muted" style="margin:0;font-size:11px;">이 문의는 본인과 관리자만 볼 수 있고, 악보를 골랐다면 그 악보의 판매자도 볼 수 있어요.</p>
+          <p class="muted" style="margin:0;font-size:12px;">이 문의는 본인과 관리자만 볼 수 있고, 악보를 골랐다면 그 악보의 판매자도 볼 수 있어요.</p>
           <button class="btn btn-primary" id="qna-submit">보내기</button>
         </div>` : ""}
     </div>
