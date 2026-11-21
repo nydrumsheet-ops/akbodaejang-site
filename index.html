@@ -356,7 +356,7 @@ a{color:var(--link)}
 .ms-count{font-size:12px;color:var(--muted);margin:0 0 4px}
 /* 2026-10-30: 목록 필터 — 고른 조건 한 줄 + 모두 지우기 */
 .filter-active{display:flex;flex-wrap:wrap;align-items:center;gap:6px;margin-top:12px;padding-top:12px;border-top:1px solid #E6E6E6}
-.filter-pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 12px;border:1px solid #F6C9AE;border-radius:999px;background:#FFF4EE;color:#C2541F;font-size:12px;font-weight:600;cursor:pointer}
+.filter-pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 12px;border:1px solid #F6C9AE;border-radius:10px;background:#FFF4EE;color:#C2541F;font-size:12px;font-weight:600;cursor:pointer}
 .filter-pill span{font-size:10px;opacity:.8}
 .filter-pill:hover{border-color:#E87949}
 .filter-reset{margin-left:4px;border:0;background:none;padding:0;color:#8A847D;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
@@ -658,7 +658,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .mem-adj-field:not(:focus){border-color:#E6E6E6}
 .chip-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;scrollbar-width:none}
 .chip-row::-webkit-scrollbar{display:none}
-.chip{flex-shrink:0;height:34px;padding:0 14px;border-radius:var(--radius-pill);border:1px solid #e0e3e9;background:#ffffff;font:500 13px/1 var(--font-text);cursor:pointer;color:#636873;white-space:nowrap;transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease)}
+.chip{flex-shrink:0;height:34px;padding:0 14px;border-radius:10px;border:1px solid #e0e3e9;background:#ffffff;font:500 13px/1 var(--font-text);cursor:pointer;color:#636873;white-space:nowrap;transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease)}
 .chip:hover{background:#f7f8fa;border-color:#c7ccd6}
 .chip.active{background:#efefef;color:var(--c-ink);border-color:#efefef}
 /* 2026-10-29: 고객센터 탭(자주 묻는 질문 / 1:1 문의) — 외곽선 없음, hover는 배경 없이 글자만 검정 */
@@ -919,7 +919,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .field{width:100%}
 textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-family:inherit;line-height:1.5}
 /* 2026-11-21: 악기·분량 칩과 같은 알약 모양으로 통일 — 체크박스는 숨기고 선택 시 배경색만 바뀐다(칩과 동일한 방식) */
-.toggle{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:var(--radius-pill);border:1px solid #e0e3e9;background:#ffffff;font:500 13px/1 var(--font-text);color:#636873;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease)}
+.toggle{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:10px;border:1px solid #e0e3e9;background:#ffffff;font:500 13px/1 var(--font-text);color:#636873;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease)}
 .toggle:hover{background:#f7f8fa;border-color:#c7ccd6}
 .toggle:has(input:checked){background:#efefef;color:var(--c-ink);border-color:#efefef}
 /* 2026-10-29: 목록 필터 가격 입력칸 — 옆 "적용" 버튼(36px)과 높이를 맞춤 */
