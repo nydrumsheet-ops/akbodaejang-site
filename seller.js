@@ -192,7 +192,7 @@ function renderSeller() {
     <div data-seller-sec="scores" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">내 악보 관리</h2>
       <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">등록한 악보를 고치거나, 판매를 잠시 멈추거나, 할인을 설정할 수 있어요.
-        <button id="seller-store-link" style="margin-left:6px;border:none;background:none;color:var(--primary);font-size:13px;cursor:pointer;padding:0;text-decoration:underline;">구매자에게 보이는 내 아티스트 페이지 ›</button>
+        <button id="seller-store-link" style="margin-left:6px;border:none;background:none;color:var(--text);font-size:13px;cursor:pointer;padding:0;text-decoration:underline;">구매자에게 보이는 내 아티스트 페이지 ›</button>
       </p>
       <div class="ms-toolbar">
         <input type="search" id="ms-search" class="ms-search" placeholder="제목·가수·태그로 찾기" value="${esc(SELLER_MYSCORES_Q)}" aria-label="내 악보 검색">
@@ -1187,7 +1187,7 @@ async function handleSubmitScore(sellerId) {
 function showSellerMsg(el, text, isError) {
   if (!el) return;
   el.textContent = text;
-  el.style.color = isError ? "var(--danger)" : "var(--primary)";
+  el.style.color = isError ? "var(--danger)" : "#1f7a45";
 }
 
 /* ---------- 내 악보 · 심사상태 ---------- */
@@ -1195,7 +1195,7 @@ function showSellerMsg(el, text, isError) {
 const SCORE_STATUS_COLOR = {
   "등록": "#625950",
   "심사중": "#8a6420",
-  "승인": "var(--primary-dark)",
+  "승인": "#1f7a45", // 2026-11-21: "판매 중"이 탁한 주황갈색이라 잘 안 보인다는 의견 — 진행 중/완료 상태는 초록으로
   "반려": "var(--danger)",
   "판매중지": "#8A847D"
 };
@@ -1511,7 +1511,7 @@ function renderDiscountPanel(s) {
 
   let statusLine;
   if (active) {
-    statusLine = `<span style="color:var(--primary);">할인 적용 중 · ${Math.round(active.rate * 100)}% · ${formatPoint(effectivePrice(s))} (정가 ${formatPoint(s.price)}) · ~${formatDate(active.endAt)}까지</span>`;
+    statusLine = `<span style="color:var(--text);font-weight:600;">할인 적용 중 · ${Math.round(active.rate * 100)}% · ${formatPoint(effectivePrice(s))} (정가 ${formatPoint(s.price)}) · ~${formatDate(active.endAt)}까지</span>`;
   } else if (d) {
     statusLine = `<span style="color:var(--muted);">할인 예약됨 · ${Math.round(d.rate * 100)}% · ${formatDate(d.startAt)} ~ ${formatDate(d.endAt)}</span>`;
   } else {
@@ -1522,7 +1522,7 @@ function renderDiscountPanel(s) {
 
   return `
     <div style="margin-top:8px;">
-      <button type="button" data-disc-toggle="${s.id}" style="all:unset;cursor:pointer;font-size:12px;color:var(--primary);text-decoration:underline;">
+      <button type="button" data-disc-toggle="${s.id}" style="all:unset;cursor:pointer;font-size:12px;color:var(--text);font-weight:600;text-decoration:underline;text-underline-offset:2px;">
         ${open ? "할인 설정 닫기 ▲" : "할인 설정 ▾"}
       </button>
       <div style="margin-top:6px;font-size:12px;">${statusLine}</div>
@@ -1586,7 +1586,7 @@ function renderSalesStatus(sellerId) {
       </div>
       <div style="flex:1;min-width:120px;padding:14px;background:var(--bg);border-radius:10px;">
         <div style="font-size:12px;color:var(--muted);">지급 예정 적립금</div>
-        <div style="font-size:18px;font-weight:700;margin-top:4px;color:${canWithdraw ? "var(--primary)" : "var(--text)"};">
+        <div style="font-size:18px;font-weight:700;margin-top:4px;color:var(--text);">
           ${formatWon(sellerInfo.settleBalance)}
         </div>
       </div>
@@ -1629,7 +1629,7 @@ function renderSalesStatus(sellerId) {
       const score = STATE.scores[p.scoreId];
       const statusLabel = p.refunded
         ? `<span style="color:var(--danger);">환불됨</span>`
-        : `<span style="color:var(--primary);">정산 ${formatWon(p.sellerEarning)}</span>`;
+        : `<span style="color:var(--text);font-weight:600;">정산 ${formatWon(p.sellerEarning)}</span>`; // 2026-11-21: 주황 글씨가 잘 안 보여 진한 글씨로
       return `
         <div style="display:flex;justify-content:space-between;padding:8px 0;border-top:1px solid var(--border);font-size:13px;">
           <span>${formatDate(p.purchasedAt)} · ${esc(score ? score.title : p.scoreId)}</span>
@@ -1645,7 +1645,7 @@ function renderSalesStatus(sellerId) {
 
 const WITHDRAW_STATUS_COLOR = {
   "요청": "#8a6420",
-  "지급완료": "var(--primary-dark)"
+  "지급완료": "#1f7a45"
 };
 
 function renderWithdrawSection(sellerId) {
@@ -1733,7 +1733,7 @@ function renderPayoutStatus(seller) {
     text = `<b style="color:var(--danger);">정산 계좌를 등록해주세요.</b><br><span style="color:var(--muted);">계좌가 없으면 ${formatWon(min)}이 넘어도 지급 목록에서 빠져요.</span>`;
   } else if (total >= min) {
     tone = "#eef4f0";
-    text = `<b style="color:var(--primary);">${dateText} 지급 예정 · ${formatWon(total)}</b><br><span style="color:var(--muted);">${esc(info.bankName)} ${esc(info.bankAccount)} (${esc(info.accountHolder)})로 입금돼요.</span>`;
+    text = `<b style="color:var(--text);">${dateText} 지급 예정 · ${formatWon(total)}</b><br><span style="color:var(--muted);">${esc(info.bankName)} ${esc(info.bankAccount)} (${esc(info.accountHolder)})로 입금돼요.</span>`;
   } else {
     text = `<b>현재 적립금 ${formatWon(total)}</b><br><span style="color:var(--muted);">${formatWon(min - total)} 더 모이면 다음 ${POLICY.settlement.payoutDay}일에 자동으로 입금돼요.</span>`;
   }
@@ -1756,7 +1756,7 @@ function renderSellerInquiries(sellerId) {
     const open = SELLER_INQUIRY_OPEN === q.id;
     const buyer = STATE.users[q.buyerId];
     const score = q.scoreId && STATE.scores[q.scoreId];
-    const color = q.status === "답변완료" ? "var(--primary-dark)" : "#8a6420";
+    const color = q.status === "답변완료" ? "#1f7a45" : "#8a6420";
     return `
       <div style="padding:12px 0;border-top:1px solid var(--border);">
         <button type="button" data-inq-toggle="${q.id}" style="all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;width:100%;">
@@ -1773,7 +1773,7 @@ function renderSellerInquiries(sellerId) {
             <div style="white-space:pre-wrap;">${esc(q.content)}</div>
             ${q.answer ? `
               <div style="margin-top:10px;padding:10px;border-radius:8px;background:var(--bg);">
-                <b style="font-size:12px;color:var(--primary);">${q.answer.by === "seller" ? "내 답변" : "관리자 답변"} · ${formatDate(q.answer.answeredAt)}</b>
+                <b style="font-size:12px;color:var(--text);">${q.answer.by === "seller" ? "내 답변" : "관리자 답변"} · ${formatDate(q.answer.answeredAt)}</b>
                 <div style="margin-top:4px;white-space:pre-wrap;">${esc(q.answer.text)}</div>
               </div>` : `
               <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
