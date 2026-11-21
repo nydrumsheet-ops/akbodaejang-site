@@ -378,7 +378,7 @@ a{color:var(--link)}
 .asc-sub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .asc-seller{color:#756b61}
 .asc-cell{color:var(--ink-solid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.asc-st{display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600}
+.asc-st{display:inline-block;padding:3px 8px;border-radius:999px;font-size:12px;font-weight:600}
 .asc-st-on{background:#E8F5EC;color:#2f7d4f}
 .asc-st-off{background:#E6E6E6;color:#625950}
 .asc-st-old{background:#FFF1D6;color:#8a6420}
@@ -455,7 +455,7 @@ textarea.sm-in{resize:vertical}
 .notice-bar{background:#FFF4EE;border-bottom:1px solid #F6D9C6}
 .notice-bar[hidden]{display:none}
 .notice-row{display:flex;align-items:center;gap:10px;height:40px;font-size:13px;color:var(--ink-solid)}
-.notice-label{flex:0 0 auto;padding:2px 8px;border-radius:999px;background:#E87949;color:#ffffff;font-size:11px;font-weight:700}
+.notice-label{flex:0 0 auto;padding:2px 8px;border-radius:999px;background:#E87949;color:#ffffff;font-size:12px;font-weight:700}
 .notice-text{flex:1;min-width:0;border:0;background:none;padding:0;text-align:left;font-size:13px;color:var(--ink-solid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
 .notice-text:hover{text-decoration:underline;text-underline-offset:2px}
 .notice-more{flex:0 0 auto;border:0;background:none;padding:0;color:#756b61;font-size:12px;cursor:pointer}
@@ -469,8 +469,8 @@ textarea.sm-in{resize:vertical}
 .ntc-head:hover{background:#EFEFEF}
 .ntc-title{flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--ink-solid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .ntc-date{flex:0 0 auto;font-size:12px;color:#756b61}
-.ntc-pin,.ct-pin{flex:0 0 auto;display:inline-block;margin-right:6px;padding:2px 7px;border-radius:999px;background:#FFF4EE;color:#C2541F;font-size:11px;font-weight:700}
-.ntc-tag,.ct-tag{flex:0 0 auto;display:inline-block;margin-right:6px;padding:2px 7px;border-radius:999px;background:#E6E6E6;color:#625950;font-size:11px;font-weight:600}
+.ntc-pin,.ct-pin{flex:0 0 auto;display:inline-block;margin-right:6px;padding:2px 7px;border-radius:999px;background:#FFF4EE;color:#C2541F;font-size:12px;font-weight:700}
+.ntc-tag,.ct-tag{flex:0 0 auto;display:inline-block;margin-right:6px;padding:2px 7px;border-radius:999px;background:#E6E6E6;color:#625950;font-size:12px;font-weight:600}
 .ntc-item.open .ntc-head{background:#EFEFEF}
 .ntc-item.open .ntc-title{white-space:normal}
 .ntc-body{padding:4px 16px 18px;font-size:14px;line-height:1.7;color:#4a433d;background:#EFEFEF}
@@ -872,7 +872,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .cart-btn svg{display:block}
 .card-body{padding:0;display:flex;flex-direction:column;gap:4px;flex:1}
 .tags{display:flex;gap:4px;flex-wrap:wrap}
-.tag{font:500 11px/1 var(--font-text);height:20px;display:inline-flex;align-items:center;padding:0 8px;border-radius:var(--radius-pill);background:var(--surface-inset);color:var(--text)}
+.tag{font:500 12px/1 var(--font-text);height:22px;white-space:nowrap;display:inline-flex;align-items:center;padding:0 8px;border-radius:var(--radius-pill);background:var(--surface-inset);color:var(--text)}
 .tag-orig{background:var(--accent-soft);color:var(--accent-ink)}
 .tag-diff{background:transparent;box-shadow:inset 0 0 0 1px var(--border);color:var(--text-body)}
 .card-title{font:var(--type-title-sm);font-size:16px;margin:4px 0 0;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
@@ -934,7 +934,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .filter-line .chip-row{flex:1;min-width:0}
 .toggle-row{display:flex;flex-wrap:wrap;gap:8px;flex:1;min-width:0}
 .filter-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:none;padding:0;font:var(--type-label);font-weight:700;color:var(--text);cursor:pointer}
-.filter-toggle .ft-arrow{font-size:11px;color:var(--text-muted);transition:transform var(--dur-fast) var(--ease)}
+.filter-toggle .ft-arrow{display:inline-flex;font-size:12px;color:var(--text-muted);transition:transform var(--dur-fast) var(--ease)}
 .filter-toggle.is-open .ft-arrow{transform:rotate(180deg)}
 .filter-body{display:flex;flex-direction:column;gap:10px;margin-top:14px}
 .filter-body[hidden]{display:none}
@@ -992,7 +992,7 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .preview-nav-arrow:disabled{opacity:.35;cursor:default;background:#B9AFA4}
 .preview-nav-arrow[data-preview-nav="prev"]{left:10px}
 .preview-nav-arrow[data-preview-nav="next"]{right:10px}
-.preview-page-count{position:absolute;right:10px;bottom:10px;background:rgba(36,27,23,.55);color:#fff;font-size:11px;padding:3px 8px;border-radius:999px}
+.preview-page-count{position:absolute;right:10px;bottom:10px;background:rgba(36,27,23,.55);color:#fff;font-size:12px;padding:3px 8px;border-radius:999px}
 .ps-staff{height:46px;margin:16px 0;background:repeating-linear-gradient(to bottom,transparent 0,transparent 9px,var(--c-mute) 9px,var(--c-mute) 10px);position:relative}
 .ps-fade{height:120px;margin-top:-120px;position:relative;background:linear-gradient(to bottom,transparent 0%,#ffffff 85%)}
 .ps-lock{display:flex;align-items:center;justify-content:center;gap:6px;font:var(--type-label);font-size:13px;color:var(--text-body);margin-top:-18px;position:relative}
@@ -1061,7 +1061,7 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 #review-section .review:first-child{margin-top:0}
 .review-head{display:flex;gap:8px;align-items:center;font-size:13px;color:var(--muted);flex-wrap:wrap}
 #review-section{scroll-margin-top:136px}
-.h2-count{color:var(--accent);margin-left:6px;font-variant-numeric:tabular-nums}
+.h2-count{color:var(--muted);margin-left:6px;font-variant-numeric:tabular-nums}
 .stars{color:var(--star);letter-spacing:1px}
 .stars .star-empty{color:var(--c-mute)}
 .stars .star-half{background:linear-gradient(90deg,var(--star) 50%,var(--c-mute) 50%)}
@@ -1078,7 +1078,7 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .cart-layout>.panel:not(.cart-summary){background:#ffffff}
 .panel.faq-panel{background:#ffffff}
 .two-col.req-layout{grid-template-columns:320px minmax(0,1fr)}
-.req-layout .panel.req-form-panel{background:#EFEFEF}
+.req-layout .panel.req-form-panel{background:#ffffff;border:1px solid #E6E6E6} /* 2026-11-21: 회색 → 흰 카드 (관리자 신청곡 관리와 같게) */
 .req-form-panel .field:not(:focus){border-color:#E6E6E6}
 .req-form-panel #rq-submit.btn-primary{background:var(--ink-solid);border-color:var(--ink-solid);color:#ffffff}
 .req-form-panel #rq-submit.btn-primary:hover:not(:disabled){background:var(--ink-solid-hover);border-color:var(--ink-solid-hover)}
@@ -1095,7 +1095,7 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .tier-btn{padding:16px 10px;border:1px solid #e6e6e6;border-radius:var(--radius-control);background:#ffffff;cursor:pointer;font:700 15px/1.2 var(--font-text);color:var(--text);transition:background-color .18s var(--ease),border-color .18s var(--ease)}
 .tier-btn:hover{background:var(--hover-gray);border-color:var(--hover-gray-line)}
 .tier-btn:focus-visible{outline:2px solid #ff9855;outline-offset:2px}
-.tier-btn small{display:block;font:500 12px/1.2 var(--font-text);color:var(--accent-ink);margin-top:4px}
+.tier-btn small{display:block;font:600 12px/1.2 var(--font-text);color:#1f7a45;margin-top:4px}
 .row-item{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 0;border-top:1px solid var(--border)}
 .row-item:first-child{border-top:none}
 .row-main{min-width:0}
@@ -1117,9 +1117,9 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .req-count b{display:block;font:700 20px/1.1 var(--font-mono)}
 .req-count span{font-size:12px;color:var(--muted)}
 .status-pill{font:600 12px/1 var(--font-text);height:22px;display:inline-flex;align-items:center;padding:0 9px;border-radius:var(--radius-pill);white-space:nowrap}
-.st-접수{background:var(--ink-solid);color:#ffffff;border-radius:12px}
+.st-접수{background:#f0efed;color:#4a4540;border-radius:12px} /* 2026-11-21: 까만 칠 → 옅은 회색 (무거워 보이던 문제) */
 .st-채보중{background:#f6e7c4;color:#7a5410}
-.st-완료{background:var(--accent-soft);color:var(--accent-ink)}
+.st-완료{background:#e8f3ec;color:#1f7a45} /* 2026-11-21: 완료=초록 규칙 */
 .modal-overlay{display:none;position:fixed;inset:0;background:var(--scrim);z-index:80;align-items:center;justify-content:center;padding:16px}
 .modal-overlay.open{display:flex;animation:mds-fade var(--dur-base) var(--ease)}
 .modal-box{width:100%;max-width:400px;background:var(--surface-page);border-radius:var(--radius-lg);padding:32px 28px 28px;position:relative;box-shadow:var(--shadow-lg);animation:mds-rise var(--dur-base) var(--ease)}
@@ -1176,6 +1176,10 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .detail-page{padding:0}.detail-buy{position:static}.spec-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.spec-item{border-left:0;border-top:1px solid var(--dp-line);padding:16px}.spec-item:nth-child(-n+2){border-top:0}.spec-item:nth-child(even){border-left:1px solid var(--dp-line)}.detail-page .score-row{grid-auto-columns:46%}
 .detail-page .section{margin-top:28px}
 .list-table .hide-m{display:none}.list-table .show-m{display:inline}.page-title{font:var(--type-display-sm)}
+/* 2026-11-21: 모바일 최신 악보 표 — 가격이 "2,00/0P"로 끊기고 난이도 배지가 두 줄로 갈라지던 문제 */
+.list-table th,.list-table td{padding-left:8px;padding-right:8px}
+.list-table td:last-child,.list-table th:last-child{white-space:nowrap;text-align:right}
+.list-table td:first-child{padding-left:12px}
 .latest-section{padding:20px 16px}
 .rank-list-grid{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row}
 .rank-list-grid .rank-row:nth-child(5){border-bottom:1px solid #e6e6e6}
@@ -1237,7 +1241,7 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
   .aa-verify-btn{flex:1 0 100%;margin-top:6px}
 }
 /* 2026-11-21 광고 기반 (ads.js): 목록의 무료 신규 악보 칸 · 나중에 열릴 광고 칸 표시, 판매자 통계 카드, 관리자 광고 설정 */
-.slot-badge{display:inline-block;vertical-align:2px;margin-right:6px;padding:3px 7px;border-radius:6px;font:700 11px/1 var(--font-text);background:var(--accent-soft);color:var(--accent-ink)}
+.slot-badge{display:inline-block;vertical-align:2px;margin-right:6px;padding:3px 7px;border-radius:6px;font:700 12px/1 var(--font-text);background:var(--accent-soft);color:var(--accent-ink)}
 .slot-badge.ad{background:#EFEFEF;color:#555}
 .ads-dim{font-weight:400;color:#756b61;font-size:12px}
 .ads-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 8px}
@@ -1249,6 +1253,11 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 .ads-tip span{color:#756b61}
 .ads-switch{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-top:1px solid var(--border);cursor:pointer}
 .ads-switch input{margin-top:3px}
+/* 2026-11-21: 광고 설정의 기본 체크박스 → 공지·배너 탭과 같은 토글 스위치 모양 */
+.ads-switch input[type=checkbox],input[data-ads-inst]{-webkit-appearance:none;appearance:none;flex:none;width:34px;height:20px;margin:0;border-radius:999px;background:#E6E6E6 radial-gradient(circle at 10px 10px,#ffffff 7px,transparent 7.5px) no-repeat 0 0;cursor:pointer;transition:background-color .2s,background-position .2s;vertical-align:middle}
+.ads-switch input[type=checkbox]:checked,input[data-ads-inst]:checked{background-color:#E87949;background-position:14px 0}
+.ads-switch input[type=checkbox]:disabled,input[data-ads-inst]:disabled{opacity:.5;cursor:default}
+.ads-switch input[type=checkbox]:focus-visible,input[data-ads-inst]:focus-visible{outline:2px solid var(--ink-solid);outline-offset:2px}
 .ads-switch b{display:block;font-size:14px}
 .ads-switch small{display:block;font-size:12px;color:var(--muted);line-height:1.5}
 .ads-pill{display:inline-block;padding:3px 8px;border-radius:6px;font-size:12px;background:#EFEFEF;color:#666}
@@ -1304,6 +1313,17 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 .cs-wrap{display:inline-block}
 .cs-btn{height:38px;border-radius:10px}
 .cs-list{left:0;right:auto}
+/* 2026-11-21: 칸 너비를 꽉 채우는 입력칸용 흰 목록 (악보 등록 악기·난이도, 신청곡 악기) */
+.cs-wrap.cs-full{display:block;width:100%;margin-top:4px}
+.cs-full .cs-btn{width:100%;height:44px;justify-content:space-between;font-weight:400}
+.cs-full .cs-list{right:0;width:100%;max-height:280px;overflow:auto}
+.req-form-panel .cs-wrap.cs-full{margin-top:0}
+#mem-sort ~ .cs-btn{height:44px}
+.chev{vertical-align:-2px;transition:transform .18s var(--ease)}
+.chev.open{transform:rotate(180deg)}
+.aa-email-row .cs-wrap{flex:none}
+.cs-btn.cs-empty span{color:#9a948d}
+.aa-email-row .cs-btn{height:44px;width:130px;justify-content:space-between}
 /* 2026-11-21: 관리자 악보 관리 — 칸 이름을 눌러 정렬 */
 .asc-sort{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;white-space:nowrap}
 .asc-sort span{font-size:10px;opacity:.55}
