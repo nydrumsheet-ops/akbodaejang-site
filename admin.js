@@ -152,7 +152,7 @@ function renderAdmin() {
             ["2", "채보 진행", `신청 많은 순으로 위에 보여요.<br>신청곡을 눌러 열고 "채보중"을 누르세요.<br>구매자 신청곡 화면에도 상태가 바로 바뀌어 보여요.`],
             ["3", "작업 완료", `판매자가 그 곡을 등록하고 심사에서 승인되면,<br>신청곡을 열어 그 악보를 고르고 "작업 완료"를 누르세요.<br>구매자 신청곡 화면에 완료로 표시되고, 신청자도<br>다른 구매자와 동일하게 정가로 구매할 수 있어요.`]
           ].map(([n, t, d]) => `
-            <div style="padding:14px;border-radius:12px;background:#f5f2ee;">
+            <div style="padding:14px;border-radius:12px;background:#efefef;">
               <div style="font-size:12px;font-weight:800;color:var(--primary);">STEP ${n}</div>
               <div style="font-weight:700;margin:4px 0;">${t}</div>
               <div style="font-size:12px;color:var(--muted);line-height:1.6;">${d}</div>
@@ -675,7 +675,7 @@ function renderAdminRequests() {
   listEl.innerHTML = `
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:8px;margin-bottom:12px;">
       ${[["접수", count("접수")], ["채보중", count("채보중")], ["완료", count("완료")], ["신청한 사람(누적)", `${people}명`]].map(([l, v]) => `
-        <div style="padding:12px;border-radius:12px;background:#f5f2ee;">
+        <div style="padding:12px;border-radius:12px;background:#efefef;">
           <div style="font-size:11px;color:var(--muted);">${l}</div>
           <div style="font-size:18px;font-weight:800;margin-top:2px;">${v}</div>
         </div>`).join("")}
@@ -690,7 +690,7 @@ function renderAdminRequests() {
       const open = ADMIN_REQ_OPEN === r.id;
       const linked = r.fulfilledScoreId && STATE.scores[r.fulfilledScoreId];
       return `
-        <div style="border:1px solid #D5D0CA;border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--card);">
+        <div style="border:1px solid #E6E6E6;border-radius:14px;margin-bottom:10px;overflow:hidden;background:var(--card);">
           <button data-req-open="${r.id}" style="all:unset;box-sizing:border-box;cursor:pointer;display:flex;align-items:center;gap:12px;width:100%;padding:14px;">
             <span style="width:44px;text-align:center;flex-shrink:0;">
               <b style="display:block;font-size:18px;">${r.buyerIds.length}</b>
@@ -756,8 +756,8 @@ function renderAdminRequests() {
 
 function requestDetailHTML(r) {
   const requesters = r.buyerIds.map(id => STATE.users[id]).filter(Boolean);
-  // 2026-10-29: 상세 상자 — 노란 배경 → 흰 배경 + 1px #D5D0CA 테두리
-  const box = "padding:14px;border-radius:12px;background:#ffffff;border:1px solid #D5D0CA;";
+  // 2026-10-29: 상세 상자 — 노란 배경 → 흰 배경 + 1px #E6E6E6 테두리
+  const box = "padding:14px;border-radius:12px;background:#ffffff;border:1px solid #E6E6E6;";
   const requesterList = `
     <div style="${box}">
       <div style="font-weight:700;font-size:13px;margin-bottom:8px;">신청한 사람 ${requesters.length}명</div>
@@ -990,7 +990,7 @@ function renderAdminArtistAppList() {
       <div style="padding:12px 0;border-top:1px solid var(--border);">
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="font-size:14px;font-weight:600;">${esc(a.artistName)}</div>
-          <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:#f5f2ee;color:${statusColor};">${esc(a.status)}</span>
+          <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:#efefef;color:${statusColor};">${esc(a.status)}</span>
         </div>
         <div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.7;">
           이름 ${esc(a.name)} · 휴대폰 ${esc(a.phone)} · 이메일 ${esc(a.email)}<br>
@@ -1103,11 +1103,11 @@ function renderAdminPayoutBatch() {
     wrap.innerHTML = `<p style="font-size:13px;color:var(--muted);margin:0 0 8px;">다음 지급일(${dateText})에 지급할 판매자가 아직 없어요.</p>`;
   } else {
     wrap.innerHTML = `
-      <div style="padding:12px;border-radius:10px;background:#f5f2ee;margin-bottom:10px;font-size:13px;">
+      <div style="padding:12px;border-radius:10px;background:#efefef;margin-bottom:10px;font-size:13px;">
         다음 지급일 <b>${dateText}</b> · 대상 <b>${batch.items.length}명</b> · 합계 <b>${formatWon(batch.total)}</b>
       </div>
       <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;">
-        <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:#f5f2ee;color:var(--muted);font-size:12px;font-weight:600;">
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:#efefef;color:var(--muted);font-size:12px;font-weight:600;">
           <span>판매자 · 은행계좌 · 예금주</span><span>금액</span>
         </div>
         ${batch.items.map(x => `
@@ -2004,7 +2004,7 @@ function renderAdminPdfUpload(body) {
         그 폴더를 통째로 고를 수 있고, 이름이 맞는 파일만 하나씩 업로드해서 악보에 연결합니다.<br>
         지금까지 연결됨: <b>${st.done} / ${st.total}</b>곡
       </p>
-      <div style="padding:12px;border-radius:10px;background:#f5f2ee;font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
+      <div style="padding:12px;border-radius:10px;background:#efefef;font-size:12px;color:var(--muted);margin-bottom:12px;line-height:1.6;">
         이름이 너무 달라 자동으로 맞추지 못한 악보, 또는 폴더 안에 파일 자체가 없는 악보는
         이 목록에 들어있지 않습니다 — 그런 악보는 아래 "추가 매칭"·"검토 필요" 섹션에서 처리합니다.
         이미 연결된 악보는 다시 눌러도 건너뛰니, 중간에 멈췄다가 같은 폴더로 다시 시작해도 안전합니다.
@@ -2597,7 +2597,7 @@ function showPdfPreviewModal(url, title) {
   overlay.innerHTML = `
     <div style="width:100%;max-width:900px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
       <div style="color:#fff;font-size:14px;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">${esc(title || "미리보기")}</div>
-      <button id="pdf-preview-close" aria-label="닫기" style="flex-shrink:0;margin-left:12px;width:36px;height:36px;padding:0;border-radius:50%;border:1px solid #d5d0ca;background:transparent;color:#d5d0ca;font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
+      <button id="pdf-preview-close" aria-label="닫기" style="flex-shrink:0;margin-left:12px;width:36px;height:36px;padding:0;border-radius:50%;border:1px solid #e6e6e6;background:transparent;color:#e6e6e6;font-size:18px;line-height:1;cursor:pointer;display:flex;align-items:center;justify-content:center;">✕</button>
     </div>
     <iframe src="${url}" style="width:100%;max-width:900px;flex:1;background:#fff;border:none;border-radius:8px;"></iframe>
   `;

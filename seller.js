@@ -64,9 +64,9 @@ function renderSeller() {
         <input type="text" id="sp-displayname" placeholder="예: 그루브랩" maxlength="30"
           style="flex:1;min-width:160px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
         <button id="sp-save"
-          style="padding:10px 16px;border:1px solid var(--border);border-radius:8px;background:#F5F2EE;font-size:13px;cursor:pointer;"
-          onmouseover="this.style.background='#F5F2EE';this.style.borderColor='#B9AFA4';this.style.color='var(--ink-solid)'"
-          onmouseout="this.style.background='#F5F2EE';this.style.borderColor='var(--border)';this.style.color=''">
+          style="padding:10px 16px;border:1px solid var(--border);border-radius:8px;background:#EFEFEF;font-size:13px;cursor:pointer;"
+          onmouseover="this.style.background='#EFEFEF';this.style.borderColor='#B9AFA4';this.style.color='var(--ink-solid)'"
+          onmouseout="this.style.background='#EFEFEF';this.style.borderColor='var(--border)';this.style.color=''">
           활동명 저장
         </button>
       </div>
@@ -559,7 +559,7 @@ let SB_RUN_DONE = 0;
 function renderBulkPanelHTML() {
   const n = SB_ROWS.length;
   const dis = SB_RUNNING ? "disabled" : "";
-  const field = `style="padding:8px 10px;border:1px solid #D5D0CA;border-radius:8px;font-size:13px;background:#ffffff;"`;
+  const field = `style="padding:8px 10px;border:1px solid #E6E6E6;border-radius:8px;font-size:13px;background:#ffffff;"`;
   const visible = bulkVisibleRows();
   return `
     <div id="sb-body">
@@ -579,13 +579,13 @@ function renderBulkPanelHTML() {
       </div>
       <div id="sb-msg" style="font-size:13px;margin-top:10px;color:${SB_MSG && SB_MSG.isError ? "#c0392b" : "var(--text)"};${SB_MSG ? "" : "display:none;"}">${SB_MSG ? esc(SB_MSG.text) : ""}</div>
       ${n ? `
-      <div style="margin-top:14px;padding:10px 12px;border:1px solid #D5D0CA;border-radius:10px;background:#F5F2EE;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
+      <div style="margin-top:14px;padding:10px 12px;border:1px solid #E6E6E6;border-radius:10px;background:#EFEFEF;display:flex;flex-wrap:wrap;gap:8px;align-items:center;">
         <span style="font-size:13px;font-weight:600;margin-right:4px;">모든 곡에 한 번에 적용</span>
         <select id="sb-def-inst" aria-label="악기 한 번에 적용" ${dis} ${field}>
           <option value="">악기 선택</option>
           ${INSTRUMENTS.map(x => `<option value="${esc(x)}" ${SB_DEFAULT_INST === x ? "selected" : ""}>${esc(x)}</option>`).join("")}
         </select>
-        <input type="number" id="sb-def-price" value="${esc(SB_DEFAULT_PRICE)}" min="0" step="100" placeholder="가격(포인트)" aria-label="가격 한 번에 적용" ${dis} style="width:130px;padding:8px 10px;border:1px solid #D5D0CA;border-radius:8px;font-size:13px;background:#ffffff;">
+        <input type="number" id="sb-def-price" value="${esc(SB_DEFAULT_PRICE)}" min="0" step="100" placeholder="가격(포인트)" aria-label="가격 한 번에 적용" ${dis} style="width:130px;padding:8px 10px;border:1px solid #E6E6E6;border-radius:8px;font-size:13px;background:#ffffff;">
         <button id="sb-apply-defaults" class="btn admin-stop-btn" style="border-radius:10px;background:#ffffff;" ${dis}>적용</button>
       </div>
       <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:14px;">
