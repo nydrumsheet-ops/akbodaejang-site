@@ -2745,8 +2745,8 @@ function renderHeaderAuth() {
       <button id="header-my-btn" class="icon-btn" aria-label="마이페이지">
         <span class="icon-btn-glyph"><i class="ico ico-user"></i></span><span class="icon-btn-label">${esc(user.name)}님 · ${formatPoint(user.points)}</span>
       </button>
-      <button id="logout-btn" class="auth-btn">로그아웃</button>
       ${user.isAdmin ? `<span class="adm-menu-wrap"><button id="header-admin-btn" class="auth-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="adm-menu">관리자<span class="adm-label-long"> 페이지</span><svg class="adm-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="adm-menu" id="adm-menu" role="menu" hidden></div></span>` : ""}
+      <button id="logout-btn" class="auth-btn">로그아웃</button> <!-- 2026-11-21: 로그아웃은 맨 끝으로 (관리자 메뉴 뒤) -->
     `;
     document.getElementById("header-my-btn")?.addEventListener("click", () => {
       if (typeof goBuyer === "function") goBuyer("mypage");
@@ -2798,7 +2798,8 @@ function toggleAdminMenu() {
   // 열 때마다 지금 보고 있는 화면 기준으로 다시 그린다(✓ 표시)
   menu.innerHTML = visibleViewsForCurrentUser().map(v =>
     `<button type="button" role="menuitem" data-adm-view="${v}" class="${v === CURRENT_VIEW ? "active" : ""}">${ADMIN_MENU_LABELS[v]}</button>`
-  ).join("");
+  ).join("") + `<button type="button" role="menuitem" class="adm-menu-logout" data-adm-logout>로그아웃</button>`; // 2026-11-21: 모바일에선 헤더의 로그아웃을 숨기고 여기로 (헤더가 두 줄로 밀리던 문제)
+  menu.querySelector("[data-adm-logout]")?.addEventListener("click", (e) => { e.stopPropagation(); closeAdminMenu(); logout(); });
   menu.querySelectorAll("[data-adm-view]").forEach(item => item.addEventListener("click", (e) => {
     e.stopPropagation();
     const view = item.dataset.admView;
@@ -3286,6 +3287,48 @@ function setActiveMenu(key) {
 /* 2026-11-21: 펼치기/접기 표시를 속이 찬 ▼▲ 대신 얇은 꺾쇠로 통일. open=true 면 위로 뒤집힌다 */
 function chevron(open) {
   return `<svg class="chev${open ? " open" : ""}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+}
+
+/* 2026-11-21: 기본 파일 칸("Choose File / No file chosen" 영어 표시)을 한글 [파일 선택] 버튼 + 끌어다 놓기 칸으로 바꾼다.
+   원래 input은 숨겨서 그대로 두므로(값·change 이벤트 그대로) 기존 코드는 손대지 않아도 된다. */
+function enhanceFile(input, opts) {
+  if (!input || input.dataset.enhanced) return;
+  input.dataset.enhanced = "1";
+  const wrap = document.createElement("div");
+  wrap.className = "fpick";
+  input.parentNode.insertBefore(wrap, input);
+  wrap.appendChild(input);
+  input.hidden = true;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "fpick-btn";
+  btn.textContent = (opts && opts.label) || "파일 선택";
+  const name = document.createElement("span");
+  name.className = "fpick-name";
+  const paint = () => {
+    const fs = input.files ? [...input.files] : [];
+    name.textContent = fs.length > 1 ? `${fs.length}개 파일 선택됨` : fs.length ? fs[0].name : ((opts && opts.empty) || "파일을 여기로 끌어다 놓거나 버튼을 눌러 고르세요");
+    wrap.classList.toggle("has-file", fs.length > 0);
+    btn.disabled = input.disabled;
+  };
+  btn.addEventListener("click", (e) => { e.preventDefault(); input.click(); });
+  input.addEventListener("change", paint);
+  // 코드에서 input.value = "" 로 비워도 표시가 따라오게
+  const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+  Object.defineProperty(input, "value", { configurable: true, get() { return d.get.call(this); }, set(v) { d.set.call(this, v); paint(); } });
+  wrap.addEventListener("dragover", (e) => { if (input.disabled) return; e.preventDefault(); wrap.classList.add("drag"); });
+  wrap.addEventListener("dragleave", () => wrap.classList.remove("drag"));
+  wrap.addEventListener("drop", (e) => {
+    wrap.classList.remove("drag");
+    if (input.disabled || !e.dataTransfer || !e.dataTransfer.files.length) return;
+    e.preventDefault();
+    const dt = new DataTransfer();
+    [...e.dataTransfer.files].slice(0, input.multiple ? 999 : 1).forEach(f => dt.items.add(f));
+    input.files = dt.files;
+    input.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  wrap.append(btn, name);
+  paint();
 }
 
 /* 화면 아래쪽에 잠깐 떴다 사라지는 안내 문구 */
