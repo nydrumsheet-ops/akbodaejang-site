@@ -61,17 +61,17 @@ const INSTRUMENT_ICON = {
 /* ---------- 일러스트 (직접 그린 SVG — 외부 이미지 없이 어디서든 보임) ---------- */
 
 const INST_THEME = {
-  "드럼": { tint: "#f4eee5", ink: "#ff9a5c", soft: "#fbcdb5" },
-  "기타": { tint: "#f4eee5", ink: "#c4860e", soft: "#efd9a6" },
-  "피아노": { tint: "#f4eee5", ink: "#3b302a", soft: "#d9cfc3" },
-  "베이스": { tint: "#f4eee5", ink: "#8a4b3c", soft: "#e6c8bf" },
-  "우쿨렐레": { tint: "#f4eee5", ink: "#6b7a2a", soft: "#d8dcb4" },
-  "칼림바": { tint: "#f4eee5", ink: "#2f736c", soft: "#bcd9d4" },
-  "리코더": { tint: "#f4eee5", ink: "#b14d66", soft: "#ecc4ce" }
+  "드럼": { tint: "#f2f2f2", ink: "#ff9a5c", soft: "#fbcdb5" },
+  "기타": { tint: "#f2f2f2", ink: "#c4860e", soft: "#efd9a6" },
+  "피아노": { tint: "#f2f2f2", ink: "#3b302a", soft: "#d9cfc3" },
+  "베이스": { tint: "#f2f2f2", ink: "#8a4b3c", soft: "#e6c8bf" },
+  "우쿨렐레": { tint: "#f2f2f2", ink: "#6b7a2a", soft: "#d8dcb4" },
+  "칼림바": { tint: "#f2f2f2", ink: "#2f736c", soft: "#bcd9d4" },
+  "리코더": { tint: "#f2f2f2", ink: "#b14d66", soft: "#ecc4ce" }
 };
 
 function themeOf(inst) {
-  return INST_THEME[inst] || { tint: "#f4eee5", ink: "#ff9a5c", soft: "#fbcdb5" };
+  return INST_THEME[inst] || { tint: "#f2f2f2", ink: "#ff9a5c", soft: "#fbcdb5" };
 }
 
 function hashStr(str) {
@@ -177,7 +177,7 @@ function heroArt(kind) {
   if (kind === 2) {
     return `<svg viewBox="0 0 320 220" aria-hidden="true" focusable="false">
       <rect x="70" y="30" width="150" height="180" rx="10" fill="#fff" stroke="#ffd9c7" stroke-width="3" transform="rotate(-6 145 120)"/>
-      <rect x="100" y="24" width="150" height="180" rx="10" fill="#fff" stroke="#e7e2dd" stroke-width="2"/>
+      <rect x="100" y="24" width="150" height="180" rx="10" fill="#fff" stroke="#e4e4e4" stroke-width="2"/>
       ${[0,1,2,3].map(r => [0,1,2,3,4].map(l => `<line x1="114" x2="236" y1="${60 + r * 34 + l * 4}" y2="${60 + r * 34 + l * 4}" stroke="#d9dedb" stroke-width="1"/>`).join("")).join("")}
       <rect x="130" y="38" width="90" height="6" rx="3" fill="#3b4240" opacity=".7"/>
       <circle cx="262" cy="70" r="32" fill="#ff6b3d"/><path d="M262 54 v32 M246 70 h32" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
@@ -251,9 +251,13 @@ function initialOf(name) {
   return esc(t.slice(0, 1));
 }
 
+/* 2026-11-21: 반올림 때문에 4.5점이 별 5개로 보이던 문제 수정 — 0.5 단위로 반 별을 그린다 */
 function starsText(avg) {
-  const full = Math.round(avg);
-  return Array.from({ length: 5 }, (_, i) => `<span class="ico ${i < full ? "ico-star-solid" : "ico-star"}"${i < full ? "" : ' style="color:var(--text-faint)"'}></span>`).join("");
+  const v = Math.round((Number(avg) || 0) * 2) / 2;
+  return Array.from({ length: 5 }, (_, i) => {
+    const cls = v >= i + 1 ? "" : v >= i + 0.5 ? " star-half" : " star-empty";
+    return `<span class="ico ico-star-solid${cls}"></span>`;
+  }).join("");
 }
 
 function approvedScores() {
@@ -1136,16 +1140,20 @@ function renderDetailPage(el, p) {
              </a>`) : ""}
       </div>
 
-      <div>
+      <div class="detail-buy">
         <div class="tags">
           <span class="tag">${esc(s.instrument)}</span>
           <span class="tag tag-diff" style="${diffTagStyle(s.difficulty)}">${esc(s.difficulty)}</span>
-          ${s.hasVideo ? `<span class="tag" style="background:var(--primary-soft);color:var(--hot);"><span class="ico ico-play-solid"></span> 연주영상</span>` : ""}
         </div>
-        <h1 class="detail-title" style="margin-top:8px;">${esc(s.title)}</h1>
+        <h1 class="detail-title">${esc(s.title)}</h1>
         <div class="detail-artist">${esc(s.artist)}</div>
-        <div class="rating" style="margin-top:6px;">
-          ${rating.count ? `<span class="stars">${starsText(rating.avg)}</span> ${rating.avg} · 리뷰 ${rating.count}개` : "아직 리뷰가 없어요"}
+        <div class="detail-meta">
+          ${rating.count
+            ? `<span class="stars" aria-label="평점 ${rating.avg}점">${starsText(rating.avg)}</span><span class="dm-avg">${rating.avg}</span><button type="button" class="dm-link" id="d-review-jump">리뷰 ${rating.count}개</button>`
+            : `<span>아직 리뷰가 없어요</span>`}
+          <span class="dm-sep" aria-hidden="true"></span>
+          <span class="dm-stat"><span class="ico ico-eye" aria-hidden="true"></span>조회 ${s.viewCount.toLocaleString("ko-KR")}</span>
+          <span class="dm-stat"><span class="ico ico-download" aria-hidden="true"></span>판매 ${s.salesCount.toLocaleString("ko-KR")}</span>
         </div>
 
         <div class="seller-box">
@@ -1172,9 +1180,9 @@ function renderDetailPage(el, p) {
           <div class="spec-item"><span class="ico ico-file-text spec-ico" aria-hidden="true"></span><span class="spec-k">파일</span><span class="spec-v">PDF</span></div>
           ${/* 2026-10-29: 페이지 행을 항상 표시(6칸이라 2열 표의 빈 칸도 사라짐). 페이지 수가 아직 저장되지 않은 기존 악보는 "-"로 표시하고,
                관리자 > 기존 악보 페이지 수 일괄 계산을 돌리면 숫자로 채워진다. */""}
-          <div class="spec-item${s.pageCount ? "" : " spec-meta"}"><span class="ico ico-layers spec-ico" aria-hidden="true"></span><span class="spec-k">전체 페이지</span><span class="spec-v">${s.pageCount ? `${s.pageCount}페이지` : "-"}</span></div>
-          <div class="spec-item spec-meta"><span class="ico ico-calendar spec-ico" aria-hidden="true"></span><span class="spec-k">등록일</span><span class="spec-v">${formatDate(s.approvedAt || s.createdAt)}</span></div>
-          <div class="spec-item spec-meta"><span class="ico ico-eye spec-ico" aria-hidden="true"></span><span class="spec-k">조회 · 판매</span><span class="spec-v">${s.viewCount.toLocaleString("ko-KR")}회 · ${s.salesCount}건</span></div>
+          ${/* 2026-11-21: 페이지 수가 없는 악보는 "-" 대신 칸을 숨김. 조회·판매는 제목 아래 별점 줄로 옮김 */""}
+          ${s.pageCount ? `<div class="spec-item"><span class="ico ico-layers spec-ico" aria-hidden="true"></span><span class="spec-k">전체 페이지</span><span class="spec-v">${s.pageCount}페이지</span></div>` : ""}
+          <div class="spec-item"><span class="ico ico-calendar spec-ico" aria-hidden="true"></span><span class="spec-k">등록일</span><span class="spec-v">${formatDate(s.approvedAt || s.createdAt)}</span></div>
         </div>
       </div>
     </div>
@@ -1185,7 +1193,7 @@ function renderDetailPage(el, p) {
     </div>
 
     <div class="section" id="review-section">
-      <div class="section-head"><h2>구매 후기 ${reviews.length ? `<span class="muted" style="font-size:14px;">${reviews.length}</span>` : ""}</h2></div>
+      <div class="section-head"><h2>구매 후기${reviews.length ? `<span class="h2-count">${reviews.length}</span>` : ""}</h2></div>
       <div class="panel">
         ${bought && !reviewed ? `
           <div style="padding-bottom:14px;margin-bottom:6px;border-bottom:1px solid var(--border);">
@@ -1232,6 +1240,9 @@ function renderDetailPage(el, p) {
   bindCards(el);
   bindScoreCarousels(el);
   bindPreviewCarousel(el, previewImgs);
+  document.getElementById("d-review-jump")?.addEventListener("click", () => {
+    document.getElementById("review-section")?.scrollIntoView({ behavior: "smooth", block: "start" });
+  });
 
   document.getElementById("d-buy")?.addEventListener("click", () => requireLogin(async () => {
     const u = getCurrentUser();
