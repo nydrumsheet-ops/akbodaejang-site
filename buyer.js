@@ -414,6 +414,7 @@ function bindScoreCarousels(el) {
 
 function scoreCard(s, opts) {
   const o = opts || {};
+  const slot = o.slot === "new" || o.slot === "ad" ? o.slot : ""; // 2026-11-21 광고 기반: 목록의 무료 신규 악보 칸("new") · 나중에 열릴 광고 칸("ad") 표시 (ads.js)
   const r = getScoreRating(s.id);
   // 2026-10-20 추가: 전용 썸네일(thumbnailUrl)이 없으면, 상세페이지 미리보기와 같은 소스(previewImages — 악보 첫 페이지)를 그대로 써서 목록에서도 실제 악보 첫 페이지가 보이게 한다. 둘 다 없으면 기존 가짜 오선지 그림(sheetArt)으로 대체.
   // 2026-10-21 변경: 판매자가 직접 올린 thumbnailUrl이 없으면, 첫 페이지를 "잘리지 않고 전체 다" 보여주는
@@ -425,7 +426,7 @@ function scoreCard(s, opts) {
   const cardPreviewSrc = s.thumbnailUrl || s.cardThumbUrl || (previewImages(s) ? previewImages(s)[0] : null);
   const cardPreviewFit = s.thumbnailUrl ? "cover" : "contain";
   return `
-    <div class="score-card" data-score-id="${s.id}">
+    <div class="score-card" data-score-id="${s.id}"${slot ? ` data-slot="${slot}"` : ""}>
       <div class="thumb" style="--tint:${themeOf(s.instrument).tint};--ink:${themeOf(s.instrument).ink};">
         ${o.rank ? `<span class="rank-num ${o.rank <= 3 ? "top" : ""}">${o.rank}</span>` : ""}
         <span class="diff-badge" style="${diffBadgeStyle(s.difficulty)}">${esc(s.difficulty)}</span>
@@ -437,7 +438,7 @@ function scoreCard(s, opts) {
       </div>
       <div class="card-body">
         <div class="card-seller"><span class="avatar" style="${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</div>
-        <div class="card-title">${esc(s.title)}</div>
+        <div class="card-title">${slot === "new" ? `<span class="slot-badge">신규</span>` : slot === "ad" ? `<span class="slot-badge ad">광고</span>` : ""}${esc(s.title)}</div>
         <div class="card-artist">${esc(s.artist)}</div>
         <div class="card-foot">
           <button type="button" class="cart-btn" data-cart="${s.id}" aria-label="장바구니 담기">${cartIcon()}</button>
@@ -518,6 +519,7 @@ function renderBuyer() {
   else if (page === "notices") renderNoticesPage(el, params);
   else renderHomePage(el);
 
+  if (typeof adsAfterBuyerRender === "function") adsAfterBuyerRender(el, BUYER_ROUTE); // 2026-11-21 광고 기반: 악보 카드 노출·클릭 기록 (ads.js)
   updateMenuHighlight();
   if (typeof updateAllScrollFades === "function") updateAllScrollFades();
 }
@@ -884,7 +886,9 @@ function renderListPage(el, p) {
   const pageNo = Math.max(1, Number(p.page) || 1);
   const pages = Math.max(1, Math.ceil(list.length / PAGE_SIZE));
   const current = Math.min(pageNo, pages);
-  const shown = list.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
+  // 2026-11-21 광고 기반: 인기순 목록에서 등록 2주 이내 악보 하나를 정해진 자리(검색 6번째·목록 11번째)로 옮긴다 (ads.js, 개수·페이지 수는 그대로)
+  const arranged = typeof adsArrangeList === "function" ? adsArrangeList(list, p) : { list, slots: new Map() };
+  const shown = arranged.list.slice((current - 1) * PAGE_SIZE, current * PAGE_SIZE);
 
   let title = "전체 악보";
   if (p.q) title = `"${esc(p.q)}" 검색 결과`;
@@ -961,7 +965,7 @@ function renderListPage(el, p) {
     </div>
 
     ${shown.length
-      ? `<div class="score-grid">${shown.map(s => scoreCard(s, { hideVideoBadge: true })).join("")}</div>`
+      ? `<div class="score-grid">${shown.map(s => scoreCard(s, { hideVideoBadge: true, slot: arranged.slots.get(s.id) || "" })).join("")}</div>`
       : `<div class="empty">
            <p style="margin:0 0 10px;">조건에 맞는 악보가 없어요.</p>
            <button class="btn btn-small" id="go-request">이 곡 신청하기</button>
