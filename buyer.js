@@ -712,7 +712,7 @@ function heroSlidesHTML() {
     if (b.btnTarget && b.btnTarget !== "none" && String(b.btnLabel || "").trim()) {
       const cls = theme === "t2" ? "btn btn-accent" : theme === "t3" ? "btn" : "btn btn-primary";
       const style = theme === "t2" ? "" : HERO_GRAD_BTN + (theme === "t3" ? "border-radius:16px;" : "");
-      btn = `<button class="${cls}" data-hero-act="${esc(b.btnTarget)}" data-hero-url="${esc(b.btnUrl || "")}" style="${style}">${esc(b.btnLabel)}</button>`;
+      btn = `<button class="${cls}" data-hero-act="${esc(b.btnTarget)}" data-hero-url="${esc(b.btnUrl || "")}" style="${style}" ontouchstart="">${esc(b.btnLabel)}</button>`; // ontouchstart: 아이폰에서도 누르는 순간(:active) 효과가 보이게 (2026-11-21)
     }
     return `
         <div class="hero-slide ${themeCls[theme]}">
