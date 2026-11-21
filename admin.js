@@ -50,6 +50,7 @@ function renderAdmin() {
     ["members", "회원관리", ""],
     ["scores", "악보 관리", ""],
     ["content", "공지·배너", ""],
+    ["ads", "광고 설정", ""], // 2026-11-21 광고 기반 (ads.js)
     ["tools", "도구", pendingReview]
   ];
 
@@ -126,6 +127,9 @@ function renderAdmin() {
     } else {
       renderAdminPdfUpload(toolBody);
     }
+  } else if (ADMIN_TAB === "ads") {
+    if (typeof renderAdminAds === "function") renderAdminAds(body);
+    else body.innerHTML = `<div style="${ADMIN_PANEL}">광고 설정 파일(ads.js)을 불러오지 못했어요.</div>`;
   } else if (ADMIN_TAB === "artistapps") {
     renderAdminArtistApps(body);
   } else if (ADMIN_TAB === "payout") {
