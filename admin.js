@@ -237,8 +237,8 @@ function adminSparkline(values, title) {
   return `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:28px;display:block;margin-top:8px;" role="img" aria-label="${esc(title)}">
     <title>${esc(title)}</title>
     <path d="${line} L${lx.toFixed(1)} ${H} L${pad} ${H} Z" fill="var(--primary-soft)" stroke="none"/>
-    <path d="${line}" fill="none" stroke="var(--primary-dark)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
-    <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="2.5" fill="var(--primary-dark)"/>
+    <path d="${line}" fill="none" stroke="var(--primary)" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"/>
+    <circle cx="${lx.toFixed(1)}" cy="${ly.toFixed(1)}" r="2.5" fill="var(--primary)"/>
   </svg>`;
 }
 
@@ -278,7 +278,7 @@ function renderAdminMetrics(body) {
     const label = `${x.start.getFullYear()}년 ${x.start.getMonth() + 1}월${i === monthly.length - 1 ? "(진행 중)" : ""} · ${formatPoint(x.total)} · ${x.count}건`;
     return `<g class="adm-pt">
       <rect x="${(cx - lStep / 2).toFixed(1)}" y="0" width="${lStep.toFixed(1)}" height="${LH}" fill="transparent"><title>${label}</title></rect>
-      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="var(--card)" stroke="var(--primary-dark)" stroke-width="2"><title>${label}</title></circle>
+      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="4" fill="var(--card)" stroke="var(--primary)" stroke-width="2"><title>${label}</title></circle>
       <text x="${i === monthly.length - 1 ? LW : cx.toFixed(1)}" y="${LH + 15}" font-size="11" fill="var(--muted)" text-anchor="${i === monthly.length - 1 ? "end" : "middle"}">${i === monthly.length - 1 ? "이번 달" : `${x.start.getMonth() + 1}월`}</text>
     </g>`;
   }).join("");
@@ -362,7 +362,7 @@ function renderAdminMetrics(body) {
           <text x="0" y="${LTOP - 5}" font-size="11" fill="var(--muted)">${formatPoint(maxMonthly === 1 && !bestMonth.total ? 0 : maxMonthly)}</text>
           <line x1="0" x2="${LW}" y1="${LH}" y2="${LH}" stroke="var(--border)" stroke-width="1"/>
           <path d="${lArea}" fill="var(--primary-soft)" stroke="none"/>
-          <path d="${lLine}" fill="none" stroke="var(--primary-dark)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
+          <path d="${lLine}" fill="none" stroke="var(--primary)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>
           ${lDots}
         </svg>
         <div style="font-size:12px;color:var(--muted);margin-top:4px;">가장 많이 판 달: ${bestMonth.total ? `${bestMonth.start.getFullYear()}년 ${bestMonth.start.getMonth() + 1}월 · ${formatPoint(bestMonth.total)}` : "아직 없음"}</div>
@@ -392,7 +392,7 @@ function renderAdminMetrics(body) {
         ${instRows.length ? instRows.map(([inst, total]) => `
           <div style="margin:8px 0;" title="${esc(inst)} ${formatPoint(total)}">
             <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;"><span>${esc(inst)}</span><span style="color:var(--muted);">${formatPoint(total)} · ${Math.round(total / Math.max(1, m.revenue) * 100)}%</span></div>
-            <div style="height:8px;border-radius:4px;background:var(--primary-soft);"><div style="height:8px;border-radius:4px;background:var(--primary-dark);width:${(total / maxInst * 100).toFixed(1)}%;"></div></div>
+            <div style="height:8px;border-radius:4px;background:var(--primary-soft);"><div style="height:8px;border-radius:4px;background:var(--primary);width:${(total / maxInst * 100).toFixed(1)}%;"></div></div>
           </div>`).join("") : `<p style="margin:0;font-size:13px;color:var(--muted);">이 기간에 판매가 없어요.</p>`}
       </div>
     </div>
@@ -509,6 +509,7 @@ function renderAdminMembers(body) {
     showAdminMsg("admin-admins-msg", "관리자 권한을 해제했어요.", false);
   }));
   document.getElementById("mem-sort")?.addEventListener("change", (e) => { ADMIN_MEMBER_SORT = e.target.value; renderAdmin(); });
+  if (typeof enhanceSelect === "function") enhanceSelect(document.getElementById("mem-sort")); // 2026-11-21: 흰 목록
   body.querySelectorAll("[data-mem-role]").forEach(b => b.addEventListener("click", () => { ADMIN_MEMBER_ROLE = b.dataset.memRole; renderAdmin(); }));
   body.querySelectorAll("[data-mem-open]").forEach(b => b.addEventListener("click", () => {
     ADMIN_MEMBER_OPEN = ADMIN_MEMBER_OPEN === b.dataset.memOpen ? null : b.dataset.memOpen;
@@ -527,7 +528,7 @@ function renderAdminMembers(body) {
 
 function memberRowHTML(u, sum) {
   const open = ADMIN_MEMBER_OPEN === u.id;
-  const roleColor = u.sellerInfo ? "background:var(--band);color:var(--text);" : "background:var(--primary-soft);color:var(--primary);";
+  const roleColor = u.sellerInfo ? "background:#e8f3ec;color:#1f7a45;" : "background:#f2f2f2;color:var(--text);"; // 2026-11-21: 구매자 배지의 오렌지 글자 → 회색, 판매자는 초록
   let detail = "";
   if (open) {
     const history = [...u.pointHistory].reverse().slice(0, 8);
@@ -568,13 +569,13 @@ function memberRowHTML(u, sum) {
         <span style="flex:1;min-width:0;">
           <span style="display:flex;gap:6px;align-items:center;flex-wrap:wrap;">
             <b style="font-size:14px;">${esc(u.name)}</b>
-            <span style="font-size:10px;padding:2px 8px;border-radius:999px;font-weight:700;${roleColor}">${roleLabelOf(u.role)}</span>
+            <span style="font-size:12px;padding:2px 8px;border-radius:999px;font-weight:700;${roleColor}">${roleLabelOf(u.role)}</span>
           </span>
           <span style="display:block;font-size:12px;color:var(--muted);margin-top:2px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
             ${esc(u.email)} · 가입 ${formatDate(u.createdAt)} · 보유 ${formatPoint(u.points)} · 구매 ${sum.boughtCount}건${sum.st ? ` · 판매 ${sum.st.sales}건` : ""}
           </span>
         </span>
-        <span style="font-size:12px;color:var(--muted);">${open ? "접기 ▲" : "자세히 ▼"}</span>
+        <span style="font-size:12px;color:var(--muted);">${open ? "접기" : "자세히"} ${chevron(open)}</span>
       </button>
       ${detail}
     </div>`;
@@ -621,7 +622,7 @@ function adminInquiryRowHTML(q) {
   const buyer = STATE.users[q.buyerId];
   const score = q.scoreId && STATE.scores[q.scoreId];
   const seller = q.sellerId && STATE.users[q.sellerId];
-  const color = q.status === "답변완료" ? "var(--primary-dark)" : "#8a6420";
+  const color = q.status === "답변완료" ? "#1f7a45" : "#8a6420";
   return `
     <div style="padding:12px 0;border-top:1px solid var(--border);">
       <button type="button" data-inq-toggle="${q.id}" style="all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:flex-start;gap:8px;width:100%;">
@@ -638,7 +639,7 @@ function adminInquiryRowHTML(q) {
           <div style="white-space:pre-wrap;">${esc(q.content)}</div>
           ${q.answer ? `
             <div style="margin-top:10px;padding:10px;border-radius:8px;background:var(--bg);">
-              <b style="font-size:12px;color:var(--primary);">${q.answer.by === "seller" ? "판매자 답변" : "관리자 답변"} · ${formatDate(q.answer.answeredAt)}</b>
+              <b style="font-size:12px;color:#1f7a45;">${q.answer.by === "seller" ? "판매자 답변" : "관리자 답변"} · ${formatDate(q.answer.answeredAt)}</b>
               <div style="margin-top:4px;white-space:pre-wrap;">${esc(q.answer.text)}</div>
             </div>` : `
             <div style="margin-top:10px;display:flex;flex-direction:column;gap:6px;">
@@ -708,7 +709,7 @@ function renderAdminRequests() {
                 <span class="status-pill st-${esc(r.status)}">${esc(r.status)}</span>
               </span>
             </span>
-            <span style="font-size:12px;color:var(--muted);flex-shrink:0;">${open ? "접기 ▲" : "열기 ▼"}</span>
+            <span style="font-size:12px;color:var(--muted);flex-shrink:0;">${open ? "접기" : "열기"} ${chevron(open)}</span>
           </button>
           ${open ? requestDetailHTML(r) : ""}
         </div>`;
@@ -861,7 +862,7 @@ function renderAdminReviewList() {
   listEl.innerHTML = pending.map(s => {
     const seller = STATE.users[s.sellerId];
     const videoBadge = s.hasVideo
-      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:var(--primary-dark);font-size:11px;">${videoIconArt(12)} 영상</span>`
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:var(--primary-dark);font-size:12px;">${videoIconArt(12)} 영상</span>`
       : "";
     const isRejecting = ADMIN_REJECT_TARGET_ID === s.id;
 
@@ -994,7 +995,7 @@ function renderAdminArtistAppList() {
       <div style="padding:12px 0;border-top:1px solid var(--border);">
         <div style="display:flex;align-items:center;gap:8px;">
           <div style="font-size:14px;font-weight:600;">${esc(a.artistName)}</div>
-          <span style="font-size:11px;padding:2px 7px;border-radius:5px;background:#efefef;color:${statusColor};">${esc(a.status)}</span>
+          <span style="font-size:12px;padding:2px 7px;border-radius:5px;background:#efefef;color:${statusColor};">${esc(a.status)}</span>
         </div>
         <div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.7;">
           이름 ${esc(a.name)} · 휴대폰 ${esc(a.phone)} · 이메일 ${esc(a.email)}<br>
@@ -2523,7 +2524,7 @@ function reviewMappingStatus() {
 }
 
 function confRank(conf) {
-  if (conf >= 0.7) return { label: "비교적 확실", color: "var(--primary-dark)", bg: "var(--primary-soft)" };
+  if (conf >= 0.7) return { label: "비교적 확실", color: "#1f7a45", bg: "#e8f3ec" }; // 2026-11-21: 오렌지 → 초록 (확실=완료 계열)
   if (conf >= 0.5) return { label: "애매함", color: "#8a6420", bg: "#fff6df" };
   return { label: "확신도 낮음", color: "var(--danger)", bg: "#fdecec" };
 }
@@ -2536,7 +2537,7 @@ function renderAdminReviewHTML() {
   });
 
   const folderInfo = ADMIN_REVIEW_FOLDER
-    ? `<span style="color:var(--primary-dark);">✓ 폴더 선택됨 (${ADMIN_REVIEW_FOLDER.size}개 파일)</span>`
+    ? `<span style="color:#1f7a45;">✓ 폴더 선택됨 (${ADMIN_REVIEW_FOLDER.size}개 파일)</span>`
     : `<span style="color:var(--muted);">폴더를 먼저 선택해야 미리보기·업로드를 할 수 있어요</span>`;
 
   const rowsHTML = rows.map(m => {
@@ -2555,7 +2556,7 @@ function renderAdminReviewHTML() {
             <div style="font-size:12px;color:var(--muted);margin-top:2px;">${esc(m.artist)} · ${esc(m.diff)} (DB 기준)</div>
             <div style="margin-top:6px;font-size:12px;">
               후보 파일: ${noFile ? `<b style="color:var(--danger);">폴더에 해당 파일이 없음 — 반진영님이 직접 올려야 해요</b>` : `<b>${esc(m.file)}</b>`}
-              ${!noFile ? `<span style="margin-left:6px;padding:2px 8px;border-radius:999px;font-size:11px;font-weight:700;color:${rank.color};background:${rank.bg};">${rank.label} (${Math.round(m.conf * 100)}%)</span>` : ""}
+              ${!noFile ? `<span style="margin-left:6px;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;color:${rank.color};background:${rank.bg};">${rank.label} (${Math.round(m.conf * 100)}%)</span>` : ""}
             </div>
           </div>
           <button data-review-preview="${m.id}" class="btn btn-small" ${(noFile || !fileEntry) ? "disabled" : ""}>
