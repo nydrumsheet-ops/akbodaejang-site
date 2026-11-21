@@ -3283,14 +3283,19 @@ function setActiveMenu(key) {
   document.querySelectorAll("[data-menu]").forEach(b => b.classList.toggle("active", b.dataset.menu === key));
 }
 
+/* 2026-11-21: 펼치기/접기 표시를 속이 찬 ▼▲ 대신 얇은 꺾쇠로 통일. open=true 면 위로 뒤집힌다 */
+function chevron(open) {
+  return `<svg class="chev${open ? " open" : ""}" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>`;
+}
+
 /* 화면 아래쪽에 잠깐 떴다 사라지는 안내 문구 */
 /* 2026-11-21: 기본 <select>를 흰 목록으로 바꿔 보여준다. 기본 select의 펼친 목록은 운영체제가 그려서
    맥 다크 모드에서는 검게 나온다. 원래 select는 숨겨서 남겨두고(값·change 이벤트 그대로), 화면에는 버튼+목록을 보여준다. */
-function enhanceSelect(sel) {
+function enhanceSelect(sel, opts) {
   if (!sel || sel.dataset.enhanced) return;
   sel.dataset.enhanced = "1";
   const wrap = document.createElement("div");
-  wrap.className = "sort-menu cs-wrap";
+  wrap.className = "sort-menu cs-wrap" + (opts && opts.full ? " cs-full" : ""); // full: 칸 너비를 꽉 채우는 입력칸용
   sel.parentNode.insertBefore(wrap, sel);
   wrap.appendChild(sel);
   sel.hidden = true;
@@ -3308,6 +3313,7 @@ function enhanceSelect(sel) {
   const paint = () => {
     const o = sel.options[sel.selectedIndex];
     btn.innerHTML = `<span>${esc(o ? o.text : "")}</span>${caret}`;
+    btn.classList.toggle("cs-empty", !sel.value && sel.options.length > 1 && sel.selectedIndex === 0 && /선택/.test(o ? o.text : "")); // "선택하세요" 같은 빈 값은 흐리게
     list.innerHTML = [...sel.options].map((op, i) => `<li><button type="button" role="option" data-i="${i}" aria-selected="${i === sel.selectedIndex}" class="${i === sel.selectedIndex ? "on" : ""}">${esc(op.text)}</button></li>`).join("");
   };
   const onDoc = (e) => { if (!wrap.contains(e.target)) close(); };
@@ -3328,6 +3334,13 @@ function enhanceSelect(sel) {
     close();
     sel.dispatchEvent(new Event("change", { bubbles: true }));
   });
+  // 코드에서 sel.value / selectedIndex 를 바꿔도(예: 신청곡 트렌드 "이 곡으로 등록하기") 버튼 글자가 따라오게 한다
+  const proto = HTMLSelectElement.prototype;
+  ["value", "selectedIndex"].forEach(k => {
+    const d = Object.getOwnPropertyDescriptor(proto, k);
+    Object.defineProperty(sel, k, { configurable: true, get() { return d.get.call(this); }, set(v) { d.set.call(this, v); paint(); } });
+  });
+  sel.addEventListener("change", paint);
   paint();
   wrap.append(btn, list);
 }
