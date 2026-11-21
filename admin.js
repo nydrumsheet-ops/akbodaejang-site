@@ -862,7 +862,7 @@ function renderAdminReviewList() {
   listEl.innerHTML = pending.map(s => {
     const seller = STATE.users[s.sellerId];
     const videoBadge = s.hasVideo
-      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:var(--primary-dark);font-size:12px;">${videoIconArt(12)} 영상</span>`
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:#984F08;font-size:12px;">${videoIconArt(12)} 영상</span>`
       : "";
     const isRejecting = ADMIN_REJECT_TARGET_ID === s.id;
 
