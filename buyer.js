@@ -638,17 +638,17 @@ function renderHomePage(el) {
 
     <div class="section info-banners">
       <div class="info-banner ib-1" id="ib-guide">
-        <span class="ico ico-download info-banner-ico" aria-hidden="true"></span>
+        <span class="info-banner-badge" style="background:#fde3d4;"><span class="ico ico-wallet" aria-hidden="true" style="color:#b6610c;"></span></span>
         <h3>이용 방법</h3>
         <p>포인트 충전 → 악보 구매 → 내 악보함에서 다운로드.<br>1P는 1원이고 ${POLICY.point.expiryYears}년 동안 쓸 수 있어요.</p>
       </div>
       <div class="info-banner ib-2" data-go="mypage:tab:points">
-        <span class="ico ico-rotate-ccw info-banner-ico" aria-hidden="true"></span>
+        <span class="info-banner-badge" style="background:#dcefe2;"><span class="ico ico-receipt" aria-hidden="true" style="color:#2f7d4f;"></span></span>
         <h3>환불 안내</h3>
         <p>구매 후 ${POLICY.refund.windowDays}일 이내,<br>파일을 한 번도 열지 않았다면<br>포인트로 전액 환불돼요.</p>
       </div>
       <div class="info-banner ib-3" id="ib-artist">
-        <span class="ico ico-mic info-banner-ico" aria-hidden="true"></span>
+        <span class="info-banner-badge" style="background:#ecdce3;"><span class="ico ico-mic" aria-hidden="true" style="color:#9a4e6b;"></span></span>
         <h3>아티스트 가입</h3>
         <p>직접 채보·편곡한 악보를 판매하세요.</p>
       </div>
