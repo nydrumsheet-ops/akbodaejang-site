@@ -2703,7 +2703,7 @@ function bindScrollFade(el) {
 }
 
 function updateAllScrollFades() {
-  const rows = [document.getElementById("menu-row"), ...document.querySelectorAll(".chip-row")];
+  const rows = [document.getElementById("menu-row"), ...document.querySelectorAll(".chip-row"), ...document.querySelectorAll(".score-row")];
   rows.forEach(bindScrollFade);
 }
 

@@ -804,7 +804,8 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .mini-art{width:46px;height:46px;border-radius:var(--radius-card);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--surface-card)!important}
 .mini-art svg{width:32px;height:32px}
 .score-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:28px 20px}
-.score-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(180px,210px);gap:20px;overflow-x:auto;padding-bottom:8px;scrollbar-width:thin}
+.score-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(180px,210px);gap:20px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+.score-row::-webkit-scrollbar{display:none}
 .score-carousel{display:flex;align-items:center;gap:8px}
 .score-carousel .score-row{flex:1;min-width:0;grid-auto-columns:calc((100% - 80px)/5);scrollbar-width:none}
 .score-carousel .score-row::-webkit-scrollbar{display:none}
