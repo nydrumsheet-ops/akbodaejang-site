@@ -612,8 +612,15 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .section{margin-top:48px}
 .section-head{display:flex;align-items:baseline;justify-content:space-between;gap:12px;margin-bottom:16px;flex-wrap:wrap}
 .section-head h2{font:var(--type-display-sm);letter-spacing:var(--display-tracking);margin:0;text-wrap:balance;font-family:"Pretendard","Noto Sans KR",system-ui,sans-serif;font-weight:700}
-.more-link{border:none;background:none;color:var(--accent);font:var(--type-label);cursor:pointer;padding:6px 8px;border-radius:var(--radius-field)}
-.more-link:hover{color:var(--accent-fill-hover);background:var(--surface-inset)}
+/* 2026-11-21: 보조 링크(전체 보기·더 보기·신청하러 가기 등)는 주황 대신 진한 회색 → 마우스 올림 시 검정 + 밑줄 (주황은 선택·핵심 강조에만) */
+.more-link{border:none;background:none;color:var(--text-body);font:var(--type-label);cursor:pointer;padding:6px 8px;border-radius:var(--radius-field)}
+.more-link:hover{color:var(--text);text-decoration:underline;text-underline-offset:3px;text-decoration-thickness:1px}
+/* 2026-11-21: 아이콘 모서리 규칙 — 사람(프로필)은 완전한 원, 기능 아이콘(순위 배지·장바구니 칩·안내 아이콘)은 크기의 20% 이하로만 둥글게 */
+/* 2026-11-21: 최신 악보 표 — 곡 제목 아래 원곡 가수, 좁은 화면(아티스트 칸이 빠질 때)에는 판매자 닉네임도 함께 */
+.list-table .lt-title{display:block}
+.list-table .lt-sub{display:block;margin-top:2px;font-size:12px;color:var(--text-muted);line-height:1.4}
+.list-table .lt-sub:empty{display:none}
+.list-table .show-m{display:none}
 .btn{display:inline-flex;align-items:center;justify-content:center;gap:6px;min-height:48px;padding:0 20px;border-radius:var(--radius-control);border:1px solid var(--border-strong);background:transparent;color:var(--text);font:var(--type-button);cursor:pointer;transition:background-color var(--dur-fast) var(--ease),transform var(--dur-press) var(--ease)}
 [data-review-preview]{border-color:#e6e6e6}
 .file-input::file-selector-button,.file-input::-webkit-file-upload-button{padding:10px 18px;margin-right:12px;border:1px solid #d8d0c8;border-radius:999px;background:#ffffff;color:#2c2c2c;font-size:14px;font-weight:600;cursor:pointer;transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease)}
@@ -853,11 +860,11 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .thumb-icon{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:34px}
 .thumb-title{position:absolute;left:40px;right:40px;top:14px;font-size:10px;color:var(--text-muted);text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:600}
 .thumb-art{position:absolute;right:10px;bottom:10px;height:26px;min-width:26px;padding:0 10px;border-radius:var(--radius-pill);background:var(--c-canvas);box-shadow:var(--shadow-sm);display:flex;align-items:center;justify-content:center;z-index:1;border:1.75px solid #ececec;font:600 12px/1 var(--font-text);color:var(--text-primary);white-space:nowrap}
-.rank-num{position:absolute;top:10px;left:10px;z-index:2;width:30px;height:30px;border-radius:var(--radius-field);background:var(--c-canvas);font:700 14px/1 var(--font-mono);display:flex;align-items:center;justify-content:center;color:var(--text)}
+.rank-num{position:absolute;top:10px;left:10px;z-index:2;width:30px;height:30px;border-radius:6px;background:var(--c-canvas);font:700 14px/1 var(--font-mono);display:flex;align-items:center;justify-content:center;color:var(--text)}
 .rank-num.top{background:var(--accent);color:var(--text-inverse)}
 .video-flag{position:absolute;left:10px;top:10px;z-index:2;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:#ffffff;border:1px solid #efefef;border-radius:50%;color:#f07845;font-size:11px;box-shadow:var(--shadow-sm)}
 .diff-badge{position:absolute;top:8px;right:8px;z-index:2;font:700 12px/1 var(--font-text);padding:6px 10px;border-radius:var(--radius-pill);box-shadow:var(--shadow-sm)}
-.cart-btn{flex-shrink:0;width:34px;height:34px;border-radius:var(--radius-field);border:1px solid #E6E6E6;background:#ffffff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color 180ms ease,border-color 180ms ease}
+.cart-btn{flex-shrink:0;width:34px;height:34px;border-radius:6px;border:1px solid #E6E6E6;background:#ffffff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color 180ms ease,border-color 180ms ease}
 /* 2026-10-29: 악보 카드 장바구니 버튼 hover — B안: 거의 흰 배경 + 브랜드 주황 테두리·아이콘(난이도 배지와 형태로 구분) */
 .cart-btn:hover{background:var(--accent-tint);border-color:var(--accent)}
 .cart-btn:hover svg{stroke:var(--accent)}
@@ -910,7 +917,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .info-banner{border-radius:var(--radius-card);padding:24px;cursor:pointer;border:0;display:flex;flex-direction:column;gap:8px;transition:transform var(--dur-base) var(--ease)}
 .info-banner:hover{transform:translateY(-2px)}
 .info-banner h3{margin:0;font:var(--type-title)}
-.info-banner p{margin:0;font-size:14px;color:var(--text-body);line-height:1.55}.info-banner-ico{font-size:26px;color:var(--accent)}.info-banner-badge{width:46px;height:46px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}.info-banner-badge .ico{width:24px;height:24px;}
+.info-banner p{margin:0;font-size:14px;color:var(--text-body);line-height:1.55}.info-banner-ico{font-size:26px;color:var(--accent)}.info-banner-badge{width:46px;height:46px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}.info-banner-badge .ico{width:24px;height:24px;}
 .ib-1{background:transparent;box-shadow:inset 0 0 0 2px #fff8e1}.ib-1 p,.ib-2 p{font-weight:500}.ib-2{background:transparent;box-shadow:inset 0 0 0 2px #fff8e1}
 .ib-3{background:transparent;box-shadow:inset 0 0 0 2px #fff8e1;color:var(--text-primary)}.ib-3 p{color:var(--text-body)}
 .page-title{font:var(--type-display-md);letter-spacing:var(--display-tracking);margin:0 0 6px;font-family:"Pretendard","Noto Sans KR",system-ui,sans-serif;font-weight:700}
@@ -1168,7 +1175,7 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .detail-artist{font-size:16px}
 .detail-page{padding:0}.detail-buy{position:static}.spec-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.spec-item{border-left:0;border-top:1px solid var(--dp-line);padding:16px}.spec-item:nth-child(-n+2){border-top:0}.spec-item:nth-child(even){border-left:1px solid var(--dp-line)}.detail-page .score-row{grid-auto-columns:46%}
 .detail-page .section{margin-top:28px}
-.list-table .hide-m{display:none}.page-title{font:var(--type-display-sm)}
+.list-table .hide-m{display:none}.list-table .show-m{display:inline}.page-title{font:var(--type-display-sm)}
 .latest-section{padding:20px 16px}
 .rank-list-grid{grid-template-columns:1fr;grid-template-rows:none;grid-auto-flow:row}
 .rank-list-grid .rank-row:nth-child(5){border-bottom:1px solid #e6e6e6}
