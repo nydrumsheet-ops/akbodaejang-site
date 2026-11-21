@@ -3356,7 +3356,8 @@ function enhanceSelect(sel, opts) {
   const paint = () => {
     const o = sel.options[sel.selectedIndex];
     btn.innerHTML = `<span>${esc(o ? o.text : "")}</span>${caret}`;
-    btn.classList.toggle("cs-empty", !sel.value && sel.options.length > 1 && sel.selectedIndex === 0 && /선택/.test(o ? o.text : "")); // "선택하세요" 같은 빈 값은 흐리게
+    btn.disabled = sel.disabled;
+    btn.classList.toggle("cs-empty", !sel.value && sel.options.length > 1 && sel.selectedIndex === 0 && ((opts && opts.placeholder) || /선택/.test(o ? o.text : ""))); // "선택하세요" 같은 빈 값은 흐리게
     list.innerHTML = [...sel.options].map((op, i) => `<li><button type="button" role="option" data-i="${i}" aria-selected="${i === sel.selectedIndex}" class="${i === sel.selectedIndex ? "on" : ""}">${esc(op.text)}</button></li>`).join("");
   };
   const onDoc = (e) => { if (!wrap.contains(e.target)) close(); };
@@ -3386,6 +3387,24 @@ function enhanceSelect(sel, opts) {
   sel.addEventListener("change", paint);
   paint();
   wrap.append(btn, list);
+}
+
+/* 2026-11-21: 화면 어디에 새로 그려진 기본 <select>든 자동으로 흰 목록으로 바꾼다.
+   (화면마다 하나씩 enhanceSelect 를 붙이다 보니 빠진 곳이 생겨서 — 앞으로 새로 만드는 select 도 자동 적용)
+   그대로 두고 싶은 select 에는 data-native 를 붙이면 건너뛴다. */
+function autoEnhanceSelects(root) {
+  (root || document).querySelectorAll("select:not([data-enhanced]):not([data-native])").forEach(sel => {
+    const full = !sel.classList.contains("aa-email-select") && (
+      sel.classList.contains("sm-in") || sel.classList.contains("sb-in") || sel.style.width === "100%" ||
+      (sel.classList.contains("field") && sel.style.width !== "auto"));
+    enhanceSelect(sel, { full });
+  });
+}
+if (typeof MutationObserver === "function") {
+  let pending = false;
+  const run = () => { pending = false; try { autoEnhanceSelects(document); } catch (e) { console.warn("[common] select 자동 변환 실패", e); } };
+  new MutationObserver(() => { if (!pending) { pending = true; queueMicrotask(run); } })
+    .observe(document.documentElement, { childList: true, subtree: true });
 }
 
 function toast(message, isError) {
