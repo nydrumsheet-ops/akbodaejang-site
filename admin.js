@@ -2096,7 +2096,7 @@ function renderAdminPageCountHTML() {
       <input type="file" id="admin-pagecount-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button id="admin-pagecount-pick-btn" class="btn btn-primary admin-dark-btn" style="border-radius:12px;" ${ADMIN_PAGECOUNT_RUNNING ? "disabled" : ""}>
-          ${ADMIN_PAGECOUNT_RUNNING ? "계산 진행 중..." : `"판매용 악보" 폴더 선택해서 계산 시작`}
+          ${ADMIN_PAGECOUNT_RUNNING ? "계산 진행 중..." : "PDF 파일 일괄 업로드"}
         </button>
         ${ADMIN_PAGECOUNT_RUNNING ? `<button id="admin-pagecount-stop-btn" class="admin-stop-btn" style="padding:9px 14px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">중단</button>` : ""}
       </div>
@@ -2223,7 +2223,7 @@ function renderAdminCardThumbHTML() {
       <input type="file" id="admin-cardthumb-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button id="admin-cardthumb-pick-btn" class="btn btn-primary admin-dark-btn" style="border-radius:12px;" ${ADMIN_CARDTHUMB_RUNNING ? "disabled" : ""}>
-          ${ADMIN_CARDTHUMB_RUNNING ? "생성 진행 중..." : `"판매용 악보" 폴더 선택해서 생성 시작`}
+          ${ADMIN_CARDTHUMB_RUNNING ? "생성 진행 중..." : "PDF 파일 일괄 업로드"}
         </button>
         ${ADMIN_CARDTHUMB_RUNNING ? `<button id="admin-cardthumb-stop-btn" class="admin-stop-btn" style="padding:9px 14px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">중단</button>` : ""}
       </div>
@@ -2417,7 +2417,7 @@ function renderAdminPdfConfirmHTML() {
       <input type="file" id="admin-pdf2-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;">
         <button id="admin-pdf2-pick-btn" class="btn btn-primary admin-dark-btn" style="border-radius:12px;" ${ADMIN_PDF2_RUNNING ? "disabled" : ""}>
-          ${ADMIN_PDF2_RUNNING ? "업로드 진행 중..." : `"판매용 악보" 폴더 선택해서 업로드 시작`}
+          ${ADMIN_PDF2_RUNNING ? "업로드 진행 중..." : "PDF 파일 일괄 업로드"}
         </button>
         ${ADMIN_PDF2_RUNNING ? `<button id="admin-pdf2-stop-btn" class="admin-stop-btn" style="padding:9px 14px;font-size:13px;border-radius:8px;background:var(--card);cursor:pointer;">중단</button>` : ""}
       </div>
@@ -2578,7 +2578,7 @@ function renderAdminReviewHTML() {
       <input type="file" id="admin-review-folder-input" webkitdirectory directory multiple style="display:none;">
       <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;">
         <button id="admin-review-pick-btn" class="btn ${ADMIN_REVIEW_FOLDER ? "" : "btn-primary admin-dark-btn"}">
-          ${ADMIN_REVIEW_FOLDER ? "폴더 다시 선택" : `"판매용 악보" 폴더 선택`}
+          ${ADMIN_REVIEW_FOLDER ? "폴더 다시 선택" : "PDF 파일 일괄 업로드"}
         </button>
         ${folderInfo}
       </div>
