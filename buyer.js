@@ -876,7 +876,7 @@ function activeFilterChips(p) {
   if (p.instrument) out.push(["instrument", p.instrument]);
   selectedDifficulties(p).forEach(d => out.push([`diff:${d}`, d]));
   if (p.pages) { const r = LIST_PAGE_RANGES.find(x => x[0] === p.pages); if (r) out.push(["pages", r[1]]); }
-  if (p.video) out.push(["video", "연주영상 있음"]);
+  if (p.video) out.push(["video", "연주영상"]);
   if (p.sale) out.push(["sale", "할인 중"]);
   if (p.minPrice || p.maxPrice) out.push(["price", `${p.minPrice ? formatPoint(Number(p.minPrice)) : ""}~${p.maxPrice ? formatPoint(Number(p.maxPrice)) : ""}`]);
   return out;
@@ -936,7 +936,7 @@ function renderListPage(el, p) {
         <div class="filter-line" style="align-items:flex-start;">
           <span class="filter-label" style="padding-top:7px;">조건</span>
           <div class="toggle-row">
-            <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> 연주영상 있음</label>
+            <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> 연주영상</label>
             <label class="toggle"><input type="checkbox" id="f-sale" ${p.sale ? "checked" : ""}> 할인 중</label>
           </div>
         </div>
@@ -959,10 +959,18 @@ function renderListPage(el, p) {
 
     <div class="toolbar">
       <span class="muted">${list.length ? `${(current - 1) * PAGE_SIZE + 1}–${(current - 1) * PAGE_SIZE + shown.length} / ${list.length}` : ""}</span>
-      <select id="f-sort" aria-label="정렬">
-        ${[["popular", "인기순"], ["latest", "최신순"], ["priceLow", "낮은 가격순"], ["priceHigh", "높은 가격순"], ["views", "조회순"], ["rating", "별점순"]]
-          .map(([v, l]) => `<option value="${v}" ${(p.sort || "popular") === v ? "selected" : ""}>${l}</option>`).join("")}
-      </select>
+      ${(() => {
+        // 2026-11-21: 기본 <select>는 펼친 목록을 운영체제가 그려서(맥 다크 모드면 검은 배경) 사이트와 어울리지 않았다 → 직접 만든 흰 목록으로 교체
+        const opts = [["popular", "인기순"], ["latest", "최신순"], ["priceLow", "낮은 가격순"], ["priceHigh", "높은 가격순"], ["views", "조회순"], ["rating", "별점순"]];
+        const cur = p.sort || "popular";
+        const curLabel = (opts.find(o => o[0] === cur) || opts[0])[1];
+        return `<div class="sort-menu">
+          <button type="button" class="sort-btn" id="f-sort-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="정렬: ${curLabel}">${curLabel}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+          <ul class="sort-list" id="f-sort-list" role="listbox" aria-label="정렬" hidden>
+            ${opts.map(([v, l]) => `<li><button type="button" role="option" data-sort="${v}" aria-selected="${cur === v}" class="${cur === v ? "on" : ""}">${l}</button></li>`).join("")}
+          </ul>
+        </div>`;
+      })()}
     </div>
 
     ${shown.length
@@ -1009,7 +1017,22 @@ function renderListPage(el, p) {
     update(patch);
   }));
   document.getElementById("f-reset")?.addEventListener("click", () => update({ instrument: "", difficulties: [], difficulty: "", pages: "", video: false, sale: false, minPrice: "", maxPrice: "" }));
-  document.getElementById("f-sort")?.addEventListener("change", (e) => update({ sort: e.target.value }));
+  // 2026-11-21: 직접 만든 정렬 목록 — 누르면 열고, 고르면 적용, 바깥을 누르거나 Esc면 닫는다
+  (() => {
+    const btn = document.getElementById("f-sort-btn"), list = document.getElementById("f-sort-list");
+    if (!btn || !list) return;
+    const close = () => { list.hidden = true; btn.setAttribute("aria-expanded", "false"); document.removeEventListener("click", onDoc); document.removeEventListener("keydown", onKey); };
+    const onDoc = (e) => { if (!e.target.closest(".sort-menu")) close(); };
+    const onKey = (e) => { if (e.key === "Escape") { close(); btn.focus(); } };
+    btn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      if (!list.hidden) { close(); return; }
+      list.hidden = false; btn.setAttribute("aria-expanded", "true");
+      document.addEventListener("click", onDoc); document.addEventListener("keydown", onKey);
+      (list.querySelector("button.on") || list.querySelector("button"))?.focus();
+    });
+    list.querySelectorAll("[data-sort]").forEach(b => b.addEventListener("click", () => { close(); update({ sort: b.dataset.sort }); }));
+  })();
   // 2026-10-29: 가격 필터 사용성 개선 — 음수는 0으로, 최소가 최대보다 크면 자동으로 서로 바꾸고,
   // 입력칸에서 Enter 를 눌러도 "가격 적용"과 똑같이 적용된다.
   const applyPriceFilter = () => {
