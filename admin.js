@@ -1106,24 +1106,19 @@ function renderAdminPayoutBatch() {
       <div style="padding:12px;border-radius:10px;background:#f5f2ee;margin-bottom:10px;font-size:13px;">
         다음 지급일 <b>${dateText}</b> · 대상 <b>${batch.items.length}명</b> · 합계 <b>${formatWon(batch.total)}</b>
       </div>
-      <div style="overflow-x:auto;border:1px solid var(--border);border-radius:10px;">
-        <table style="width:100%;border-collapse:collapse;font-size:13px;">
-          <thead><tr style="background:#f5f2ee;color:var(--muted);text-align:left;">
-            <th style="padding:8px 10px;font-weight:600;">판매자</th>
-            <th style="padding:8px 10px;font-weight:600;">은행 · 계좌</th>
-            <th style="padding:8px 10px;font-weight:600;">예금주</th>
-            <th style="padding:8px 10px;font-weight:600;text-align:right;">금액</th>
-          </tr></thead>
-          <tbody>
-            ${batch.items.map(x => `
-              <tr style="border-top:1px solid var(--border);">
-                <td style="padding:9px 10px;">${esc(x.name)}</td>
-                <td style="padding:9px 10px;white-space:nowrap;">${esc(x.bankName)} ${esc(x.bankAccount)}</td>
-                <td style="padding:9px 10px;">${esc(x.accountHolder)}</td>
-                <td style="padding:9px 10px;text-align:right;font-weight:700;white-space:nowrap;">${formatWon(x.total)}</td>
-              </tr>`).join("")}
-          </tbody>
-        </table>
+      <div style="border:1px solid var(--border);border-radius:10px;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;gap:10px;padding:8px 10px;background:#f5f2ee;color:var(--muted);font-size:12px;font-weight:600;">
+          <span>판매자 · 은행계좌 · 예금주</span><span>금액</span>
+        </div>
+        ${batch.items.map(x => `
+          <div style="padding:10px;border-top:1px solid var(--border);display:flex;justify-content:space-between;gap:10px;align-items:flex-start;">
+            <div style="min-width:0;font-size:13px;">
+              <div style="font-weight:700;">${esc(x.name)}</div>
+              <div style="color:var(--muted);margin-top:3px;">${esc(x.bankName)} ${esc(x.bankAccount)}</div>
+              <div style="color:var(--muted);margin-top:1px;">예금주 ${esc(x.accountHolder)}</div>
+            </div>
+            <div style="font-weight:700;font-size:13px;white-space:nowrap;flex-shrink:0;">${formatWon(x.total)}</div>
+          </div>`).join("")}
       </div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px;">
         <button id="payout-csv" class="payout-btn"><i class="ico ico-download"></i> ① 엑셀 파일 받기</button>
