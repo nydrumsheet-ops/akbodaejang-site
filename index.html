@@ -385,7 +385,15 @@ a{color:var(--link)}
 .asc-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
 .asc-msg,.asc-edit{grid-column:1 / -1}
 .asc-row.open{background:#FBF9F6}
-@media (max-width:760px){.asc-head{display:none}.asc-row{grid-template-columns:minmax(0,1fr) auto;row-gap:4px}.asc-cell{grid-column:1}.asc-actions{grid-column:2;grid-row:1 / span 5;align-self:start;flex-direction:column;align-items:stretch}}
+/* 2026-11-21: 모바일 — 한 곡이 7줄로 늘어서던 것을 2줄로: [제목 · 버튼] / [악기·난이도 가격 판매 상태] */
+@media (max-width:760px){.asc-head{display:none}
+.asc-row{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
+.asc-row::after{content:"";order:1;flex-basis:100%;height:0}
+.asc-main{flex:1 1 0;min-width:0}
+.asc-actions{order:1;flex:none;flex-direction:row;align-items:center}
+.asc-cell{order:2;flex:none;font-size:13px;color:var(--muted)}
+.asc-meta br{display:none}.asc-meta .asc-sub{display:inline;font-size:13px}.asc-meta .asc-sub::before{content:" · "}
+.asc-msg,.asc-edit{order:3;flex-basis:100%}}
 /* 2026-10-30: 관리자 "도구" 탭 — 끝난 작업용 기능 모음 */
 .adm-tools-head{margin-bottom:12px}
 .adm-tools-head p{margin:0 0 10px;font-size:13px;color:var(--muted)}
@@ -564,6 +572,8 @@ textarea.sm-in{resize:vertical}
 .st-tbl td{padding:9px 6px;border-bottom:1px solid #EEEEEE;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-solid);white-space:nowrap}
 .st-tbl td:first-child{text-align:left;white-space:normal;min-width:140px}
 .st-tbl td small{display:block;font-size:12px;color:#756b61}
+/* 2026-11-21: 좁은 화면에서 표 오른쪽(별점)이 잘리던 문제 — 칸 여백을 줄이고 찜 칸은 숨김(위 숫자 카드에 있음) */
+@media (max-width:480px){.st-tbl td{padding-left:4px;padding-right:4px}.st-tbl th .st-sort{padding-left:4px;padding-right:4px}.st-tbl td:first-child{min-width:100px}.st-tbl th:nth-child(5),.st-tbl td:nth-child(5){display:none}}
 .st-title{border:0;background:none;padding:0;font:inherit;font-weight:700;color:var(--ink-solid);text-align:left;cursor:pointer}
 .st-title:hover{color:var(--accent);text-decoration:underline}
 .st-dim{color:#756b61}
@@ -606,7 +616,7 @@ textarea.sm-in{resize:vertical}
 .nav-bar nav button:hover,.nav-bar nav button.active{background:#ffffff;color:#000000}
 main.container{padding-block:32px 64px}
 main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
-#view-seller,#view-admin{max-width:760px;margin:0 auto}
+#view-seller,#view-admin{max-width:1000px;margin:0 auto} /* 2026-11-21: 760 → 1000px (PC에서 양옆이 비고 관리자 탭이 넘치던 문제, 구매자 화면 폭과 맞춤) */
 .panel{background:var(--surface-card);border:var(--card-border);border-radius:var(--radius-card);padding:24px}
 .detail-page .section .panel{background:#ffffff;border:1px solid var(--dp-line,#e8e8e8);border-radius:var(--dp-radius,16px)}
 .section{margin-top:48px}
@@ -1086,8 +1096,8 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .req-list-panel .btn[data-rq-like]:not(:hover),.req-list-panel .btn[data-join]:not(:hover){border-color:#E6E6E6}
 .side-menu{display:flex;flex-direction:column;gap:2px}
 .side-menu button{text-align:left;height:44px;padding:0 14px;border:none;background:none;border-radius:var(--radius-control);cursor:pointer;font:var(--type-label);font-size:15px;color:var(--text-body)}
-.side-menu button:hover{background:#ffffff;color:var(--ink-solid)}
-.side-menu button.active{background:#ffffff;color:var(--ink-solid)}
+.side-menu button:hover{background:#f7f7f7;color:var(--ink-solid)}
+.side-menu button.active{background:#f2f1ef;color:var(--ink-solid);font-weight:700;box-shadow:inset 3px 0 0 var(--ink-solid)} /* 2026-11-21: 흰 바탕 위 흰 배경이라 지금 위치가 안 보이던 문제 */
 .point-card{background:var(--ink-solid);color:#ffffff;border-radius:var(--radius-card);padding:22px}
 .point-card .pc-label{font:var(--type-eyebrow);letter-spacing:.08em;color:#e8e4de}
 .point-card .pc-value{font:var(--type-display-md);letter-spacing:var(--display-tracking);color:#ffffff;margin-top:8px;font-variant-numeric:tabular-nums;font-family:"Pretendard","Noto Sans KR",system-ui,sans-serif;font-weight:700}
@@ -1167,6 +1177,7 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .hero-slide{min-height:0;padding-block:24px 44px}
 .hero-inner{padding-inline:16px}
 .hero-slide h2{font:var(--type-display-md);line-height:calc(32px * 1.12 * var(--display-scale) + 1px)}.hero-dots{left:16px}
+.hero-arrow{display:none} /* 2026-11-21: 모바일에선 화살표가 설명 글자를 가려서 숨김 — 손가락으로 밀기 + 아래 점으로 넘김 */
 .score-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:20px 12px}.score-row{grid-auto-columns:46%}
 .score-carousel .score-row{grid-auto-columns:46%}
 .score-carousel .carousel-arrow{width:30px;height:30px}
@@ -1321,6 +1332,19 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 #mem-sort ~ .cs-btn{height:44px}
 .chev{vertical-align:-2px;transition:transform .18s var(--ease)}
 .chev.open{transform:rotate(180deg)}
+/* 2026-11-21: 한글 파일 칸 (enhanceFile) */
+.fpick{display:flex;align-items:center;gap:12px;margin-top:4px;padding:12px 14px;border:1px dashed #d6d6d6;border-radius:10px;background:#ffffff;transition:border-color .15s,background .15s}
+.fpick.drag{border-color:var(--ink-solid);background:#f7f7f7}
+.fpick.has-file{border-style:solid}
+.fpick-btn{flex:none;height:36px;padding:0 14px;border:1px solid #d6d6d6;border-radius:8px;background:#ffffff;color:var(--ink-solid);font:600 13px/1 var(--font-text);cursor:pointer}
+.fpick-btn:hover:not(:disabled){border-color:var(--ink-solid)}
+.fpick-btn:disabled{opacity:.45;cursor:default}
+.fpick-name{min-width:0;font-size:13px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fpick.has-file .fpick-name{color:var(--ink-solid);font-weight:600}
+.sm-btn.on{border-color:var(--ink-solid);font-weight:600}
+.adm-menu-logout{display:none !important}
+@media (max-width:760px){#header-auth .adm-menu-wrap ~ #logout-btn{display:none}.adm-menu-logout{display:flex !important;border-top:1px solid #EEEEEE !important}}
+@media (max-width:480px){.st-tbl td:first-child{min-width:0}.st-tbl td:first-child small{display:none}.st-tbl{font-size:12px}}
 .aa-email-row .cs-wrap{flex:none}
 .cs-btn.cs-empty span{color:#9a948d}
 .aa-email-row .cs-btn{height:44px;width:130px;justify-content:space-between}
