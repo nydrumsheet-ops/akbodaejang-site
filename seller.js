@@ -97,6 +97,7 @@ function renderSeller() {
 
       <div style="display:flex;flex-direction:column;gap:12px;">
 
+        <div class="sf-grid2"><!-- 2026-11-21: 짧은 칸(제목·가수 / 악기·난이도 / 가격)은 2단, 좁은 화면은 1단 -->
         <label style="font-size:13px;">
           곡 제목
           <input type="text" id="sf-title" placeholder="예: 좋은 날"
@@ -132,6 +133,7 @@ function renderSeller() {
           <input type="number" id="sf-price" min="0" step="100" placeholder="예: 3000"
             style="width:100%;margin-top:4px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
         </label>
+        </div>
 
         <label style="font-size:13px;">
           악보 소개 <span style="color:var(--muted);">(선택 — 상세 페이지에 그대로 보여요)</span>
@@ -144,7 +146,7 @@ function renderSeller() {
           <div id="sf-tags-chips" style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px;"></div>
           <input type="text" id="sf-tag-input" placeholder="태그 입력 후 Enter (예: IU, 아이유, 좋은날)"
             style="width:100%;margin-top:6px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
-          <span id="sf-tag-hint" style="display:block;margin-top:4px;font-size:11px;color:var(--muted);"></span>
+          <span id="sf-tag-hint" style="display:block;margin-top:4px;font-size:12px;color:var(--muted);"></span>
         </label>
 
         <label style="font-size:13px;display:flex;align-items:center;gap:8px;">
@@ -164,7 +166,7 @@ function renderSeller() {
           악보 파일
           <input type="file" id="sf-file" class="file-input" accept="application/pdf,.pdf"
             style="width:100%;margin-top:4px;padding:8px 0;font-size:13px;">
-          <span style="display:block;margin-top:4px;font-size:11px;color:var(--muted);">
+          <span style="display:block;margin-top:4px;font-size:12px;color:var(--muted);">
             PDF 파일만 올릴 수 있어요 (최대 30MB).
           </span>
         </label>
@@ -1197,7 +1199,7 @@ const SCORE_STATUS_COLOR = {
   "심사중": "#8a6420",
   "승인": "#1f7a45", // 2026-11-21: "판매 중"이 탁한 주황갈색이라 잘 안 보인다는 의견 — 진행 중/완료 상태는 초록으로
   "반려": "var(--danger)",
-  "판매중지": "#8A847D"
+  "판매중지": "#756b61"
 };
 // 화면에 보이는 상태 이름 (2026-10-30: 심사가 없어져 "승인" 대신 "판매 중"으로 보여준다)
 const SCORE_STATUS_LABEL = { "승인": "판매 중", "판매중지": "판매 중지" };
@@ -1677,7 +1679,7 @@ function renderWithdrawSection(sellerId) {
       <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-top:1px solid var(--border);font-size:13px;">
         <div>
           <div>${formatWon(w.amount)}</div>
-          <div style="font-size:11px;color:var(--muted);margin-top:2px;">
+          <div style="font-size:12px;color:var(--muted);margin-top:2px;">
             ${w.paidAt ? `지급일 ${formatDate(w.paidAt)}` : "다음 지급일에 함께 입금 예정"}
           </div>
         </div>
