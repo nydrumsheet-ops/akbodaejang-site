@@ -368,7 +368,7 @@ a{color:var(--link)}
 .asc-toolbar{display:flex;gap:8px;flex-wrap:wrap}
 .asc-select{height:38px;padding:0 10px;border:1px solid #E6E6E6;border-radius:10px;background:#ffffff;font-size:14px;color:var(--text)}
 .asc-table{border:1px solid #E6E6E6;border-radius:10px;background:#ffffff;margin-top:6px}
-.asc-head,.asc-row{display:grid;grid-template-columns:minmax(0,1fr) 92px 76px 48px 84px auto;gap:12px;align-items:center;padding:10px 14px}
+.asc-head,.asc-row{display:grid;grid-template-columns:minmax(0,1fr) 92px 76px 48px 84px 150px;gap:12px;align-items:center;padding:10px 14px}
 .asc-head{font-size:12px;font-weight:600;color:var(--muted);background:#EFEFEF;border-bottom:1px solid #E6E6E6;border-radius:10px 10px 0 0}
 .asc-row{border-bottom:1px solid #E6E6E6;font-size:13px}
 .asc-row:last-child{border-bottom:none}
@@ -1300,6 +1300,18 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 .st-hi{color:#1f7a45;font-weight:700}
 /* 2026-11-21: 관리자 악보 관리 — 긴 제목이 줄을 밀어내지 않게 (버튼은 기본적으로 내용 폭 아래로 줄어들지 않아서 넘쳤음) */
 .asc-title{display:block;width:100%;max-width:100%;min-width:0}
+/* 2026-11-21: 흰 목록으로 바꾼 select(enhanceSelect) — 관리자 악보 관리 등 */
+.cs-wrap{display:inline-block}
+.cs-btn{height:38px;border-radius:10px}
+.cs-list{left:0;right:auto}
+/* 2026-11-21: 관리자 악보 관리 — 칸 이름을 눌러 정렬 */
+.asc-sort{display:inline-flex;align-items:center;gap:4px;border:0;background:none;padding:0;font:inherit;color:inherit;cursor:pointer;white-space:nowrap}
+.asc-sort span{font-size:10px;opacity:.55}
+.asc-sort:hover{color:var(--text)}
+.asc-sort.on{color:var(--text)}
+.asc-sort.on span{opacity:1}
+.asc-sort:focus-visible{outline:2px solid var(--ink-solid);outline-offset:2px;border-radius:4px}
+/* 2026-11-21: 머리줄과 각 줄의 칸이 어긋나던 문제 — 마지막(버튼) 칸 폭이 줄마다 달라서 생김 → 150px 고정 (위 grid-template-columns) */
 </style>
 </head>
 <body ontouchstart=""><!-- ontouchstart: 아이폰에서도 누르는 순간(:active) 효과가 보이게 (2026-11-21) -->
