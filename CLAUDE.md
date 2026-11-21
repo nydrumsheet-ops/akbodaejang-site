@@ -7,7 +7,8 @@
 
 - 사이트: https://akbodaejang-site.vercel.app (Vercel)
 - Vercel은 GitHub 저장소 `nydrumsheet-ops/akbodaejang-site`의 main 브랜치와 연결되어 있어, main에 커밋이 올라가면 자동으로 배포된다.
-- 배포 대상 파일: index.html, admin.js, buyer.js, seller.js, common.js (pdf-engine*.js, assets/ 등은 따로 바꾸지 않는 한 그대로 둔다)
+- 배포 대상 파일: index.html, admin.js, buyer.js, seller.js, common.js, ads.js (pdf-engine*.js, assets/ 등은 따로 바꾸지 않는 한 그대로 둔다)
+- ads.js(2026-11-21 추가, 광고 기반)는 index.html 에서 common.js 바로 다음에 불러온다. 광고기반_2026-11-21.sql 은 Supabase SQL Editor에서 실행하는 파일이라 배포와 무관하다(기록용으로 저장소에 둔다).
 - 문서: 이 CLAUDE.md(작업·배포 규칙)와 공통규칙.md(데이터 구조·POLICY)도 저장소 루트에 함께 둔다. 문서도 main에 올리면 재배포가 일어나므로 배포 명령 때 같이 올린다.
 
 # 팀 공동 작업 규칙 (여러 사람이 각자 아이디·PC로 같은 저장소를 쓸 때)
