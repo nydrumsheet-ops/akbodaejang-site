@@ -918,7 +918,7 @@ function renderListPage(el, p) {
     <div class="panel filter-panel">
       <button type="button" class="filter-toggle${filterOpen ? " is-open" : ""}" id="filter-toggle" aria-expanded="${filterOpen ? "true" : "false"}" aria-controls="filter-body">
         <span>상세 필터</span>
-        <span class="ft-arrow" aria-hidden="true">▾</span>
+        <span class="ft-arrow" aria-hidden="true">${chevron(false)}</span>
       </button>
       <div class="filter-body" id="filter-body" ${filterOpen ? "" : "hidden"}>
         <div class="filter-line">
@@ -1260,7 +1260,7 @@ function renderDetailPage(el, p) {
               <select class="field" id="rv-diff" style="width:auto;"><option value="">선택 안 함</option>${DIFF_ORDER_5.map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")}</select>
             </div>
             <textarea class="field" id="rv-text" placeholder="연주해보니 어땠는지 다른 분들께 알려주세요 (5글자 이상)"></textarea>
-            <div style="text-align:right;margin-top:8px;"><button class="btn btn-primary btn-small" id="rv-submit">후기 등록</button></div>
+            <div style="text-align:right;margin-top:8px;"><button class="btn btn-primary btn-small admin-dark-btn" id="rv-submit">후기 등록</button></div>
           </div>` : ""}
         ${reviews.length ? reviews.map(r => `
           <div class="review">
@@ -1638,6 +1638,7 @@ function renderMyPage(el, p) {
   document.getElementById("aa-email-domain-select")?.addEventListener("change", (e) => {
     if (e.target.value) document.getElementById("aa-email-domain").value = e.target.value;
   });
+  if (typeof enhanceSelect === "function") enhanceSelect(document.getElementById("aa-email-domain-select")); // 2026-11-21: 흰 목록
   document.getElementById("aa-cancel")?.addEventListener("click", () => {
     goBuyer("mypage", { tab: "library" });
   });
@@ -1744,7 +1745,7 @@ function myPointsHTML(user, p) {
       ${history.length ? history.map(h => `
         <div class="row-item">
           <div class="row-main"><div style="font-size:13px;">${esc(h.reason)}</div><div class="row-sub">${formatDate(h.at)}</div></div>
-          <b style="color:${h.amount >= 0 ? "var(--primary)" : "var(--text)"};white-space:nowrap;">${h.amount >= 0 ? "+" : ""}${formatPoint(h.amount)}</b>
+          <b style="color:${h.amount >= 0 ? "#1f7a45" : "var(--text)"};white-space:nowrap;">${h.amount >= 0 ? "+" : ""}${formatPoint(h.amount)}</b>
         </div>`).join("") : `<p class="muted" style="margin:0;">아직 내역이 없어요.</p>`}
     </div>
   `;
@@ -1949,6 +1950,7 @@ function renderRequestsPage(el) {
   bindCards(el);
   el.querySelectorAll("[data-rq-filter]").forEach(b => b.addEventListener("click", () => { REQ_FILTER = b.dataset.rqFilter; renderBuyer(); }));
   el.querySelectorAll("[data-rq-inst]").forEach(b => b.addEventListener("click", () => { REQ_INST_FILTER = b.dataset.rqInst; renderBuyer(); }));
+  if (typeof enhanceSelect === "function") enhanceSelect(document.getElementById("rq-inst"), { full: true }); // 2026-11-21: 흰 목록
   document.getElementById("rq-submit")?.addEventListener("click", () => {
     const data = {
       title: document.getElementById("rq-title").value,
@@ -2027,7 +2029,7 @@ function renderSupportFaq(body) {
           <div style="border-top:1px solid var(--border);">
             <button type="button" data-faq-toggle="${f.id}" style="all:unset;cursor:pointer;display:flex;justify-content:space-between;align-items:flex-start;gap:10px;width:100%;padding:14px 0;">
               <span style="font-weight:600;font-size:14px;">Q. ${esc(f.q)}</span>
-              <span class="muted" style="flex-shrink:0;">${open ? "▲" : "▼"}</span>
+              <span class="muted" style="flex-shrink:0;display:inline-flex;">${chevron(open)}</span>
             </button>
             ${open ? `<div class="muted" style="padding:0 0 14px;font-size:13px;line-height:1.6;">A. ${esc(f.a())}</div>` : ""}
           </div>`;
@@ -2070,7 +2072,7 @@ function renderSupportQna(body, user) {
 
   body.innerHTML = `
     <div class="panel" style="margin-bottom:12px;">
-      <button class="btn btn-primary" id="qna-new-btn">${SUPPORT_FORM_OPEN ? "접기" : "문의하기"}</button>
+      <button class="btn btn-primary admin-dark-btn" id="qna-new-btn">${SUPPORT_FORM_OPEN ? "접기" : "문의하기"}</button>
       ${SUPPORT_FORM_OPEN ? `
         <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px;">
           <select class="field" id="qna-category">${INQUIRY_CATEGORIES.map(c => `<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select>
@@ -2081,7 +2083,7 @@ function renderSupportQna(body, user) {
           <input class="field" id="qna-title" placeholder="제목">
           <textarea class="field" id="qna-content" rows="4" placeholder="문의 내용을 적어주세요" style="font-family:inherit;resize:vertical;"></textarea>
           <p class="muted" style="margin:0;font-size:12px;">이 문의는 본인과 관리자만 볼 수 있고, 악보를 골랐다면 그 악보의 판매자도 볼 수 있어요.</p>
-          <button class="btn btn-primary" id="qna-submit">보내기</button>
+          <button class="btn btn-primary admin-dark-btn" id="qna-submit">보내기</button>
         </div>` : ""}
     </div>
     <div class="panel">
@@ -2097,14 +2099,14 @@ function renderSupportQna(body, user) {
                 <b style="margin-left:6px;font-size:14px;">${esc(q.title)}</b>
                 <span class="muted" style="font-size:12px;display:block;margin-top:2px;">${esc(q.category)}${score ? ` · ${esc(score.title)}` : ""} · ${formatDate(q.createdAt)}</span>
               </span>
-              <span class="muted" style="flex-shrink:0;">${open ? "▲" : "▼"}</span>
+              <span class="muted" style="flex-shrink:0;display:inline-flex;">${chevron(open)}</span>
             </button>
             ${open ? `
               <div style="margin-top:10px;font-size:13px;line-height:1.6;">
                 <div style="white-space:pre-wrap;">${esc(q.content)}</div>
                 ${q.answer ? `
                   <div style="margin-top:10px;padding:10px;border-radius:8px;background:var(--bg);">
-                    <b style="font-size:12px;color:var(--primary);">${q.answer.by === "seller" ? "판매자 답변" : "관리자 답변"} · ${formatDate(q.answer.answeredAt)}</b>
+                    <b style="font-size:12px;color:#1f7a45;">${q.answer.by === "seller" ? "판매자 답변" : "관리자 답변"} · ${formatDate(q.answer.answeredAt)}</b>
                     <div style="margin-top:4px;white-space:pre-wrap;">${esc(q.answer.text)}</div>
                   </div>` : `<p class="muted" style="margin:10px 0 0;">아직 답변 대기 중이에요.</p>`}
               </div>` : ""}
