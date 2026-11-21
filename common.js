@@ -3284,6 +3284,54 @@ function setActiveMenu(key) {
 }
 
 /* 화면 아래쪽에 잠깐 떴다 사라지는 안내 문구 */
+/* 2026-11-21: 기본 <select>를 흰 목록으로 바꿔 보여준다. 기본 select의 펼친 목록은 운영체제가 그려서
+   맥 다크 모드에서는 검게 나온다. 원래 select는 숨겨서 남겨두고(값·change 이벤트 그대로), 화면에는 버튼+목록을 보여준다. */
+function enhanceSelect(sel) {
+  if (!sel || sel.dataset.enhanced) return;
+  sel.dataset.enhanced = "1";
+  const wrap = document.createElement("div");
+  wrap.className = "sort-menu cs-wrap";
+  sel.parentNode.insertBefore(wrap, sel);
+  wrap.appendChild(sel);
+  sel.hidden = true;
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "sort-btn cs-btn";
+  btn.setAttribute("aria-haspopup", "listbox");
+  btn.setAttribute("aria-expanded", "false");
+  if (sel.getAttribute("aria-label")) btn.setAttribute("aria-label", sel.getAttribute("aria-label"));
+  const list = document.createElement("ul");
+  list.className = "sort-list cs-list";
+  list.setAttribute("role", "listbox");
+  list.hidden = true;
+  const caret = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>';
+  const paint = () => {
+    const o = sel.options[sel.selectedIndex];
+    btn.innerHTML = `<span>${esc(o ? o.text : "")}</span>${caret}`;
+    list.innerHTML = [...sel.options].map((op, i) => `<li><button type="button" role="option" data-i="${i}" aria-selected="${i === sel.selectedIndex}" class="${i === sel.selectedIndex ? "on" : ""}">${esc(op.text)}</button></li>`).join("");
+  };
+  const onDoc = (e) => { if (!wrap.contains(e.target)) close(); };
+  const onKey = (e) => { if (e.key === "Escape") { close(); btn.focus(); } };
+  const close = () => { list.hidden = true; btn.setAttribute("aria-expanded", "false"); document.removeEventListener("click", onDoc); document.removeEventListener("keydown", onKey); };
+  btn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!list.hidden) { close(); return; }
+    list.hidden = false; btn.setAttribute("aria-expanded", "true");
+    document.addEventListener("click", onDoc); document.addEventListener("keydown", onKey);
+    (list.querySelector("button.on") || list.querySelector("button"))?.focus();
+  });
+  list.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-i]");
+    if (!b) return;
+    sel.selectedIndex = Number(b.dataset.i);
+    paint();
+    close();
+    sel.dispatchEvent(new Event("change", { bubbles: true }));
+  });
+  paint();
+  wrap.append(btn, list);
+}
+
 function toast(message, isError) {
   const el = document.getElementById("toast");
   if (!el) return;
