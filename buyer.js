@@ -436,7 +436,7 @@ function scoreCard(s, opts) {
         <span class="diff-badge" style="${diffBadgeStyle(s.difficulty)}">${esc(s.difficulty)}</span>
         ${cardPreviewSrc
           ? `<img src="${esc(cardPreviewSrc)}" alt="" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;" onerror="this.style.display='none';">
-             <img src="${esc(cardPreviewSrc)}" alt="" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;z-index:1;pointer-events:none;filter:blur(6px);-webkit-mask-image:linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,.6) 47%, #000 54%, #000 100%);mask-image:linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,.6) 47%, #000 54%, #000 100%);" onerror="this.style.display='none';">`
+             <img src="${esc(cardPreviewSrc)}" alt="" aria-hidden="true" style="position:absolute;inset:0;width:100%;height:100%;object-fit:${cardPreviewFit};background:#fff;z-index:1;pointer-events:none;filter:blur(4px);-webkit-mask-image:linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,.6) 47%, #000 54%, #000 100%);mask-image:linear-gradient(to bottom, transparent 0%, transparent 40%, rgba(0,0,0,.6) 47%, #000 54%, #000 100%);" onerror="this.style.display='none';">`
           : `<div class="paper">${sheetArt(s.title, themeOf(s.instrument).ink, 3)}</div><div class="thumb-art">${esc(s.instrument)}</div>`}
         ${s.hasVideo && !o.hideVideoBadge ? `<span class="video-flag"><span class="ico ico-play-solid"></span></span>` : ""}
       </div>
