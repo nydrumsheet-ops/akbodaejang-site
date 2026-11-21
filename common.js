@@ -2668,6 +2668,43 @@ function renderAll() {
   if (CURRENT_VIEW === "seller" && typeof renderSeller === "function") renderSeller();
   if (CURRENT_VIEW === "admin" && typeof renderAdmin === "function") renderAdmin();
   renderHeaderAuth();
+  updateAllScrollFades();
+}
+
+/* 2026-11-21: 가로 스크롤 줄(카테고리 메뉴 #menu-row, 필터 칩 .chip-row)이
+   화면 끝에서 아무 표시 없이 뚝 잘려 보이던 문제 — 더 스크롤할 내용이 있는
+   쪽 가장자리를 옅게 페이드 처리해서 "더 있다"는 걸 보여준다.
+   양쪽 다 스크롤할 수 있으면 양쪽 다, 끝까지 스크롤하면 그쪽 페이드는 사라진다. */
+function updateScrollFade(el) {
+  if (!el) return;
+  const max = el.scrollWidth - el.clientWidth;
+  const canLeft = el.scrollLeft > 2;
+  const canRight = el.scrollLeft < max - 2;
+  const FADE = "28px";
+  let mask = "none";
+  if (canLeft && canRight) {
+    mask = `linear-gradient(to right, transparent 0, #000 ${FADE}, #000 calc(100% - ${FADE}), transparent 100%)`;
+  } else if (canRight) {
+    mask = `linear-gradient(to right, #000 calc(100% - ${FADE}), transparent 100%)`;
+  } else if (canLeft) {
+    mask = `linear-gradient(to left, #000 calc(100% - ${FADE}), transparent 100%)`;
+  }
+  el.style.webkitMaskImage = mask;
+  el.style.maskImage = mask;
+}
+
+function bindScrollFade(el) {
+  if (!el) return;
+  if (!el.dataset.sfBound) {
+    el.dataset.sfBound = "1";
+    el.addEventListener("scroll", () => updateScrollFade(el), { passive: true });
+  }
+  updateScrollFade(el);
+}
+
+function updateAllScrollFades() {
+  const rows = [document.getElementById("menu-row"), ...document.querySelectorAll(".chip-row")];
+  rows.forEach(bindScrollFade);
 }
 
 function renderHeaderAuth() {
@@ -3304,6 +3341,9 @@ async function initCommon() {
   // 그래야 처음 열자마자 뒤로가기를 눌러도 빈 화면으로 가지 않는다.
   showView("buyer", { fromHistory: true });
   try { history.replaceState(currentNavState(), ""); } catch (e) {}
+
+  bindScrollFade(document.getElementById("menu-row"));
+  window.addEventListener("resize", updateAllScrollFades);
 }
 
 document.addEventListener("DOMContentLoaded", () => { initCommon(); });
