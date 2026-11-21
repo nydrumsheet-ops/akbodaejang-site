@@ -600,8 +600,8 @@ function renderHomePage(el) {
                 <tr data-score-id="${s.id}">
                   <td>${esc(s.title)}</td>
                   <td class="hide-m"><span style="display:flex;align-items:center;gap:8px;"><span class="avatar" style="width:26px;height:26px;font-size:11px;flex-shrink:0;${avatarStyle(sellerName(s.sellerId))}">${initialOf(sellerName(s.sellerId))}</span>${esc(sellerName(s.sellerId))}</span></td>
-                  <td>${esc(s.instrument)}</td>
-                  <td>${esc(s.difficulty)}</td>
+                  <td><span class="ico ico-music" aria-hidden="true" style="color:#b9ac9b;margin-right:6px;vertical-align:-0.1em;"></span>${esc(s.instrument)}</td>
+                  <td><span class="tag tag-diff" style="${diffTagStyle(s.difficulty)}">${esc(s.difficulty)}</span></td>
                   <td class="hide-m">${s.viewCount.toLocaleString("ko-KR")}</td>
                   <td>${priceHtml(s)}</td>
                 </tr>`).join("")}
