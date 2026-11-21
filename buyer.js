@@ -909,9 +909,11 @@ function renderListPage(el, p) {
             ${["", ...INSTRUMENTS].map(i => `<button class="chip ${(p.instrument || "") === i ? "active" : ""}" data-f-inst="${esc(i)}">${i ? esc(i) : "전체"}</button>`).join("")}
           </div>
         </div>
-        <div class="filter-line" style="flex-wrap:wrap;">
-          <span class="filter-label">난이도</span>
-          ${DIFF_CHECK_ORDER.map(d => `<label class="toggle"><input type="checkbox" data-f-diff value="${esc(d)}" ${checkedDiffs.includes(d) ? "checked" : ""}> ${esc(d)}</label>`).join("")}
+        <div class="filter-line" style="align-items:flex-start;">
+          <span class="filter-label" style="padding-top:7px;">난이도</span>
+          <div class="toggle-row">
+            ${DIFF_CHECK_ORDER.map(d => `<label class="toggle"><input type="checkbox" data-f-diff value="${esc(d)}" ${checkedDiffs.includes(d) ? "checked" : ""}> ${esc(d)}</label>`).join("")}
+          </div>
         </div>
         <div class="filter-line">
           <span class="filter-label">분량</span>
@@ -919,15 +921,20 @@ function renderListPage(el, p) {
             ${[["", "전체"], ...LIST_PAGE_RANGES.map(r => [r[0], r[1]])].map(([v, l]) => `<button class="chip ${(p.pages || "") === v ? "active" : ""}" data-f-pages="${esc(v)}">${esc(l)}</button>`).join("")}
           </div>
         </div>
-        <div class="filter-line" style="flex-wrap:wrap;">
-          <span class="filter-label">조건</span>
-          <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> 연주영상 있음</label>
-          <label class="toggle"><input type="checkbox" id="f-sale" ${p.sale ? "checked" : ""}> 할인 중</label>
-          <span style="display:inline-flex;align-items:center;gap:6px;">
+        <div class="filter-line" style="align-items:flex-start;">
+          <span class="filter-label" style="padding-top:7px;">조건</span>
+          <div class="toggle-row">
+            <label class="toggle"><input type="checkbox" id="f-video" ${p.video ? "checked" : ""}> 연주영상 있음</label>
+            <label class="toggle"><input type="checkbox" id="f-sale" ${p.sale ? "checked" : ""}> 할인 중</label>
+          </div>
+        </div>
+        <div class="filter-line">
+          <span class="filter-label">가격</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;flex:1;min-width:0;">
             <input class="field price-field" type="number" inputmode="numeric" min="0" step="500" id="f-min" placeholder="최소P" aria-label="최소 가격(포인트)" value="${esc(p.minPrice || "")}">
             ~
             <input class="field price-field" type="number" inputmode="numeric" min="0" step="500" id="f-max" placeholder="최대P" aria-label="최대 가격(포인트)" value="${esc(p.maxPrice || "")}">
-            <button class="btn btn-small" id="f-price">가격 적용</button>
+            <button class="btn btn-small" id="f-price">적용</button>
           </span>
         </div>
       </div>
@@ -967,6 +974,9 @@ function renderListPage(el, p) {
     body.hidden = !willOpen;
     btn.classList.toggle("is-open", willOpen);
     btn.setAttribute("aria-expanded", String(willOpen));
+    // 패널이 접혀 있던 동안은 내부 chip-row의 가로 스크롤 폭을 잴 수 없어 페이드가 안 먹었다 —
+    // 펼쳐진 직후 다시 계산한다.
+    if (willOpen && typeof updateAllScrollFades === "function") updateAllScrollFades();
   });
   el.querySelectorAll("[data-f-inst]").forEach(b => b.addEventListener("click", () => update({ instrument: b.dataset.fInst })));
   el.querySelectorAll("[data-f-diff]").forEach(cb => cb.addEventListener("change", () => {

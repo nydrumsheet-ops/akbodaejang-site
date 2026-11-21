@@ -895,6 +895,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .filter-line{display:flex;align-items:center;gap:12px;min-width:0}
 .filter-label{font:var(--type-eyebrow);letter-spacing:.08em;color:var(--text-muted);width:48px;flex-shrink:0}
 .filter-line .chip-row{flex:1;min-width:0}
+.toggle-row{display:flex;flex-wrap:wrap;gap:8px;flex:1;min-width:0}
 .filter-toggle{display:flex;align-items:center;justify-content:space-between;width:100%;border:0;background:none;padding:0;font:var(--type-label);font-weight:700;color:var(--text);cursor:pointer}
 .filter-toggle .ft-arrow{font-size:11px;color:var(--text-muted);transition:transform var(--dur-fast) var(--ease)}
 .filter-toggle.is-open .ft-arrow{transform:rotate(180deg)}
@@ -917,12 +918,13 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .sort-dd-opt.active{font-weight:700;color:var(--accent-ink);background:var(--accent-soft)}
 .field{width:100%}
 textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-family:inherit;line-height:1.5}
-.toggle{display:inline-flex;align-items:center;gap:8px;font-size:14px;cursor:pointer}
-/* 2026-10-29: 목록 필터 가격 입력칸 — 옆 "가격 적용"(36px)과 높이를 맞춤 */
+/* 2026-11-21: 악기·분량 칩과 같은 알약 모양으로 통일 — 체크박스는 숨기고 선택 시 배경색만 바뀐다(칩과 동일한 방식) */
+.toggle{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 14px;border-radius:var(--radius-pill);border:1px solid #e0e3e9;background:#ffffff;font:500 13px/1 var(--font-text);color:#636873;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:background-color var(--dur-fast) var(--ease),border-color var(--dur-fast) var(--ease)}
+.toggle:hover{background:#f7f8fa;border-color:#c7ccd6}
+.toggle:has(input:checked){background:#f0eee9;color:var(--c-ink);border-color:#f0eee9}
+/* 2026-10-29: 목록 필터 가격 입력칸 — 옆 "적용" 버튼(36px)과 높이를 맞춤 */
 .field.price-field{width:96px;height:36px;padding:0 10px}
-.toggle input{appearance:none;-webkit-appearance:none;width:18px;height:18px;border:1.5px solid #e0e3e9;border-radius:4px;background:#fff;position:relative;cursor:pointer;flex-shrink:0;}
-.toggle input:checked{border-color:var(--accent);}
-.toggle input:checked::after{content:"✓";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12px;line-height:1;color:var(--accent);font-weight:700;}
+.toggle input{position:absolute;opacity:0;width:0;height:0;margin:0;pointer-events:none;}
 #f-min,#f-max{border:1px solid #e0e3e9}
 .pager{display:flex;justify-content:center;gap:6px;margin-top:28px;flex-wrap:wrap}
 .pager button{min-width:38px;height:38px;border-radius:var(--radius-field);border:0;background:transparent;cursor:pointer;color:var(--text);font:var(--type-mono)}
