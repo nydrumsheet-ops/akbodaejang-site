@@ -591,10 +591,12 @@ textarea.sm-in{resize:vertical}
 .menu-row{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
 .menu-row::-webkit-scrollbar{display:none}
 .menu-btn{flex-shrink:0;padding:10px 12px 13px;border:none;background:none;font:var(--type-label);font-size:15px;color:var(--muted);cursor:pointer;position:relative;white-space:nowrap;transition:color var(--dur-fast) var(--ease)}
-.menu-btn:hover{color:var(--accent)}
+.menu-btn:hover{color:var(--text)}
+/* 2026-11-21: 상단 카테고리 마우스 올림 — 주황 글자 대신 검정 글자 + 아래 경계에 얇은 검정 선(선택 표시와 같은 자리, 색·굵기로 구분). 마우스 기기에서만 */
+@media (hover:hover) and (pointer:fine){.menu-btn:not(.active):hover::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:1px;background:var(--text)}}
 .menu-btn.active{color:var(--text)}
 .menu-btn.active::after{content:"";position:absolute;left:12px;right:12px;bottom:0;height:2px;background:var(--accent);border-radius:2px}
-.menu-btn.active:hover{color:var(--accent)}
+.menu-btn.active:hover{color:var(--text)}
 .menu-sep{width:1px;background:var(--border);margin:10px 6px 13px;flex-shrink:0}
 .nav-bar{background:#ffffff;border-bottom:1px solid var(--border)}
 .nav-bar nav{display:flex;gap:4px;padding-block:8px}
