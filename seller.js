@@ -1205,7 +1205,7 @@ function showSellerMsg(el, text, isError) {
 const SCORE_STATUS_COLOR = {
   "등록": "#625950",
   "심사중": "#8a6420",
-  "승인": "#1f7a45", // 2026-11-21: "판매 중"이 탁한 주황갈색이라 잘 안 보인다는 의견 — 진행 중/완료 상태는 초록으로
+  "승인": "#17633a", // (2026-11-21 대비 보강: #1f7a45 → #17633a) 2026-11-21: "판매 중"이 탁한 주황갈색이라 잘 안 보인다는 의견 — 진행 중/완료 상태는 초록으로
   "반려": "var(--danger)",
   "판매중지": "#756b61"
 };
@@ -1252,7 +1252,7 @@ function renderMyScores(sellerId) {
   wrap.innerHTML = shown.map(s => {
     const color = SCORE_STATUS_COLOR[s.status] || "#625950";
     const videoBadge = s.hasVideo
-      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:var(--primary-dark);font-size:12px;">${videoIconArt(12)} 영상</span>`
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:#984F08;font-size:12px;">${videoIconArt(12)} 영상</span>`
       : "";
     const rejectBlock = s.status === "반려"
       ? `<div style="margin-top:8px;padding:10px;background:color-mix(in oklch,var(--danger) 10%,var(--card));border-radius:8px;font-size:12px;color:var(--danger);">
