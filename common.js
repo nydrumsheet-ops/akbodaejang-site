@@ -38,7 +38,7 @@ const PENDING_SIGNUP_KEY = "madi.pendingSignup.v1"; // 회원가입 중 입력�
 const SUPABASE_URL = "https://qvnprznzritqopwqmqlq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Gf-vX_Cm_8sFZ_oGep5Azg_DtU0_yFK";
 const SITE_URL = "https://akbodaejang-site.vercel.app"; // 로그인 이메일(인증·재설정)이 돌아올 주소
-const SUPPORT_PHONE = "010-4824-9729"; // 2026-11-21: 고객센터 연락처 (로그인 없이 연락할 창구 — 로그인 창·고객센터·FAQ·푸터에 표시)
+const SUPPORT_PHONE = "010-4824-9729"; // 2026-11-21: 고객센터 연락처 — 운영자 요청으로 화면에는 표시하지 않고 기록으로만 보관(필요할 때 여기서 꺼내 쓴다)
 
 /* 이 이메일로 가입(또는 이미 가입)하면 관리자 권한이 자동으로 붙는다. (2026-10-13 추가)
    관리자를 더 추가/제거하려면 이 배열만 고치면 된다 — 다른 코드는 손댈 필요 없음. */
