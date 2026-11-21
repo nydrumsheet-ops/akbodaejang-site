@@ -450,7 +450,7 @@ function bulkKind(r) {
 function bulkStatus(r) {
   const k = bulkKind(r);
   return ({
-    done: ["완료", "#2f7d4f"], running: ["등록 중…", "#9a3208"], fail: ["실패", "#c0392b"],
+    done: ["완료", "#2f7d4f"], running: ["등록 중…", "#b6610c"], fail: ["실패", "#c0392b"],
     excluded: ["제외", "#8A847D"], need: ["입력 필요", "#c45a1c"], ready: ["준비됨", "var(--ink-solid)"]
   })[k];
 }
