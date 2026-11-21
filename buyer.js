@@ -253,14 +253,15 @@ const DIFF_INTRO = {
 /* 2026-10-30: 난이도를 보여주거나 고르는 곳(홈·등록·후기)에서 쓰는 쉬운 순서 */
 const DIFF_ORDER_5 = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"];
 
+// 2026-11-21: 글자색을 한 단계 진하게 (옅은 바탕 위에서 글자가 흐리다는 의견 — 대비 4~5 → 5.4~7)
 const DIFF_BADGE_COLORS = {
-  "입문": { bg: "#D7F5DF", border: "#D7F5DF", fg: "#18743A" },
-  "매우 쉬움": { bg: "#D7F5DF", border: "#D7F5DF", fg: "#18743A" },
-  "쉬움": { bg: "#FFF1B8", border: "#FFF1B8", fg: "#8A6200" },
-  "보통": { bg: "#FFE0C2", border: "#FFE0C2", fg: "#B94F0A" },
-  "매우 어려움": { bg: "#FFDADA", border: "#FFDADA", fg: "#B92332" },
-  "상급": { bg: "#FFDADA", border: "#FFDADA", fg: "#B92332" },
-  "어려움": { bg: "#EAD9FF", border: "#EAD9FF", fg: "#7138B5" }
+  "입문": { bg: "#D7F5DF", border: "#D7F5DF", fg: "#145F30" },
+  "매우 쉬움": { bg: "#D7F5DF", border: "#D7F5DF", fg: "#145F30" },
+  "쉬움": { bg: "#FFF1B8", border: "#FFF1B8", fg: "#6B4C00" },
+  "보통": { bg: "#FFE0C2", border: "#FFE0C2", fg: "#9A3F06" },
+  "매우 어려움": { bg: "#FFDADA", border: "#FFDADA", fg: "#9B1C2A" },
+  "상급": { bg: "#FFDADA", border: "#FFDADA", fg: "#9B1C2A" },
+  "어려움": { bg: "#EAD9FF", border: "#EAD9FF", fg: "#5E2C9E" }
 };
 function diffBadgeStyle(difficulty) {
   const c = DIFF_BADGE_COLORS[difficulty] || DIFF_BADGE_COLORS["매우 쉬움"];
@@ -1499,7 +1500,7 @@ function renderMyPage(el, p) {
         <div class="point-card">
           <div class="pc-label">${esc(user.name)}님의 보유 포인트</div>
           <div class="pc-value">${formatPoint(user.points)}</div>
-          <button class="btn btn-small" style="margin-top:10px;background:var(--accent);border-color:var(--accent);color:var(--on-accent);" data-tab="points">충전하기</button>
+          <button class="btn btn-small" style="margin-top:10px;background:var(--accent-fill);border-color:var(--accent-fill);color:var(--on-accent);" data-tab="points">충전하기</button>
         </div>
         <div class="panel side-menu" style="padding:8px;">
           ${tabs.map(([k, l]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${l}</button>`).join("")}
