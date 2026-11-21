@@ -161,44 +161,6 @@ function sheetArt(seedText, ink, rows) {
     <rect x="45" y="10" width="30" height="2" rx="1" fill="#9aa39f"/>${body}</svg>`;
 }
 
-function heroArt(kind) {
-  const note = (x, y, c, s) => `<g transform="translate(${x} ${y}) scale(${s || 1})"><ellipse cx="0" cy="14" rx="6" ry="4.5" fill="${c}" transform="rotate(-20 0 14)"/><rect x="4.6" y="-8" width="2.4" height="22" fill="${c}"/><path d="M7 -8 q10 4 8 14 q-2-6-8-7z" fill="${c}"/></g>`;
-  if (kind === 1) {
-    return `<svg viewBox="0 0 320 220" aria-hidden="true" focusable="false">
-      <circle cx="250" cy="40" r="26" fill="#ffd34d" opacity=".9"/>
-      <ellipse cx="80" cy="70" rx="44" ry="7" fill="#ffc94d"/><rect x="78" y="70" width="4" height="70" fill="#b8924a"/>
-      <ellipse cx="250" cy="96" rx="40" ry="6" fill="#ffc94d"/><rect x="248" y="96" width="4" height="60" fill="#b8924a"/>
-      <circle cx="165" cy="150" r="58" fill="#ff6b3d"/><circle cx="165" cy="150" r="46" fill="#fff"/><circle cx="165" cy="150" r="46" fill="none" stroke="#ffd9c7" stroke-width="6"/>
-      <text x="165" y="158" text-anchor="middle" font-size="22" font-weight="800" fill="#ff6b3d" font-family="sans-serif">악보</text>
-      <rect x="92" y="104" width="44" height="26" rx="4" fill="#4f6bed"/><ellipse cx="114" cy="104" rx="22" ry="6" fill="#dfe5ff"/>
-      <rect x="196" y="104" width="44" height="26" rx="4" fill="#4f6bed"/><ellipse cx="218" cy="104" rx="22" ry="6" fill="#dfe5ff"/>
-      <path d="M40 40 L110 98" stroke="#8a5a3c" stroke-width="6" stroke-linecap="round"/>
-      <path d="M300 70 L232 100" stroke="#8a5a3c" stroke-width="6" stroke-linecap="round"/>
-      ${note(36, 120, "#14a35a", 1.1)}${note(282, 150, "#8b5cf6", .9)}${note(198, 22, "#ff6b3d", .8)}
-    </svg>`;
-  }
-  if (kind === 2) {
-    return `<svg viewBox="0 0 320 220" aria-hidden="true" focusable="false">
-      <rect x="70" y="30" width="150" height="180" rx="10" fill="#fff" stroke="#ffd9c7" stroke-width="3" transform="rotate(-6 145 120)"/>
-      <rect x="100" y="24" width="150" height="180" rx="10" fill="#fff" stroke="#e4e4e4" stroke-width="2"/>
-      ${[0,1,2,3].map(r => [0,1,2,3,4].map(l => `<line x1="114" x2="236" y1="${60 + r * 34 + l * 4}" y2="${60 + r * 34 + l * 4}" stroke="#d9dedb" stroke-width="1"/>`).join("")).join("")}
-      <rect x="130" y="38" width="90" height="6" rx="3" fill="#3b4240" opacity=".7"/>
-      <circle cx="262" cy="70" r="32" fill="#ff6b3d"/><path d="M262 54 v32 M246 70 h32" stroke="#fff" stroke-width="7" stroke-linecap="round"/>
-      <path d="M40 120 c-14-14 6-30 16-16 c10-14 30 2 16 16 l-16 16z" fill="#e0569a"/>
-      ${note(60, 40, "#4f6bed", 1)}${note(276, 140, "#14a35a", 1.1)}
-    </svg>`;
-  }
-  return `<svg viewBox="0 0 320 220" aria-hidden="true" focusable="false">
-    <rect x="40" y="150" width="240" height="8" rx="4" fill="#cfd8ff"/>
-    ${[[70, 60], [120, 90], [170, 120], [220, 150]].map(([x, h], i) => `<rect x="${x}" y="${150 - h}" width="34" height="${h}" rx="6" fill="${["#cfd8ff", "#a9b8ff", "#7d93f5", "#4f6bed"][i]}"/>`).join("")}
-    <path d="M70 100 L120 76 L170 60 L240 24" stroke="#ff6b3d" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    <path d="M226 18 L246 22 L238 40" stroke="#ff6b3d" stroke-width="5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    ${[0, 1, 2].map(i => `<ellipse cx="270" cy="${186 - i * 10}" rx="26" ry="8" fill="#ffc94d" stroke="#e0a91e" stroke-width="2"/>`).join("")}
-    <text x="270" y="170" text-anchor="middle" font-size="12" font-weight="800" fill="#a07510" font-family="sans-serif">₩</text>
-    <circle cx="44" cy="54" r="20" fill="#14a35a"/><path d="M36 54 l6 6 12-12" stroke="#fff" stroke-width="4" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
-    ${note(296, 70, "#8b5cf6", .9)}
-  </svg>`;
-}
 
 function avatarStyle(name) {
   const palette = [["#ffe1d4", "#e2552b"], ["#dfe5ff", "#3d56d6"], ["#e1f6ea", "#0f8a4a"], ["#f3e8ff", "#7a45e0"], ["#fff1c9", "#b27b00"], ["#dff5fb", "#0a89a6"], ["#fde3ef", "#c53d82"]];
