@@ -1874,6 +1874,8 @@ function renderSellerStats(userId) {
   });
   const totViews = rows.reduce((a, r) => a + r.views, 0), totSales = rows.reduce((a, r) => a + r.total, 0);
   const avgConv = totViews ? totSales / totViews : 0;
+  // 2026-11-21: 구매율이 눈에 띄게 높은 악보 강조 — 조회 20회 이상·판매 1건 이상이고, 내 평균 구매율의 1.5배 이상
+  const isHiConv = r => avgConv > 0 && r.views >= 20 && r.total >= 1 && r.conv >= avgConv * 1.5;
   const missed = rows.filter(r => r.s.status === "승인" && r.views >= 30 && r.conv < avgConv * 0.7).sort((a, b) => b.views - a.views).slice(0, 3);
   const sortKey = { views: r => r.views, sales: r => r.sales * 1e6 + r.total, conv: r => r.conv, wish: r => r.wish, rating: r => r.rating.avg };
   rows.sort((a, b) => sortKey[SELLER_ST_SORT](b) - sortKey[SELLER_ST_SORT](a) || b.views - a.views);
@@ -1909,13 +1911,13 @@ function renderSellerStats(userId) {
       ${missed.map(r => `<button type="button" class="st-miss" data-st-go="${esc(r.s.id)}"><span aria-hidden="true">👀</span><span><b>「${esc(r.s.title)}」</b> 조회 ${r.views.toLocaleString("ko-KR")}회에 판매 ${r.total}건 (구매율 ${stPct(r.conv)}) — 내 악보 평균 ${stPct(avgConv)}보다 낮아요.</span></button>`).join("")}
     </div>` : ""}
     <div class="st-card">
-      <h3>악보별 성과</h3><p class="s">제목을 누르면 상세 페이지로 가요. 칸 이름을 누르면 그 순서로 정렬돼요. 조회·구매율·찜은 누적이에요.</p>
+      <h3>악보별 성과</h3><p class="s">제목을 누르면 상세 페이지로 가요. 칸 이름을 누르면 그 순서로 정렬돼요. 조회·구매율·찜은 누적이에요.${avgConv ? ` 구매율이 내 평균(${stPct(avgConv)})의 1.5배 이상인 악보는 <b class="st-hi">초록색</b>으로 표시해요.` : ""}</p>
       ${rows.length ? `
       <div class="st-tbl-wrap"><table class="st-tbl">
         <thead><tr><th>악보</th>${th("views", "조회")}${th("sales", `판매 (${periodName})`)}${th("conv", "구매율")}${th("wish", "찜")}${th("rating", "별점")}</tr></thead>
         <tbody>${shown.map(r => `<tr>
           <td><button type="button" class="st-title" data-st-go="${esc(r.s.id)}">${esc(r.s.title)}</button><small>${esc(r.s.artist)}${r.s.status === "판매중지" ? " · 판매 중지" : ""}</small></td>
-          <td>${r.views.toLocaleString("ko-KR")}</td><td>${r.sales}건</td><td>${r.views ? stPct(r.conv) : "-"}</td><td>${r.wish}</td>
+          <td>${r.views.toLocaleString("ko-KR")}</td><td>${r.sales}건</td><td>${r.views ? (isHiConv(r) ? `<b class="st-hi">▲ ${stPct(r.conv)}</b>` : stPct(r.conv)) : "-"}</td><td>${r.wish}</td>
           <td>${r.rating.count ? `★ ${r.rating.avg.toFixed(1)}` : `<span class="st-dim">-</span>`}</td></tr>`).join("")}</tbody>
       </table></div>
       ${rows.length > shown.length ? `<button type="button" class="st-more" id="st-more">더 보기 (${shown.length} / ${rows.length})</button>` : ""}`
