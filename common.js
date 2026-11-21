@@ -2740,7 +2740,7 @@ function renderHeaderAuth() {
         <span class="icon-btn-glyph"><i class="ico ico-user"></i></span><span class="icon-btn-label">${esc(user.name)}님 · ${formatPoint(user.points)}</span>
       </button>
       <button id="logout-btn" class="auth-btn">로그아웃</button>
-      ${user.isAdmin ? `<span class="adm-menu-wrap"><button id="header-admin-btn" class="auth-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="adm-menu">관리자 페이지<svg class="adm-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="adm-menu" id="adm-menu" role="menu" hidden></div></span>` : ""}
+      ${user.isAdmin ? `<span class="adm-menu-wrap"><button id="header-admin-btn" class="auth-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="adm-menu">관리자<span class="adm-label-long"> 페이지</span><svg class="adm-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="adm-menu" id="adm-menu" role="menu" hidden></div></span>` : ""}
     `;
     document.getElementById("header-my-btn")?.addEventListener("click", () => {
       if (typeof goBuyer === "function") goBuyer("mypage");

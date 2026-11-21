@@ -1127,9 +1127,18 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .footer-links a:hover,.footer-links button:hover{text-decoration:underline}
 .site-footer p{margin:4px 0;line-height:1.6}
 @media (max-width:760px){.footer-links{gap:8px 16px}}
+/* 2026-11-21: 761~1000px 창에서 헤더 버튼이 몇 px 넘치던 문제 — 이름·포인트 글자는 숨기고 아이콘만 */
+@media (max-width:1000px){.icon-btn-label{display:none}}
 @media (max-width:760px){
 .container{padding-inline:16px}
 .header-row{flex-wrap:wrap;gap:10px}.search-wrap{order:3;flex-basis:100%;max-width:none}.logo{flex:1}.icon-btn-label{display:none}
+/* 2026-11-21: 좁은 화면에서 로그인 후 헤더 버튼(알림·장바구니·마이·로그아웃·관리자 등)이 화면 밖으로 넘치던 문제 — 버튼을 조금 줄이고, 그래도 넘치면 다음 줄로 */
+#header-auth{flex-wrap:wrap;row-gap:6px;gap:4px;min-width:0;max-width:100%}
+#header-auth .icon-btn{height:36px;padding:0 7px}
+#header-auth .auth-btn{height:32px;padding:0 10px;font-size:13px}
+.adm-label-long{display:none}
+/* 관리자 목록은 버튼 대신 헤더 버튼 줄 오른쪽 끝에 맞춰 열어서, 줄바꿈돼도 화면 밖으로 나가지 않게 */
+#header-auth{position:relative}.adm-menu-wrap{position:static}
 .detail-grid,.two-col,.two-col.cart-layout,.two-col.req-layout{grid-template-columns:minmax(0,1fr)}
 .cart-summary{position:static}
 .hero-slide{min-height:0;padding-block:24px 44px}
