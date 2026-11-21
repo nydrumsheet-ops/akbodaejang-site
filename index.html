@@ -11,7 +11,7 @@
 /* Studio (default) — warm cream, espresso ink, ember orange */
 :root{
 --c-canvas:#ffffff;--c-canvas-soft:#fafafa;--c-canvas-sunk:#efefef;
---c-ink:#332d28;--c-ink-2:#443a33;--c-body:#6b6158;--c-body-mid:#978d7e;--c-mute:#cbc3b5;--c-hairline:#e6e6e6;
+--c-ink:#332d28;--c-ink-2:#443a33;--c-body:#6b6158;--c-body-mid:#756b61;/* 2026-11-21: 보조 글씨가 희미하다는 의견 — #978d7e(대비 3.3:1)→#756b61(5.2:1) */--c-mute:#cbc3b5;--c-hairline:#e6e6e6;
 --c-accent:#f07a45;--c-accent-hover:#ed851d;
 /* 2026-11-21: 버튼 채움 주황 3단계 — hover 때 갈색으로 탁해지지 않게 채도는 유지하고 밝기만 낮춤 */
 --accent-fill:#f07a45;--accent-fill-hover:#ee652b;--accent-fill-press:#e2561c;--accent-tint:#fff4ee;--accent-tint-line:#f6c9ae;--hover-gray:#f5f5f5;--hover-gray-line:#d6d6d6;--c-accent-soft:#fde3d4;--c-accent-ink:#b6610c;--c-on-accent:#ffffff;
@@ -362,7 +362,7 @@ a{color:var(--link)}
 .filter-pill{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px 0 12px;border:1px solid #F6C9AE;border-radius:10px;background:#FFF4EE;color:#C2541F;font-size:12px;font-weight:600;cursor:pointer}
 .filter-pill span{font-size:10px;opacity:.8}
 .filter-pill:hover{border-color:var(--accent)}
-.filter-reset{margin-left:4px;border:0;background:none;padding:0;color:#8A847D;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.filter-reset{margin-left:4px;border:0;background:none;padding:0;color:#756b61;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .filter-reset:hover{color:var(--ink-solid)}
 /* 2026-10-30: 관리자 "악보 관리" 탭 */
 .asc-toolbar{display:flex;gap:8px;flex-wrap:wrap}
@@ -376,7 +376,7 @@ a{color:var(--link)}
 .asc-title{border:0;background:none;padding:0;text-align:left;font-size:14px;font-weight:700;color:var(--ink-solid);cursor:pointer;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .asc-title:hover{color:var(--accent);text-decoration:underline}
 .asc-sub{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.asc-seller{color:#8A847D}
+.asc-seller{color:#756b61}
 .asc-cell{color:var(--ink-solid);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .asc-st{display:inline-block;padding:3px 8px;border-radius:999px;font-size:11px;font-weight:600}
 .asc-st-on{background:#E8F5EC;color:#2f7d4f}
@@ -404,7 +404,7 @@ a{color:var(--link)}
 .sm-btn-dark:hover:not(:disabled){background:var(--ink-solid-hover);border-color:var(--ink-solid-hover)}
 .sm-btn-danger{background:#ffffff;border-color:#c0392b;color:#c0392b}
 .sm-btn-danger:hover:not(:disabled){background:#fdecea;border-color:#c0392b}
-.sm-link{border:none;background:none;padding:0 4px;color:#8A847D;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.sm-link{border:none;background:none;padding:0 4px;color:#756b61;font-size:12px;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .sm-link:hover{color:#c0392b}
 .sm-confirm{display:inline-flex;align-items:center;gap:6px;font-size:12px;color:#c0392b;flex-wrap:wrap}
 .sm-note{font-size:12px;color:var(--muted)}
@@ -428,14 +428,14 @@ textarea.sm-in{resize:vertical}
 .nt-panel[hidden]{display:none}
 .nt-head{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 10px}
 .nt-head b{font-size:15px;color:var(--ink-solid)}
-.nt-read{border:0;background:none;padding:0;font-size:12px;color:#8A847D;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
+.nt-read{border:0;background:none;padding:0;font-size:12px;color:#756b61;cursor:pointer;text-decoration:underline;text-underline-offset:2px}
 .nt-read:hover{color:var(--ink-solid)}
 .nt-tabs{display:flex;gap:6px;padding:0 16px 10px;border-bottom:1px solid #E6E6E6}
 .nt-tab{height:28px;padding:0 11px;border:1px solid #E6E6E6;border-radius:999px;background:#ffffff;font-size:12px;color:#625950;cursor:pointer}
 .nt-tab.on{background:var(--ink-solid);border-color:var(--ink-solid);color:#ffffff}
 .nt-list{max-height:380px;overflow:auto}
-.nt-sec{padding:10px 16px 4px;font-size:11px;font-weight:700;color:#A39B93}
-.nt-empty{padding:28px 16px;text-align:center;font-size:13px;color:#8A847D}
+.nt-sec{padding:10px 16px 4px;font-size:12px;font-weight:700;color:#756b61}
+.nt-empty{padding:28px 16px;text-align:center;font-size:13px;color:#756b61}
 .nt-item{display:flex;gap:11px;align-items:flex-start;width:100%;padding:10px 16px;border:0;background:none;text-align:left;cursor:pointer;font:inherit}
 .nt-item:hover{background:#EFEFEF}
 .nt-item.new{background:#FFF8F3}
@@ -444,9 +444,9 @@ textarea.sm-in{resize:vertical}
 .nt-ic.req{background:#FFE9DC}.nt-ic.new{background:#E8F1FF}.nt-ic.ans{background:#E8F5EC}.nt-ic.sale{background:#FFF1D6}.nt-ic.q{background:#F1EAFB}
 .nt-txt{flex:1;min-width:0;font-size:13px;line-height:1.45;color:var(--ink-solid)}
 .nt-txt em{font-style:normal;font-weight:700}
-.nt-time{display:block;margin-top:2px;font-size:11px;color:#A39B93}
+.nt-time{display:block;margin-top:2px;font-size:12px;color:#756b61}
 .nt-new-dot{flex:0 0 7px;height:7px;margin-top:7px;border-radius:50%;background:#E87949}
-.nt-foot{padding:10px 16px;border-top:1px solid #E6E6E6;font-size:11px;color:#A39B93;text-align:center}
+.nt-foot{padding:10px 16px;border-top:1px solid #E6E6E6;font-size:12px;color:#756b61;text-align:center}
 @media (max-width:760px){.nt-panel{position:fixed;left:12px;right:12px;width:auto;max-width:none}}
 /* 2026-10-31: 공지·배너 */
 .hero[hidden],.hero-arrow[hidden]{display:none}
@@ -458,9 +458,9 @@ textarea.sm-in{resize:vertical}
 .notice-label{flex:0 0 auto;padding:2px 8px;border-radius:999px;background:#E87949;color:#ffffff;font-size:11px;font-weight:700}
 .notice-text{flex:1;min-width:0;border:0;background:none;padding:0;text-align:left;font-size:13px;color:var(--ink-solid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:pointer}
 .notice-text:hover{text-decoration:underline;text-underline-offset:2px}
-.notice-more{flex:0 0 auto;border:0;background:none;padding:0;color:#8A847D;font-size:12px;cursor:pointer}
+.notice-more{flex:0 0 auto;border:0;background:none;padding:0;color:#756b61;font-size:12px;cursor:pointer}
 .notice-more:hover{color:var(--ink-solid)}
-.notice-x{flex:0 0 auto;border:0;background:none;padding:4px;color:#A39B93;font-size:13px;cursor:pointer}
+.notice-x{flex:0 0 auto;border:0;background:none;padding:4px;color:#756b61;font-size:13px;cursor:pointer}
 .notice-x:hover{color:var(--ink-solid)}
 @media (max-width:760px){.notice-more{display:none}}
 .ntc-list{border:1px solid #E6E6E6;border-radius:12px;background:#ffffff;overflow:hidden}
@@ -468,7 +468,7 @@ textarea.sm-in{resize:vertical}
 .ntc-head{display:flex;align-items:center;gap:8px;width:100%;padding:14px 16px;border:0;background:none;text-align:left;font:inherit;cursor:pointer}
 .ntc-head:hover{background:#EFEFEF}
 .ntc-title{flex:1;min-width:0;font-size:14px;font-weight:600;color:var(--ink-solid);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.ntc-date{flex:0 0 auto;font-size:12px;color:#A39B93}
+.ntc-date{flex:0 0 auto;font-size:12px;color:#756b61}
 .ntc-pin,.ct-pin{flex:0 0 auto;display:inline-block;margin-right:6px;padding:2px 7px;border-radius:999px;background:#FFF4EE;color:#C2541F;font-size:11px;font-weight:700}
 .ntc-tag,.ct-tag{flex:0 0 auto;display:inline-block;margin-right:6px;padding:2px 7px;border-radius:999px;background:#E6E6E6;color:#625950;font-size:11px;font-weight:600}
 .ntc-item.open .ntc-head{background:#EFEFEF}
@@ -507,7 +507,7 @@ textarea.sm-in{resize:vertical}
 .ct-edit label{display:flex;flex-direction:column;gap:4px;font-size:12px;color:#625950}
 .ct-edit .full{grid-column:1 / -1}
 .ct-edit label.sm-check{flex-direction:row;align-items:center}
-.ct-hint{font-size:11px;color:#A39B93;margin:0}
+.ct-hint{font-size:12px;color:#756b61;margin:0}
 .ct-colors{display:flex;gap:8px}
 .ct-color{width:30px;height:30px;border-radius:8px;border:2px solid #E6E6E6;cursor:pointer;padding:0}
 .ct-color.on{border-color:var(--ink-solid)}
@@ -529,18 +529,18 @@ textarea.sm-in{resize:vertical}
 .st-period button.on{background:var(--ink-solid);border-color:var(--ink-solid);color:#ffffff}
 .st-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;margin-bottom:16px}
 .st-kpi{border:1px solid #E6E6E6;border-radius:12px;background:#ffffff;padding:14px;min-width:0}
-.st-kpi span{display:block;font-size:12px;color:#8A847D}
+.st-kpi span{display:block;font-size:12px;color:#756b61}
 .st-kpi b{display:block;margin-top:4px;font-size:22px;color:var(--ink-solid);font-variant-numeric:tabular-nums;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.st-kpi em{display:block;font-style:normal;font-size:12px;color:#8A847D}
-.st-kpi em span{display:inline;color:#8A847D;font-size:12px}
+.st-kpi em{display:block;font-style:normal;font-size:12px;color:#756b61}
+.st-kpi em span{display:inline;color:#756b61;font-size:12px}
 .st-kpi em.up{color:#2f7a4a}.st-kpi em.down{color:#b42318}
 .st-card{border:1px solid #E6E6E6;border-radius:12px;background:#ffffff;padding:16px;margin-bottom:16px}
 .st-card:last-child{margin-bottom:0}
 .st-card h3{margin:0 0 2px;font-size:14px}
-.st-card p.s{margin:0 0 12px;font-size:12px;color:#8A847D}
+.st-card p.s{margin:0 0 12px;font-size:13px;color:#756b61}
 .st-chart{position:relative;height:170px;margin-right:22px;border-bottom:1px solid #E6E6E6}
 .st-grid{position:absolute;left:0;right:0;border-top:1px dashed #E6E6E6;pointer-events:none}
-.st-grid span{position:absolute;right:-22px;top:-7px;font-size:10px;color:#A39B93;font-variant-numeric:tabular-nums}
+.st-grid span{position:absolute;right:-22px;top:-7px;font-size:10px;color:#756b61;font-variant-numeric:tabular-nums}
 .st-bars{position:absolute;inset:0;display:flex;align-items:flex-end;gap:2px}
 .st-hit{flex:1;height:100%;display:flex;align-items:flex-end;cursor:pointer}
 .st-bar{width:100%;background:#E87949;border-radius:4px 4px 0 0}
@@ -549,28 +549,28 @@ textarea.sm-in{resize:vertical}
 .st-tip{position:absolute;top:-6px;transform:translate(-50%,-100%);white-space:nowrap;background:var(--ink-solid);color:#ffffff;font-size:11px;padding:5px 8px;border-radius:6px;pointer-events:none;z-index:2}
 .st-tip[hidden]{display:none}
 .st-x{display:flex;gap:2px;margin-right:22px;margin-top:6px}
-.st-x span{flex:1;min-width:0;font-size:11px;color:#A39B93;white-space:nowrap;overflow:visible;text-align:center}
+.st-x span{flex:1;min-width:0;font-size:11px;color:#756b61;white-space:nowrap;overflow:visible;text-align:center}
 .st-x span:first-child{text-align:left}.st-x span:last-child{text-align:right}
-.st-empty{margin:0;padding:18px 0;font-size:13px;color:#8A847D;text-align:center}
+.st-empty{margin:0;padding:18px 0;font-size:13px;color:#756b61;text-align:center}
 .st-miss{display:flex;gap:10px;align-items:flex-start;width:100%;padding:12px 14px;border-radius:12px;background:#FFF8F3;border:1px solid #F6D9C6;font:inherit;font-size:13px;color:var(--ink-solid);text-align:left;cursor:pointer;margin-bottom:8px}
 .st-miss:last-child{margin-bottom:0}
 .st-miss:hover{border-color:var(--accent)}
 .st-tbl-wrap{overflow-x:auto}
 .st-tbl{width:100%;border-collapse:collapse;font-size:13px}
 .st-tbl th{padding:0;border-bottom:1px solid #E6E6E6;text-align:right;white-space:nowrap}
-.st-tbl th:first-child{text-align:left;font-size:12px;font-weight:600;color:#8A847D;padding:8px 6px}
-.st-sort{border:0;background:none;padding:8px 6px;font:inherit;font-size:12px;font-weight:600;color:#8A847D;cursor:pointer;white-space:nowrap}
+.st-tbl th:first-child{text-align:left;font-size:12px;font-weight:600;color:#756b61;padding:8px 6px}
+.st-sort{border:0;background:none;padding:8px 6px;font:inherit;font-size:12px;font-weight:600;color:#756b61;cursor:pointer;white-space:nowrap}
 .st-sort:hover,.st-sort.on{color:var(--ink-solid)}
 .st-tbl td{padding:9px 6px;border-bottom:1px solid #EEEEEE;text-align:right;font-variant-numeric:tabular-nums;color:var(--ink-solid);white-space:nowrap}
 .st-tbl td:first-child{text-align:left;white-space:normal;min-width:140px}
-.st-tbl td small{display:block;font-size:11px;color:#8A847D}
+.st-tbl td small{display:block;font-size:12px;color:#756b61}
 .st-title{border:0;background:none;padding:0;font:inherit;font-weight:700;color:var(--ink-solid);text-align:left;cursor:pointer}
 .st-title:hover{color:var(--accent);text-decoration:underline}
-.st-dim{color:#A39B93}
+.st-dim{color:#756b61}
 .st-more{display:block;margin:12px auto 0;height:34px;padding:0 16px;border:1px solid #E6E6E6;border-radius:999px;background:#ffffff;font-size:12px;color:var(--ink-solid);cursor:pointer}
 @media (max-width:760px){.st-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}.st-kpi b{font-size:19px}.st-chart{height:140px}}
 /* 2026-11-01: 구글 간편 로그인 */
-.login-or{display:flex;align-items:center;gap:10px;margin:18px 0 14px;font-size:12px;color:#A39B93}
+.login-or{display:flex;align-items:center;gap:10px;margin:18px 0 14px;font-size:12px;color:#756b61}
 .login-or:before,.login-or:after{content:"";flex:1;height:1px;background:#E6E6E6}
 .login-btn-social{width:100%;height:48px;display:flex;align-items:center;justify-content:center;gap:10px;border-radius:var(--radius-control);border:1px solid #E6E6E6;background:#ffffff;color:var(--ink-solid);font:var(--type-button);cursor:pointer}
 .login-btn-social:hover:not(:disabled){background:#EFEFEF;border-color:#B9AFA4}
@@ -740,7 +740,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .sb-in:focus{outline:2px solid #E6E6E6;outline-offset:1px;border-color:#B9AFA4}
 .sb-in:disabled{background:#EFEFEF;color:var(--muted)}
 .sb-cell-title{min-width:0;display:flex;flex-direction:column;gap:2px}
-.sb-file{font-size:11px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.sb-file{font-size:12px;color:var(--muted);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .sb-status{font-size:12px;font-weight:600;text-align:right;white-space:nowrap}
 .sb-hint{grid-column:2 / -1;font-size:12px;color:var(--muted);margin-top:-2px}
 .sb-hint.is-need{color:#c45a1c}
@@ -755,7 +755,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
   .sb-sum-main{font-size:14px;font-weight:600;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .sb-sum-artist{font-weight:400;color:var(--muted)}
   .sb-sum-sub{font-size:12px;color:var(--muted)}
-  .sb-tg{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:none;background:none;padding:0;color:#8A847D;cursor:pointer;transition:transform .18s var(--ease)}
+  .sb-tg{display:inline-flex;align-items:center;justify-content:center;width:24px;height:24px;border:none;background:none;padding:0;color:#756b61;cursor:pointer;transition:transform .18s var(--ease)}
   .sb-row.open .sb-tg{transform:rotate(180deg)}
   .sb-status{order:2}.sb-tg{order:3}
   .sb-fields{display:none;order:4;grid-column:1 / -1;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:6px;padding-top:6px}
@@ -1115,7 +1115,7 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 [data-rq-like]:hover,[data-join]:hover{border-color:var(--accent);color:var(--accent) !important}
 .req-count{width:56px;text-align:center;flex-shrink:0}
 .req-count b{display:block;font:700 20px/1.1 var(--font-mono)}
-.req-count span{font-size:11px;color:var(--muted)}
+.req-count span{font-size:12px;color:var(--muted)}
 .status-pill{font:600 12px/1 var(--font-text);height:22px;display:inline-flex;align-items:center;padding:0 9px;border-radius:var(--radius-pill);white-space:nowrap}
 .st-접수{background:var(--ink-solid);color:#ffffff;border-radius:12px}
 .st-채보중{background:#f6e7c4;color:#7a5410}
@@ -1239,14 +1239,14 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 /* 2026-11-21 광고 기반 (ads.js): 목록의 무료 신규 악보 칸 · 나중에 열릴 광고 칸 표시, 판매자 통계 카드, 관리자 광고 설정 */
 .slot-badge{display:inline-block;vertical-align:2px;margin-right:6px;padding:3px 7px;border-radius:6px;font:700 11px/1 var(--font-text);background:var(--accent-soft);color:var(--accent-ink)}
 .slot-badge.ad{background:#EFEFEF;color:#555}
-.ads-dim{font-weight:400;color:#8A847D;font-size:12px}
+.ads-dim{font-weight:400;color:#756b61;font-size:12px}
 .ads-kpis{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 8px}
 .ads-kpis div{border:1px solid #E6E6E6;border-radius:10px;padding:10px 12px}
-.ads-kpis span{display:block;font-size:12px;color:#8A847D}
+.ads-kpis span{display:block;font-size:12px;color:#756b61}
 .ads-kpis b{font-size:16px}
-.ads-surf{margin:0 0 10px;font-size:12px;color:#8A847D}
+.ads-surf{margin:0 0 10px;font-size:12px;color:#756b61}
 .ads-tip{display:flex;flex-wrap:wrap;align-items:baseline;gap:4px 10px;padding:8px 0;border-top:1px solid #F0F0F0;font-size:13px}
-.ads-tip span{color:#8A847D}
+.ads-tip span{color:#756b61}
 .ads-switch{display:flex;align-items:flex-start;gap:10px;padding:12px 0;border-top:1px solid var(--border);cursor:pointer}
 .ads-switch input{margin-top:3px}
 .ads-switch b{display:block;font-size:14px}
@@ -1278,6 +1278,15 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 #header-auth #header-admin-btn.is-open,#header-auth .nt-btn[aria-expanded="true"]{background:#f2f2f2;color:var(--text)}
 #header-auth .icon-btn:focus-visible,#header-auth .auth-btn:focus-visible,#header-artist-link:focus-visible{outline:2px solid var(--ink-solid);outline-offset:2px}
 @media (prefers-reduced-motion:reduce){#header-auth .icon-btn:active,#header-auth .auth-btn:active,#header-artist-link:active{transform:none}}
+/* 2026-11-21: 악보 등록 폼 2단 (좁은 화면은 1단) */
+.sf-grid2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+@media (max-width:640px){.sf-grid2{grid-template-columns:1fr}}
+/* 2026-11-21: 로그인 창 — 가입 이메일 찾기 안내 */
+.login-links-sep{margin:0 8px;color:var(--text-faint)}
+.findid-steps{margin:14px 0 0;padding-left:20px;font-size:14px;line-height:1.6;color:var(--text)}
+.findid-steps li{margin-bottom:10px}
+.findid-steps a{color:var(--text);text-decoration:underline;text-underline-offset:2px}
+.findid-tel{display:inline-block;margin-top:6px;font-weight:700}
 </style>
 </head>
 <body ontouchstart=""><!-- ontouchstart: 아이폰에서도 누르는 순간(:active) 효과가 보이게 (2026-11-21) -->
@@ -1332,7 +1341,7 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
       <a href="#" id="admin-preview-link">관리자 화면 미리보기</a>
     </div>
     <p>뉴욕뮤직스토어 · 대표 반진영 · mydrumsheet.com 후속 서비스</p>
-    <p>사업자등록번호·통신판매업 신고번호·주소·고객센터 연락처는 오픈 전에 채워 넣을 자리입니다.</p>
+    <p>고객센터 <a href="tel:01048249729" style="color:inherit;">010-4824-9729</a> · 사업자등록번호·통신판매업 신고번호·주소는 오픈 전에 채워 넣을 자리입니다.</p>
     <p>악보대장 v0.7 — 총괄/ (밝은 디자인·일러스트, 정산 자동지급)</p>
   </div>
 </footer>
@@ -1350,7 +1359,7 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
       <button id="login-submit" class="login-btn-primary">로그인</button>
       <div class="login-or">또는</div>
       <button type="button" class="login-btn-social" data-google-login="login-error"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span>Google로 로그인</span></button>
-      <p class="login-links"><a href="#" id="go-forgot-link">비밀번호를 잊으셨나요?</a></p>
+      <p class="login-links"><a href="#" id="go-forgot-link">비밀번호를 잊으셨나요?</a><span class="login-links-sep" aria-hidden="true">·</span><a href="#" data-go-findid>가입한 이메일이 기억나지 않나요?</a></p>
       <p class="role-switch">계정이 없으신가요? <a href="#" id="go-signup-link"><b>회원가입</b></a></p>
     </div>
 
@@ -1374,7 +1383,19 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
       <input type="email" id="forgot-email" placeholder="이메일" autocomplete="username">
       <p id="forgot-error" class="login-error"></p>
       <button id="forgot-submit" class="login-btn-primary">재설정 메일 보내기</button>
-      <p class="login-links"><a href="#" id="forgot-back-link">로그인으로 돌아가기</a></p>
+      <p class="login-links"><a href="#" data-go-findid>가입한 이메일이 기억나지 않나요?</a><span class="login-links-sep" aria-hidden="true">·</span><a href="#" id="forgot-back-link">로그인으로 돌아가기</a></p>
+    </div>
+
+    <!-- 2026-11-21: 아이디(가입 이메일)를 잊었을 때 안내 — 다른 사람이 가입 여부를 알아낼 수 없도록, 이메일을 조회해 보여주지 않고 방법만 안내한다 -->
+    <div id="login-pane-findid" class="login-pane">
+      <p class="login-lead">가입한 이메일 찾기</p>
+      <p class="login-sub">악보대장은 이메일이 아이디예요. 아래 순서대로 확인해보세요.</p>
+      <ol class="findid-steps">
+        <li><b>구글로 가입했다면</b> 로그인 화면의 "구글로 로그인"을 누르세요. 비밀번호 없이 바로 들어가요.</li>
+        <li><b>자주 쓰는 이메일로 비밀번호 재설정</b>을 해보세요. 가입된 이메일이면 재설정 메일이 와요. <a href="#" id="findid-forgot-link">비밀번호 재설정하기</a></li>
+        <li><b>그래도 모르겠다면</b> 고객센터로 연락주세요. 가입할 때 쓴 이름을 알려주시면 확인해드려요.<br><a class="findid-tel" href="tel:01048249729">고객센터 010-4824-9729</a></li>
+      </ol>
+      <p class="login-links"><a href="#" id="findid-back-link">로그인으로 돌아가기</a></p>
     </div>
 
     <div id="login-pane-setpassword" class="login-pane">
