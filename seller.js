@@ -320,6 +320,8 @@ function renderSeller() {
   });
   tagInput.addEventListener("blur", addTagFromInput);
 
+  // 2026-11-21: 악기·난이도 기본 select → 흰 목록 (맥 다크 모드에서 검게 펼쳐지던 문제)
+  if (typeof enhanceSelect === "function") ["sf-instrument", "sf-difficulty"].forEach(id => enhanceSelect(document.getElementById(id), { full: true }));
   document.getElementById("sf-submit").addEventListener("click", () => {
     handleSubmitScore(user.id);
   });
@@ -1244,7 +1246,7 @@ function renderMyScores(sellerId) {
   wrap.innerHTML = shown.map(s => {
     const color = SCORE_STATUS_COLOR[s.status] || "#625950";
     const videoBadge = s.hasVideo
-      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:var(--primary-dark);font-size:11px;">${videoIconArt(12)} 영상</span>`
+      ? `<span style="display:inline-flex;align-items:center;gap:3px;margin-left:6px;padding:2px 6px;border-radius:5px;background:var(--primary-soft);color:var(--primary-dark);font-size:12px;">${videoIconArt(12)} 영상</span>`
       : "";
     const rejectBlock = s.status === "반려"
       ? `<div style="margin-top:8px;padding:10px;background:color-mix(in oklch,var(--danger) 10%,var(--card));border-radius:8px;font-size:12px;color:var(--danger);">
@@ -1910,7 +1912,7 @@ function renderSellerStats(userId) {
     ${missed.length ? `
     <div class="st-card">
       <h3>놓치고 있는 악보</h3><p class="s">많이 보는데 잘 안 팔리는 악보예요. 미리보기·가격·소개글을 한번 점검해 보세요.</p>
-      ${missed.map(r => `<button type="button" class="st-miss" data-st-go="${esc(r.s.id)}"><span aria-hidden="true">👀</span><span><b>「${esc(r.s.title)}」</b> 조회 ${r.views.toLocaleString("ko-KR")}회에 판매 ${r.total}건 (구매율 ${stPct(r.conv)}) — 내 악보 평균 ${stPct(avgConv)}보다 낮아요.</span></button>`).join("")}
+      ${missed.map(r => `<button type="button" class="st-miss" data-st-go="${esc(r.s.id)}"><span><b>「${esc(r.s.title)}」</b> 조회 ${r.views.toLocaleString("ko-KR")}회에 판매 ${r.total}건 (구매율 ${stPct(r.conv)}) — 내 악보 평균 ${stPct(avgConv)}보다 낮아요.</span></button>`).join("")}
     </div>` : ""}
     <div class="st-card">
       <h3>악보별 성과</h3><p class="s">제목을 누르면 상세 페이지로 가요. 칸 이름을 누르면 그 순서로 정렬돼요. 조회·구매율·찜은 누적이에요.${avgConv ? ` 구매율이 내 평균(${stPct(avgConv)})의 1.5배 이상인 악보는 <b class="st-hi">초록색</b>으로 표시해요.` : ""}</p>
