@@ -322,6 +322,7 @@ function renderSeller() {
 
   // 2026-11-21: 악기·난이도 기본 select → 흰 목록 (맥 다크 모드에서 검게 펼쳐지던 문제)
   if (typeof enhanceSelect === "function") ["sf-instrument", "sf-difficulty"].forEach(id => enhanceSelect(document.getElementById(id), { full: true }));
+  if (typeof enhanceFile === "function") { enhanceFile(document.getElementById("sf-file"), { label: "PDF 선택" }); enhanceFile(document.getElementById("sf-thumbnail"), { label: "이미지 선택" }); } // 2026-11-21: 한글 파일 칸
   document.getElementById("sf-submit").addEventListener("click", () => {
     handleSubmitScore(user.id);
   });
@@ -1289,6 +1290,7 @@ function renderMyScores(sellerId) {
     renderMyScores(sellerId);
   }));
   wireScoreManage(wrap, sellerId);
+  if (typeof enhanceFile === "function") wrap.querySelectorAll('input[type="file"][id^="sm-file-"]').forEach(i => enhanceFile(i, { label: "PDF 선택" })); // 2026-11-21: 한글 파일 칸
   wrap.querySelectorAll("[data-disc-toggle]").forEach(b => b.addEventListener("click", () => {
     const id = b.dataset.discToggle;
     SELLER_DISCOUNT_OPEN = SELLER_DISCOUNT_OPEN === id ? null : id;
@@ -1335,6 +1337,7 @@ function renderScoreManageBar(s) {
       ${s.status === "승인"
         ? `<button type="button" class="sm-btn" data-sm-sale="${s.id}" data-on="0" ${dis}>판매 중지</button>`
         : `<button type="button" class="sm-btn sm-btn-dark" data-sm-sale="${s.id}" data-on="1" ${dis}>다시 판매</button>`}
+      ${s.status === "승인" && SELLER_EDIT_OPEN !== s.id ? `<button type="button" class="sm-btn ${SELLER_DISCOUNT_OPEN === s.id ? "on" : ""}" data-disc-toggle="${s.id}" aria-expanded="${SELLER_DISCOUNT_OPEN === s.id}" ${dis}>${SELLER_DISCOUNT_OPEN === s.id ? "할인 닫기" : "할인"}</button>` : ""}
       ${canDel
         ? (confirming
             ? `<span class="sm-confirm">정말 삭제할까요? 되돌릴 수 없어요.
@@ -1519,17 +1522,17 @@ function renderDiscountPanel(s) {
   } else if (d) {
     statusLine = `<span style="color:var(--muted);">할인 예약됨 · ${Math.round(d.rate * 100)}% · ${formatDate(d.startAt)} ~ ${formatDate(d.endAt)}</span>`;
   } else {
-    statusLine = `<span style="color:var(--muted);">적용 중인 할인이 없습니다.</span>`;
+    statusLine = "";
   }
+  // 2026-11-21: 곡마다 "할인 설정 ▾ / 적용 중인 할인이 없습니다."가 반복되던 것 정리 — 여는 버튼은 [수정][판매 중지] 옆 [할인]으로 옮기고,
+  //             할인이 있거나 창을 열었을 때만 이 칸을 보여준다.
+  if (!open && !statusLine) return "";
 
   const toDateInput = (iso) => iso ? new Date(iso).toISOString().slice(0, 10) : "";
 
   return `
     <div style="margin-top:8px;">
-      <button type="button" data-disc-toggle="${s.id}" style="all:unset;cursor:pointer;font-size:12px;color:var(--text);font-weight:600;text-decoration:underline;text-underline-offset:2px;">
-        ${open ? "할인 설정 닫기 ▲" : "할인 설정 ▾"}
-      </button>
-      <div style="margin-top:6px;font-size:12px;">${statusLine}</div>
+      ${statusLine ? `<div style="font-size:12px;">${statusLine}</div>` : ""}
       ${open ? `
         <div style="margin-top:10px;padding:12px;background:var(--bg);border-radius:8px;display:flex;flex-direction:column;gap:8px;">
           <div id="disc-msg-${s.id}" style="font-size:12px;"></div>
@@ -1552,7 +1555,7 @@ function renderDiscountPanel(s) {
             </label>
           </div>
           <div style="display:flex;gap:8px;">
-            <button data-disc-apply="${s.id}" class="btn btn-primary btn-small">할인 적용</button>
+            <button data-disc-apply="${s.id}" class="btn btn-primary btn-small admin-dark-btn">할인 적용</button>
             ${d ? `<button data-disc-clear="${s.id}" class="btn btn-small" style="background:var(--card);border:1px solid var(--border);">할인 해제</button>` : ""}
           </div>
         </div>
