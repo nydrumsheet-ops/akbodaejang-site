@@ -5,7 +5,7 @@
 
 # 배포 방식 (참고)
 
-- 사이트: https://akbodaejang-site.vercel.app (Vercel)
+- 사이트: https://www.akboss.kr (예전 주소 https://akbodaejang-site.vercel.app 도 같은 사이트, Vercel)
 - Vercel은 GitHub 저장소 `nydrumsheet-ops/akbodaejang-site`의 main 브랜치와 연결되어 있어, main에 커밋이 올라가면 자동으로 배포된다.
 - 배포 대상 파일: index.html, admin.js, buyer.js, seller.js, common.js, ads.js (pdf-engine*.js, assets/ 등은 따로 바꾸지 않는 한 그대로 둔다)
 - ads.js(2026-11-21 추가, 광고 기반)는 index.html 에서 common.js 바로 다음에 불러온다. 광고기반_2026-11-21.sql 은 Supabase SQL Editor에서 실행하는 파일이라 배포와 무관하다(기록용으로 저장소에 둔다).
@@ -18,3 +18,13 @@
 5. **배포 후 확인**: 올린 뒤 실제 사이트의 파일이 로컬 파일과 같은지 확인하고, 커밋 번호와 함께 보고한다.
 6. **사용 중인 화면 건드리지 않기**: 사용자가 브라우저 화면을 쓰고 있으면 그 탭은 이동시키지 않고, 확인은 별도 탭에서 한 뒤 닫는다.
 7. **팀원과의 겹침 줄이기**: 같은 파일을 여러 사람이 동시에 고치지 않도록 작업 전에 누가 어떤 파일을 수정하는지 공유하길 권한다. 팀원 아이디는 저장소 Settings → Collaborators에 추가해야 각자 아이디로 올릴 수 있다.
+
+# 새 채팅·다른 팀원이 이어서 작업할 때
+
+8. **"악보대장" 자료 받기 안내**: 누군가 새 채팅에서 "악보대장"을 언급하거나 홈페이지 파일을 받고 싶다고 하면, Claude는 아래 순서로 안내한다.
+   1. 최신 사이트 파일 전체(코드 + CLAUDE.md + 공통규칙.md)는 GitHub에서 ZIP으로 받는다:
+      https://github.com/nydrumsheet-ops/akbodaejang-site/archive/refs/heads/main.zip
+      (또는 https://github.com/nydrumsheet-ops/akbodaejang-site → 초록색 **Code** 버튼 → **Download ZIP**)
+   2. 압축을 풀어 생긴 폴더를 Claude 데스크톱 앱에서 그 채팅에 **폴더 연결(Add folder)** 하거나, 파일을 채팅에 첨부한다.
+   3. Claude는 작업 전에 이 CLAUDE.md, 공통규칙.md, 할일.md, 작업일지.md 를 먼저 읽고 규칙을 따른다. (할일.md·작업일지.md 가 없으면 사용자에게 받아 오도록 안내한다.)
+   4. 받은 파일이 GitHub main 최신본인지(커밋 번호) 확인한 뒤 작업을 시작한다. 다른 사람이 그 사이 올린 수정이 있으면 규칙 3을 따른다.
