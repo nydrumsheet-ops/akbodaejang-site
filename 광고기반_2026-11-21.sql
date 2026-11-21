@@ -6,12 +6,15 @@
 --
 -- 만드는 것
 --   1) ad_settings   : 광고 온/오프 스위치 (한 줄짜리 설정 표). 누구나 읽고, 관리자만 바꾼다.
---   2) score_events  : 악보 카드의 "목록 노출"과 "클릭" 기록. 사이트에서 직접 읽고 쓸 수 없고,
+--   2) score_events  : 악보 카드의 "목록 노출"·"관심"·"클릭" 기록. 사이트에서 직접 읽고 쓸 수 없고,
 --                      아래 서버 함수로만 기록·조회한다.
 --   3) 서버 함수 3개
---      - rpc_log_score_events(p_events)        : 노출·클릭 기록 (로그인 안 해도 가능)
---      - rpc_my_score_event_stats(p_days)      : 판매자 본인 악보의 노출·클릭 합계
+--      - rpc_log_score_events(p_events)        : 노출·관심·클릭 기록 (로그인 안 해도 가능)
+--      - rpc_my_score_event_stats(p_days)      : 판매자 본인 악보의 노출·관심·클릭 합계
 --      - rpc_admin_score_event_summary(p_days) : 관리자용 전체 합계
+--
+-- 2026-11-21 같은 날 추가: "관심(interest)" — PC에서 카드에 마우스를 1.5초 이상 올려둠, 또는 카드에서 장바구니·찜을 누름.
+--   이미 이 파일을 한 번 실행했어도, 고친 이 파일 전체를 다시 실행하면 그대로 올라간다(기존 기록은 지워지지 않음).
 --
 -- 돈이 오가는 기능(광고캐시 충전·과금)은 여기에 없다. 기획서 9장 "나중에 만들 것" 참고.
 -- 이 파일은 기존 테이블(users, scores 등)을 바꾸지 않는다.
@@ -65,7 +68,7 @@ create policy ad_settings_update_admin on public.ad_settings
 -- ---------- 2. 노출·클릭 기록 ----------
 create table if not exists public.score_events (
   id          bigint generated always as identity primary key,
-  event_type  text not null check (event_type in ('impression', 'click')),
+  event_type  text not null check (event_type in ('impression', 'interest', 'click')),
   score_id    text not null,
   seller_id   text not null,
   surface     text not null check (surface in ('search', 'category', 'list', 'home', 'detail', 'artist', 'other')),
@@ -81,6 +84,11 @@ create index if not exists score_events_dedupe      on public.score_events (view
 
 alter table public.score_events enable row level security;
 
+-- 예전 버전(노출·클릭만)으로 이미 만들어진 표도 "관심"을 받을 수 있게 검사 조건을 바꾼다.
+alter table public.score_events drop constraint if exists score_events_event_type_check;
+alter table public.score_events add constraint score_events_event_type_check
+  check (event_type in ('impression', 'interest', 'click'));
+
 -- 관리자만 직접 읽을 수 있다. 쓰기 정책은 없다(서버 함수로만 기록).
 drop policy if exists score_events_select_admin on public.score_events;
 create policy score_events_select_admin on public.score_events
@@ -88,7 +96,7 @@ create policy score_events_select_admin on public.score_events
 
 
 -- ---------- 3-1. 노출·클릭 기록 함수 ----------
--- p_events: [{ "type": "impression"|"click", "score_id": "...", "surface": "search", "slot": "organic", "query": "..." , "viewer": "..." }, ...]
+-- p_events: [{ "type": "impression"|"interest"|"click", "score_id": "...", "surface": "search", "slot": "organic", "query": "..." , "viewer": "..." }, ...]
 -- 지키는 규칙
 --   - 한 번에 최대 50건
 --   - 판매 중(승인)인 악보만, seller_id 는 서버가 scores 에서 직접 찾는다(보낸 값 무시)
@@ -124,7 +132,7 @@ begin
     v_query  := nullif(left(btrim(coalesce(e->>'query', '')), 60), '');
     v_viewer := left(coalesce(e->>'viewer', ''), 64);
 
-    continue when v_type is null or v_type not in ('impression', 'click');
+    continue when v_type is null or v_type not in ('impression', 'interest', 'click');
     continue when v_surf not in ('search', 'category', 'list', 'home', 'detail', 'artist', 'other');
     continue when v_slot not in ('organic', 'new', 'ad');
     continue when length(v_viewer) < 8 or v_score = '';
@@ -155,8 +163,10 @@ grant execute on function public.rpc_log_score_events(jsonb) to anon, authentica
 
 
 -- ---------- 3-2. 판매자 본인 통계 ----------
-create or replace function public.rpc_my_score_event_stats(p_days int default 30)
-returns table (score_id text, surface text, slot_type text, impressions bigint, clicks bigint)
+-- 돌려주는 칸이 바뀌면 create or replace 로는 안 바뀌어서, 먼저 지우고 다시 만든다.
+drop function if exists public.rpc_my_score_event_stats(int);
+create function public.rpc_my_score_event_stats(p_days int default 30)
+returns table (score_id text, surface text, slot_type text, impressions bigint, interests bigint, clicks bigint)
 language plpgsql
 stable
 security definer
@@ -171,6 +181,7 @@ begin
   return query
     select e.score_id, e.surface, e.slot_type,
            count(*) filter (where e.event_type = 'impression') as impressions,
+           count(*) filter (where e.event_type = 'interest')   as interests,
            count(*) filter (where e.event_type = 'click')      as clicks
     from public.score_events e
     where e.seller_id = v_me
@@ -183,8 +194,9 @@ grant execute on function public.rpc_my_score_event_stats(int) to authenticated;
 
 
 -- ---------- 3-3. 관리자용 전체 합계 ----------
-create or replace function public.rpc_admin_score_event_summary(p_days int default 7)
-returns table (surface text, slot_type text, impressions bigint, clicks bigint)
+drop function if exists public.rpc_admin_score_event_summary(int);
+create function public.rpc_admin_score_event_summary(p_days int default 7)
+returns table (surface text, slot_type text, impressions bigint, interests bigint, clicks bigint)
 language plpgsql
 stable
 security definer
@@ -197,6 +209,7 @@ begin
   return query
     select e.surface, e.slot_type,
            count(*) filter (where e.event_type = 'impression'),
+           count(*) filter (where e.event_type = 'interest'),
            count(*) filter (where e.event_type = 'click')
     from public.score_events e
     where coalesce(p_days, 0) <= 0 or e.created_at >= now() - make_interval(days => p_days)
