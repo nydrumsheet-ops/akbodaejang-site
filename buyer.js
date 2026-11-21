@@ -45,7 +45,7 @@ const FAQ_LIST = [
   { id: "f7", cat: "계정", q: "비밀번호를 잊어버렸어요. 어떻게 바꾸나요?",
     a: () => `로그인 창의 "비밀번호를 잊으셨나요?"를 누르고 가입한 이메일을 입력하면 재설정 메일이 와요. 메일의 링크를 눌러 새 비밀번호를 정하면 돼요. 구글로 가입했다면 비밀번호 없이 "구글로 로그인"을 누르면 돼요.` },
   { id: "f10", cat: "계정", q: "가입한 이메일(아이디)이 기억나지 않아요.",
-    a: () => `구글로 가입했다면 "구글로 로그인"을 눌러보세요. 아니라면 자주 쓰는 이메일로 비밀번호 재설정을 해보세요. 가입된 이메일이면 메일이 와요. 그래도 모르겠다면 고객센터(${SUPPORT_PHONE})로 연락주세요.` },
+    a: () => `구글로 가입했다면 "구글로 로그인"을 눌러보세요. 아니라면 자주 쓰는 이메일로 비밀번호 재설정을 해보세요. 가입된 이메일이면 메일이 와요.` }, // 2026-11-21: 고객센터 전화 안내는 뺌(번호는 common.js SUPPORT_PHONE 에만 보관)
   // 2026-10-20 추가(mydrumsheet.com FAQ 이전): 중복 이메일 가입 제한은 Supabase Auth 공통 동작이라
   // 이 사이트에도 그대로 적용된다.
   { id: "f9", cat: "계정", q: "회원가입이 안 돼요. 왜 그런가요?",
@@ -836,6 +836,7 @@ function selectedDifficulties(p) {
 
 /* 2026-10-30: 목록 "분량" 필터 — [값, 화면 이름, 최소 쪽수, 최대 쪽수] */
 const LIST_PAGE_RANGES = [["1-2", "1~2쪽", 1, 2], ["3-4", "3~4쪽", 3, 4], ["5+", "5쪽 이상", 5, 999]];
+let LIST_FILTER_OPEN = null; // 2026-11-21: 상세 필터를 열고 닫은 상태를 기억 (null = 아직 안 건드림 → 조건이 있으면 펼침). "필터 모두 지우기" 뒤에도 접히지 않게
 
 function filterScores(p) {
   const q = (p.q || "").trim().toLowerCase();
@@ -876,6 +877,7 @@ function filterScores(p) {
 /* 2026-10-30: 지금 걸려 있는 필터를 [지울 키, 화면 이름] 목록으로 */
 function activeFilterChips(p) {
   const out = [];
+  if (p.q) out.push(["q", `검색: ${p.q}`]); // 2026-11-21: 상세 필터 안에서도 검색어를 넣고 뺄 수 있게
   if (p.instrument) out.push(["instrument", p.instrument]);
   selectedDifficulties(p).forEach(d => out.push([`diff:${d}`, d]));
   if (p.pages) { const r = LIST_PAGE_RANGES.find(x => x[0] === p.pages); if (r) out.push(["pages", r[1]]); }
@@ -905,6 +907,7 @@ function renderListPage(el, p) {
 
   // 2026-10-20 변경: 난이도 필터를 체크박스 다중 선택으로 바꾸면서, 매우 쉬움부터 매우 어려움까지 5단계를 전부 보여준다.
   const DIFF_CHECK_ORDER = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"];
+  const filterOpen = LIST_FILTER_OPEN === null ? activeFilterChips(p).length > 0 : LIST_FILTER_OPEN;
   const checkedDiffs = selectedDifficulties(p);
 
   el.innerHTML = `
@@ -913,11 +916,18 @@ function renderListPage(el, p) {
     <p class="muted" style="margin:0 0 16px;">${list.length}개의 악보${p.q ? ` <button class="more-link" id="clear-q">검색어 지우기 <span class="ico ico-x"></span></button>` : ""}</p>
 
     <div class="panel filter-panel">
-      <button type="button" class="filter-toggle${activeFilterChips(p).length ? " is-open" : ""}" id="filter-toggle" aria-expanded="${activeFilterChips(p).length ? "true" : "false"}" aria-controls="filter-body">
+      <button type="button" class="filter-toggle${filterOpen ? " is-open" : ""}" id="filter-toggle" aria-expanded="${filterOpen ? "true" : "false"}" aria-controls="filter-body">
         <span>상세 필터</span>
         <span class="ft-arrow" aria-hidden="true">▾</span>
       </button>
-      <div class="filter-body" id="filter-body" ${activeFilterChips(p).length ? "" : "hidden"}>
+      <div class="filter-body" id="filter-body" ${filterOpen ? "" : "hidden"}>
+        <div class="filter-line">
+          <span class="filter-label">검색</span>
+          <span style="display:inline-flex;align-items:center;gap:6px;flex:1;min-width:0;">
+            <input class="field" type="search" id="f-q" placeholder="곡 제목, 가수, 아티스트" aria-label="곡 제목·가수·아티스트 검색" value="${esc(p.q || "")}" style="flex:1;min-width:0;">
+            <button class="btn btn-small" id="f-q-apply" style="flex-shrink:0;white-space:nowrap;">검색</button>
+          </span>
+        </div>
         <div class="filter-line">
           <span class="filter-label">악기</span>
           <div class="chip-row">
@@ -994,6 +1004,7 @@ function renderListPage(el, p) {
     const btn = e.currentTarget;
     if (!body) return;
     const willOpen = body.hidden;
+    LIST_FILTER_OPEN = willOpen;
     body.hidden = !willOpen;
     btn.classList.toggle("is-open", willOpen);
     btn.setAttribute("aria-expanded", String(willOpen));
@@ -1013,13 +1024,27 @@ function renderListPage(el, p) {
   // 2026-10-30: 고른 조건을 한 줄로 보여주고, 하나씩 또는 한 번에 지운다(검색어·정렬은 그대로)
   el.querySelectorAll("[data-f-clear]").forEach(b => b.addEventListener("click", () => {
     const k = b.dataset.fClear;
+    if (k === "q") { const head = document.getElementById("header-search"); if (head) head.value = ""; }
     const patch = k === "price" ? { minPrice: "", maxPrice: "" }
       : k === "difficulties" ? { difficulties: [], difficulty: "" }
       : k.startsWith("diff:") ? { difficulties: selectedDifficulties(p).filter(d => d !== k.slice(5)), difficulty: "" }
       : { [k]: k === "video" || k === "sale" ? false : "" };
     update(patch);
   }));
-  document.getElementById("f-reset")?.addEventListener("click", () => update({ instrument: "", difficulties: [], difficulty: "", pages: "", video: false, sale: false, minPrice: "", maxPrice: "" }));
+  document.getElementById("f-reset")?.addEventListener("click", () => {
+    LIST_FILTER_OPEN = true; // 2026-11-21: 지운 뒤에도 필터 창이 접히지 않게
+    update({ q: "", instrument: "", difficulties: [], difficulty: "", pages: "", video: false, sale: false, minPrice: "", maxPrice: "" });
+  });
+  // 2026-11-21: 상세 필터 안 검색 — 버튼이나 Enter로 적용 (헤더 검색창과 같은 검색어를 쓴다)
+  const applyFilterQ = () => {
+    const q = (document.getElementById("f-q")?.value || "").trim();
+    const head = document.getElementById("header-search");
+    if (head) head.value = q;
+    LIST_FILTER_OPEN = true;
+    update({ q });
+  };
+  document.getElementById("f-q-apply")?.addEventListener("click", applyFilterQ);
+  document.getElementById("f-q")?.addEventListener("keydown", (e) => { if (e.key === "Enter" && !e.isComposing) { e.preventDefault(); applyFilterQ(); } });
   // 2026-11-21: 직접 만든 정렬 목록 — 누르면 열고, 고르면 적용, 바깥을 누르거나 Esc면 닫는다
   (() => {
     const btn = document.getElementById("f-sort-btn"), list = document.getElementById("f-sort-list");
@@ -2028,7 +2053,6 @@ function renderSupportQna(body, user) {
       <div class="panel">
         <p class="muted" style="margin:0;">로그인하면 1:1 문의를 쓰고, 내 문의 내역과 답변을 볼 수 있어요.</p>
         <button class="btn btn-primary" id="qna-login-btn" style="margin-top:10px;">로그인</button>
-        <p class="muted" style="margin:12px 0 0;font-size:13px;">로그인이 안 되거나 가입한 이메일이 기억나지 않으면 고객센터 <a href="tel:${SUPPORT_PHONE.replace(/-/g, "")}" style="color:var(--text);font-weight:700;">${SUPPORT_PHONE}</a>로 연락주세요.</p>
       </div>`;
     document.getElementById("qna-login-btn")?.addEventListener("click", () => requireLogin(() => renderBuyer()));
     return;
