@@ -2578,6 +2578,7 @@ function tryEnterAdmin() {
 }
 
 function getCurrentUser() {
+  if (!STATE) return null; // 2026-11-21: 데이터를 다 불러오기 전(load() 진행 중)에 불려도 오류 없이 "로그인 안 함"으로 본다
   return STATE.users[CURRENT_USER_ID] || null;
 }
 
@@ -2626,6 +2627,9 @@ function pushNavState() {
 }
 
 function applyNavState(state) {
+  // 2026-11-21: 로그인 직후처럼 주소에 #이 붙어 열리면, Supabase 가 주소를 정리하면서 데이터를 다 불러오기 전에
+  // popstate 가 먼저 올 수 있다. 그때는 아무것도 하지 않는다 — 첫 화면은 initCommon() 이 load() 뒤에 그린다.
+  if (!STATE) return;
   if (!state) {
     showView("buyer", { fromHistory: true });
     if (typeof goBuyer === "function") goBuyer("home", {}, { fromHistory: true, keepScroll: true });
