@@ -38,6 +38,7 @@ const PENDING_SIGNUP_KEY = "madi.pendingSignup.v1"; // 회원가입 중 입력�
 const SUPABASE_URL = "https://qvnprznzritqopwqmqlq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Gf-vX_Cm_8sFZ_oGep5Azg_DtU0_yFK";
 const SITE_URL = "https://akbodaejang-site.vercel.app"; // 로그인 이메일(인증·재설정)이 돌아올 주소
+const SUPPORT_PHONE = "010-4824-9729"; // 2026-11-21: 고객센터 연락처 (로그인 없이 연락할 창구 — 로그인 창·고객센터·FAQ·푸터에 표시)
 
 /* 이 이메일로 가입(또는 이미 가입)하면 관리자 권한이 자동으로 붙는다. (2026-10-13 추가)
    관리자를 더 추가/제거하려면 이 배열만 고치면 된다 — 다른 코드는 손댈 필요 없음. */
@@ -2151,7 +2152,7 @@ function findUserByEmail(email) {
 }
 
 function showLoginPane(pane) {
-  for (const p of ["login", "signup", "forgot", "setpassword"]) {
+  for (const p of ["login", "signup", "forgot", "setpassword", "findid"]) {
     const el = document.getElementById(`login-pane-${p}`);
     if (el) el.style.display = p === pane ? "block" : "none";
   }
@@ -3315,6 +3316,10 @@ async function initCommon() {
   document.getElementById("go-login-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("login"); });
   document.getElementById("go-forgot-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("forgot"); });
   document.getElementById("forgot-back-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("login"); });
+  // 2026-11-21: 가입한 이메일이 기억나지 않을 때 안내
+  document.querySelectorAll("[data-go-findid]").forEach(a => a.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("findid"); }));
+  document.getElementById("findid-forgot-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("forgot"); });
+  document.getElementById("findid-back-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("login"); });
 
   document.getElementById("login-modal-close")?.addEventListener("click", closeLoginModal);
   document.getElementById("login-modal")?.addEventListener("click", (e) => {
