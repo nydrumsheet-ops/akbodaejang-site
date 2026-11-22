@@ -108,6 +108,7 @@ function renderAdmin() {
           <button type="button" class="adm-tool-chip ${ADMIN_TOOL === "pdf" ? "active" : ""}" data-admin-tool="pdf">PDF·이관 도구${pdfRemaining ? ` <b>${pdfRemaining}</b>` : ""}</button>
           <button type="button" class="adm-tool-chip ${ADMIN_TOOL === "review" ? "active" : ""}" data-admin-tool="review">예전 악보 심사${pendingReview ? ` <b>${pendingReview}</b>` : ""}</button>
           <button type="button" class="adm-tool-chip ${ADMIN_TOOL === "errors" ? "active" : ""}" data-admin-tool="errors">오류 기록</button>
+          <button type="button" class="adm-tool-chip ${ADMIN_TOOL === "search" ? "active" : ""}" data-admin-tool="search">인기 검색어</button>
         </div>
       </div>
       <div id="admin-tool-body"></div>`;
@@ -116,7 +117,9 @@ function renderAdmin() {
       renderAdmin();
     }));
     const toolBody = document.getElementById("admin-tool-body");
-    if (ADMIN_TOOL === "errors") {
+    if (ADMIN_TOOL === "search") {
+      renderAdminSearch(toolBody);
+    } else if (ADMIN_TOOL === "errors") {
       renderAdminErrors(toolBody);
     } else if (ADMIN_TOOL === "review") {
       toolBody.innerHTML = `
@@ -3163,6 +3166,71 @@ function wireAdminContent(body) {
     const notice = id ? { ...SITE_CONTENT.notices.find(x => x.id === id), ...clean, id } : { ...clean, id: uid("notice"), createdAt: nowISO() };
     run(key, () => saveNotice(notice), "").then(r => { if (r.ok) { ADMIN_CT_MSG = { key: "notices", text: id ? "저장했어요." : "공지를 올렸어요.", error: false }; rerender(); } });
   }));
+}
+
+/* 2026-11-22: 관리자 › 도구 › 인기 검색어 — 순위 미리보기·숨기기, 숨긴 단어, 결과가 없던 검색어, 일간 탭 켜기 */
+let ADMIN_SEARCH_PERIOD = "week";
+async function renderAdminSearch(box) {
+  const P = [["day", "일간(오늘)"], ["week", "주간(최근 7일)"], ["month", "월간(최근 30일)"]];
+  box.innerHTML = `
+    <div style="${ADMIN_PANEL}">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 4px;">
+        <h2 style="margin:0;font-size:17px;flex:1;">인기 검색어</h2>
+        <button type="button" class="btn btn-small" id="adm-ps-reload">새로고침</button>
+      </div>
+      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);">서로 다른 사람 3명 이상이 검색했고 결과가 있는 단어만 홈에 1~5위로 보여요. 같은 사람·같은 IP는 하루 1번만 세요. 기록은 60일 뒤 자동으로 지워져요.</p>
+      <div class="chip-row" style="margin-bottom:12px;">${P.map(([k, l]) => `<button type="button" class="chip ${ADMIN_SEARCH_PERIOD === k ? "active" : ""}" data-adm-ps-period="${k}">${l}</button>`).join("")}</div>
+      <div id="adm-ps-body" style="font-size:13px;">불러오는 중…</div>
+    </div>`;
+  box.querySelectorAll("[data-adm-ps-period]").forEach(b => b.addEventListener("click", () => { ADMIN_SEARCH_PERIOD = b.dataset.admPsPeriod; renderAdminSearch(box); }));
+  document.getElementById("adm-ps-reload")?.addEventListener("click", () => renderAdminSearch(box));
+  const out = document.getElementById("adm-ps-body");
+  const sb = getSb();
+  if (!sb) { out.textContent = "서버에 연결되지 않았어요."; return; }
+  const { data, error } = await sb.rpc("admin_search_overview", { p_period: ADMIN_SEARCH_PERIOD });
+  if (error) {
+    out.innerHTML = /admin_search_overview|does not exist|schema cache|Could not find/i.test(error.message)
+      ? `인기 검색어 기능이 아직 서버에 없어요. Supabase 에서 <b>인기검색어_2026-11-22.sql</b> 을 한 번 실행해야 해요.`
+      : `불러오지 못했어요: ${esc(error.message)}`;
+    return;
+  }
+  const fmt = (t) => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  const status = (r) => r.public_rank ? `<b style="color:#e0602a;">홈 ${r.public_rank}위</b>`
+    : r.hidden ? "숨김" : r.banned ? "금지어 포함" : r.results <= 0 ? "결과 없음" : r.visitors < 3 ? "3명 미만" : "";
+  const top = data.top || [], hidden = data.hidden || [], zero = data.zero || [];
+  const th = 'style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);font-weight:600;"';
+  const td = 'style="text-align:left;padding:6px 8px;border-bottom:1px solid var(--border);vertical-align:middle;"';
+  out.innerHTML = `
+    <label style="display:inline-flex;align-items:center;gap:8px;margin:0 0 14px;cursor:pointer;"><input type="checkbox" id="adm-ps-daily" ${data.daily ? "checked" : ""}> 홈에 <b>일간</b> 탭도 보이기 <span style="color:var(--muted);">(손님이 늘면 켜세요)</span></label>
+    <h3 style="margin:0 0 6px;font-size:15px;">순위 후보 (상위 30개)</h3>
+    ${top.length ? `<div class="list-table"><table style="width:100%;border-collapse:collapse;">
+      <thead><tr><th ${th}>상태</th><th ${th}>검색어</th><th ${th}>사람 수</th><th ${th}>마지막 결과 수</th><th ${th}></th></tr></thead>
+      <tbody>${top.map(r => `<tr><td ${td}>${status(r)}</td><td ${td}>${esc(r.display)}</td><td ${td}>${r.visitors}</td><td ${td}>${r.results}</td>
+        <td ${td}>${r.hidden ? `<button type="button" class="btn btn-small" data-ps-unhide="${esc(r.term)}">다시 보이기</button>` : `<button type="button" class="btn btn-small" data-ps-hide="${esc(r.term)}">숨기기</button>`}</td></tr>`).join("")}</tbody></table></div>`
+      : `<div class="empty" style="padding:18px 0;">이 기간에 기록된 검색이 없어요.</div>`}
+    <h3 style="margin:18px 0 6px;font-size:15px;">숨긴 검색어</h3>
+    ${hidden.length ? hidden.map(h => `<span style="display:inline-flex;align-items:center;gap:6px;margin:0 6px 6px 0;padding:4px 6px 4px 10px;border:1px solid var(--border);border-radius:8px;">${esc(h.term)}<button type="button" class="btn btn-small" data-ps-unhide="${esc(h.term)}">다시 보이기</button></span>`).join("") : `<p style="margin:0;color:var(--muted);">숨긴 검색어가 없어요.</p>`}
+    <h3 style="margin:18px 0 6px;font-size:15px;">검색했는데 결과가 없던 단어 (최근 30일)</h3>
+    <p style="margin:0 0 6px;color:var(--muted);">채보할 곡이나 신청곡을 정할 때 참고하세요.</p>
+    ${zero.length ? `<div class="list-table"><table style="width:100%;border-collapse:collapse;">
+      <thead><tr><th ${th}>검색어</th><th ${th}>사람 수</th><th ${th}>마지막 검색</th></tr></thead>
+      <tbody>${zero.map(z => `<tr><td ${td}>${esc(z.term)}</td><td ${td}>${z.visitors}</td><td ${td}>${fmt(z.last_at)}</td></tr>`).join("")}</tbody></table></div>`
+      : `<p style="margin:0;color:var(--muted);">없어요.</p>`}`;
+  const act = async (term, hide) => {
+    const { error: e2 } = await sb.rpc("admin_search_hide", { p_term: term, p_hidden: hide });
+    if (e2) { toast("바꾸지 못했어요: " + e2.message, true); return; }
+    if (typeof HOME_PS !== "undefined") HOME_PS.cache = {};
+    toast(hide ? "숨겼어요. 홈 순위에서 빠져요." : "다시 보이게 했어요.");
+    renderAdminSearch(box);
+  };
+  out.querySelectorAll("[data-ps-hide]").forEach(b => b.addEventListener("click", () => act(b.dataset.psHide, true)));
+  out.querySelectorAll("[data-ps-unhide]").forEach(b => b.addEventListener("click", () => act(b.dataset.psUnhide, false)));
+  document.getElementById("adm-ps-daily")?.addEventListener("change", async (e) => {
+    const { error: e3 } = await sb.rpc("admin_search_set_daily", { p_on: e.target.checked });
+    if (e3) { toast("바꾸지 못했어요: " + e3.message, true); e.target.checked = !e.target.checked; return; }
+    if (typeof HOME_PS !== "undefined") HOME_PS.cache = {};
+    toast(e.target.checked ? "홈에 일간 탭이 보여요." : "홈에서 일간 탭을 숨겼어요.");
+  });
 }
 
 /* 2026-11-22: 관리자 › 도구 › 오류 기록 — 손님 화면에서 난 오류(client_errors 표, 최근 30일) */
