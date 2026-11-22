@@ -665,7 +665,9 @@ function renderPopRow() {
   if (!wrap) return;
   const list = getPopularScores(HOME_POP.period || null, HOME_POP.instrument).slice(0, 10);
   wrap.innerHTML = list.length
-    ? `<div class="score-row">${list.map((s, i) => scoreCard(s, { rank: i + 1, hideVideoBadge: true })).join("")}</div>`
+    /* 2026-11-22: 가로 스크롤 한 줄(5개만 보이고 6~10위는 숨어 있음) → 5개씩 두 줄로 1~10위를 한눈에.
+       태블릿은 4개씩 8위까지, 모바일은 2개씩 6위까지 보여준다(나머지는 '전체 보기'). 개수가 적으면 있는 만큼만 채운다. */
+    ? `<div class="score-grid pop-grid">${list.map((s, i) => scoreCard(s, { rank: i + 1, hideVideoBadge: true })).join("")}</div>`
     : `<div class="empty">이 조건의 악보가 아직 없어요.</div>`;
   bindCards(wrap);
 }

@@ -840,6 +840,10 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .mini-art{width:46px;height:46px;border-radius:var(--radius-card);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;background:var(--surface-card)!important}
 .mini-art svg{width:32px;height:32px}
 .score-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:28px 20px}
+/* 2026-11-22: 홈 인기 악보 — 5개씩 두 줄(1~10위). 1000px 이하 4개씩 8위까지, 760px 이하 2개씩 6위까지 */
+.pop-grid{grid-template-columns:repeat(5,minmax(0,1fr))}
+@media (max-width:1000px){.pop-grid{grid-template-columns:repeat(4,minmax(0,1fr))}.pop-grid>:nth-child(n+9){display:none}}
+@media (max-width:760px){.pop-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.pop-grid>:nth-child(n+7){display:none}}
 .score-row{display:grid;grid-auto-flow:column;grid-auto-columns:minmax(180px,210px);gap:20px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
 .score-row::-webkit-scrollbar{display:none}
 .score-carousel{display:flex;align-items:center;gap:8px}
