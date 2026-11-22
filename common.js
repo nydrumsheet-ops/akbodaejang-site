@@ -2168,7 +2168,7 @@ function attachPasswordHint(inputId) {
   const hint = document.createElement("div");
   hint.className = "pw-hint";
   hint.innerHTML = PW_RULES.map(([k, label]) => `<span data-rule="${k}">${label}</span>`).join("");
-  input.insertAdjacentElement("afterend", hint);
+  (input.closest(".su-input") || input).insertAdjacentElement("afterend", hint); // 2026-11-22: 단계형 가입 칸은 ✓ 상자 밖에
   const paint = () => PW_RULES.forEach(([k, , ok]) => hint.querySelector(`[data-rule="${k}"]`).classList.toggle("ok", ok(input.value || "")));
   input.addEventListener("input", paint);
   const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
@@ -2177,6 +2177,9 @@ function attachPasswordHint(inputId) {
 }
 
 function showLoginPane(pane) {
+  // 2026-11-22: 회원가입 창은 단계형 — 다른 화면에서 들어오면 1단계(약관 동의)부터
+  const su = document.getElementById("login-pane-signup");
+  if (pane === "signup" && su && su.style.display !== "block" && typeof suSetStage === "function") suSetStage(1, true);
   for (const p of ["login", "signup", "forgot", "setpassword", "findid", "checkemail"]) {
     const el = document.getElementById(`login-pane-${p}`);
     if (el) el.style.display = p === pane ? "block" : "none";
@@ -3502,7 +3505,7 @@ async function initCommon() {
   attachPasswordHint("signup-password");
   attachPasswordHint("setpassword-new");
   document.getElementById("checkemail-ok")?.addEventListener("click", () => closeLoginModal());
-  document.getElementById("checkemail-wrong")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("signup"); });
+  document.getElementById("checkemail-wrong")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("signup"); suSetStage(2, true); document.getElementById("signup-email")?.focus(); });
   document.getElementById("checkemail-resend")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget;
     const email = document.getElementById("login-pane-checkemail")?.dataset.email || "";
@@ -3785,4 +3788,76 @@ document.addEventListener("change", (e) => {
     const el = document.getElementById("signup-error");
     if (el && /필수 항목/.test(el.textContent)) el.textContent = "";
   }
+});
+/* 2026-11-22: 회원가입 단계형 (1 약관 동의 → 2 회원 정보 → 3 가입 완료=메일함 확인 화면)
+   - 1단계: 필수 동의를 모두 체크해야 "다음"이 켜진다.
+   - 2단계: 칸마다 바로 ✓/✕ 표시, 모두 맞아야 "가입하기"가 켜진다. 실제 확인은 submitSignup()이 한 번 더 한다. */
+function suSetStage(n, instant) {
+  const pane = document.getElementById("login-pane-signup");
+  if (!pane) return;
+  const cur = Number(pane.dataset.suStage || 1);
+  pane.dataset.suStage = n;
+  pane.querySelectorAll(".su-stage").forEach(st => {
+    const on = Number(st.dataset.suStage) === n;
+    st.classList.toggle("is-active", on);
+    st.classList.toggle("from-left", on && !instant && n < cur);
+    if (on && instant) { st.style.animation = "none"; requestAnimationFrame(() => { st.style.animation = ""; }); }
+  });
+  pane.querySelectorAll(".su-step").forEach(li => {
+    const k = Number(li.dataset.suStep);
+    li.classList.toggle("is-done", k < n);
+    li.classList.toggle("is-current", k === n);
+  });
+  const box = pane.closest(".modal-box"); if (box && !instant) box.scrollTop = 0;
+  if (n === 1) suPaintAgree(); else suValidate();
+}
+function suPaintAgree() {
+  const items = [...document.querySelectorAll("#login-pane-signup .agree-item")];
+  const btn = document.getElementById("su-next");
+  if (btn) btn.disabled = !items.every(i => i.checked);
+}
+const SU_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+function suValidate(touchedId) {
+  const v = id => (document.getElementById(id)?.value || "");
+  const name = v("signup-name").trim(), email = v("signup-email").trim(), pw = v("signup-password"), pw2 = v("signup-password2");
+  const checks = {
+    name:  { ok: name.length >= 2 && name.length <= 20, has: !!name, msg: "이름은 2~20자로 적어주세요." },
+    email: { ok: SU_EMAIL_RE.test(email), has: !!email, msg: "이메일 형식을 확인해주세요." },
+    pw:    { ok: !passwordRuleError(pw), has: !!pw, msg: "" },
+    pw2:   { ok: !!pw2 && pw2 === pw, has: !!pw2, msg: "비밀번호가 서로 달라요." }
+  };
+  for (const [k, c] of Object.entries(checks)) {
+    const f = document.querySelector(`#login-pane-signup [data-su-field="${k}"]`);
+    if (!f) continue;
+    // 다 적기 전에는 빨간 표시를 서두르지 않는다: 칸을 떠났거나(blurred) 이미 맞았던 적이 있을 때만 ✕
+    const shown = c.has && (f.dataset.blurred === "1" || c.ok);
+    f.classList.toggle("ok", c.has && c.ok);
+    f.classList.toggle("bad", shown && !c.ok);
+    const m = f.querySelector(".su-msg"); if (m) m.textContent = shown && !c.ok ? c.msg : "";
+  }
+  const btn = document.getElementById("signup-submit");
+  if (btn) btn.disabled = !Object.values(checks).every(c => c.ok);
+}
+document.addEventListener("DOMContentLoaded", () => {
+  const pane = document.getElementById("login-pane-signup");
+  if (!pane) return;
+  pane.addEventListener("change", (e) => { if (e.target.closest(".signup-agree")) { setTimeout(suPaintAgree, 0); /* 전체 동의 연동(document 쪽 리스너)이 끝난 뒤 */ const er = document.getElementById("su-agree-error"); if (er) er.textContent = ""; } });
+  document.getElementById("su-next")?.addEventListener("click", () => {
+    if (!signupAgreed("su-agree-error")) return;
+    suSetStage(2);
+    setTimeout(() => document.getElementById("signup-name")?.focus({ preventScroll: true }), 60);
+  });
+  document.getElementById("su-prev")?.addEventListener("click", () => suSetStage(1));
+  pane.querySelectorAll(".su-field input").forEach(inp => {
+    inp.addEventListener("input", () => suValidate(inp.id));
+    inp.addEventListener("blur", () => { const f = inp.closest(".su-field"); if (f && inp.value) f.dataset.blurred = "1"; suValidate(inp.id); });
+  });
+  pane.querySelectorAll(".su-field input").forEach(inp => {
+    // 가입 창을 다시 열 때 값이 지워지면 표시도 초기화
+    const d = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), "value");
+    const own = Object.getOwnPropertyDescriptor(inp, "value");
+    const base = own || d;
+    Object.defineProperty(inp, "value", { configurable: true, get() { return base.get.call(this); }, set(x) { base.set.call(this, x); if (!x) { const f = this.closest(".su-field"); if (f) delete f.dataset.blurred; } suValidate(); } });
+  });
+  suSetStage(1, true);
 });
