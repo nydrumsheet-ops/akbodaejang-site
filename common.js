@@ -2321,6 +2321,7 @@ async function submitSignup() {
   const password = pwInput ? pwInput.value : "";
   const password2 = pw2Input ? pw2Input.value : "";
   if (errorEl) errorEl.textContent = "";
+  if (!signupAgreed("signup-error")) return;
 
   if (!name || !email || !password) {
     if (errorEl) errorEl.textContent = "이름, 이메일, 비밀번호를 모두 입력해주세요.";
@@ -2450,6 +2451,8 @@ async function submitSetPassword() {
 const OAUTH_PENDING_KEY = "akbo_oauth_pending";
 async function signInWithGoogle(btn) {
   const errorEl = document.getElementById((btn && btn.dataset.googleLogin) || "login-error");
+  // 2026-11-22: 회원가입 화면의 구글 버튼은 필수 동의를 먼저 받는다
+  if (btn && btn.closest("#login-pane-signup") && !signupAgreed(btn.dataset.googleLogin)) return;
   const sb = getSb();
   if (!sb) { if (errorEl) errorEl.textContent = "로그인 기능을 불러오지 못했습니다. 잠시 후 다시 시도해주세요."; return; }
   if (errorEl) errorEl.textContent = "";
@@ -3561,3 +3564,225 @@ async function initCommon() {
 }
 
 document.addEventListener("DOMContentLoaded", () => { initCommon(); });
+
+/* 2026-11-22: 이용약관·개인정보처리방침·환불정책 (mydrumsheet.com 의 약관 구조·원칙을 악보대장(포인트·판매자 마켓)에 맞게 고쳐 씀).
+   footer 링크·회원가입 동의에서 openPolicyDoc("terms"|"privacy"|"refund") 로 연다. 주소창 ?doc=terms 로도 열린다.
+   숫자(환불 기한·수수료·포인트 유효기간·정산)는 POLICY 상수에서 가져오므로 POLICY 를 바꾸면 문서도 같이 바뀐다. */
+const POLICY_EFFECTIVE_DATE = "2026년 11월 22일";
+const BIZ_INFO = {
+  name: "뉴욕뮤직스토어", ceo: "반진영",
+  address: "28123 충청북도 청주시 청원구 오창읍 오창중앙로 123-12 한라트리플타워 6층",
+  bizNo: "317-05-51377", mailOrderNo: "제 2024-충북청주-1981 호",
+  email: "support@mydrumsheet.com",
+  bizCheckUrl: "https://www.ftc.go.kr/bizCommPop.do?wrkr_no=3170551377"
+};
+function policyDocHtml(key) {
+  const rd = POLICY.refund.windowDays, cd = POLICY.chargeRefund.windowDays;
+  const fee = Math.round(POLICY.commission.rate * 100), py = POLICY.point.expiryYears;
+  const minW = POLICY.settlement.minWithdraw.toLocaleString("ko-KR"), payDay = POLICY.settlement.payoutDay;
+  const B = BIZ_INFO;
+  const art = (t, body) => `<h3>${t}</h3>${body}`;
+  const ol = (items) => `<ol>${items.map(i => `<li>${i}</li>`).join("")}</ol>`;
+  if (key === "terms") return `
+<p class="pd-lead">이 약관은 ${B.name}(이하 "회사")가 운영하는 악보 거래 서비스 <b>악보대장</b>(www.akboss.kr, 이하 "서비스")을 이용하는 데 필요한 사항을 정합니다.</p>
+${art("제1조 (목적)", `<p>이 약관은 회사가 제공하는 서비스의 이용 조건과 절차, 회사와 회원의 권리·의무 및 책임 사항을 정하는 것을 목적으로 합니다.</p>`)}
+${art("제2조 (정의)", ol([
+  `"서비스"란 회원이 디지털 악보(PDF 등)를 사고팔 수 있도록 회사가 제공하는 온라인 장터와 관련 기능 일체를 말합니다.`,
+  `"회원"이란 이 약관에 동의하고 가입하여 서비스를 이용하는 사람을 말합니다.`,
+  `"구매자"란 악보를 구매하는 회원을, "아티스트(판매자)"란 회사의 승인을 받아 자신이 만든 악보를 판매하는 회원을 말합니다.`,
+  `"포인트"란 서비스 안에서 악보 구매에 쓰기 위해 회원이 충전하거나 회사가 지급한 결제 수단을 말합니다. 1포인트는 1원의 가치를 가집니다.`,
+  `"콘텐츠"란 서비스에 등록된 악보 파일, 미리보기, 영상, 설명 등을 말합니다.`
+]))}
+${art("제3조 (약관의 게시와 개정)", ol([
+  `회사는 이 약관과 회사의 상호, 대표자, 주소, 사업자등록번호, 통신판매업 신고번호, 연락처를 서비스 첫 화면 아래에 게시합니다.`,
+  `회사는 관련 법령을 어기지 않는 범위에서 약관을 바꿀 수 있습니다. 바꿀 때에는 적용일과 바뀐 내용을 적용일 7일 전부터(회원에게 불리한 변경은 30일 전부터) 공지합니다.`,
+  `회원이 바뀐 약관에 동의하지 않으면 탈퇴할 수 있습니다. 공지한 적용일까지 거부 의사를 밝히지 않으면 동의한 것으로 봅니다.`
+]))}
+${art("제4조 (회원가입)", ol([
+  `이용하려는 사람은 회사가 정한 양식에 정보를 적고 이 약관과 개인정보 수집·이용에 동의하여 가입을 신청합니다. 이메일 가입은 인증 메일의 링크를 눌러야 완료됩니다.`,
+  `만 14세 미만은 가입할 수 없습니다.`,
+  `다른 사람의 정보를 도용하거나 거짓 정보를 적은 경우, 이전에 약관 위반으로 자격을 잃은 경우에는 가입을 거절하거나 나중에 취소할 수 있습니다.`
+]))}
+${art("제5조 (회원 탈퇴와 자격 상실)", ol([
+  `회원은 언제든지 고객센터 1:1 문의로 탈퇴를 요청할 수 있으며, 회사는 지체 없이 처리합니다.`,
+  `탈퇴하면 남은 포인트와 구매 내역은 사라집니다. 환불이 가능한 포인트는 탈퇴 전에 환불을 신청해야 합니다.`,
+  `회원이 다른 사람의 계정을 쓰거나, 악보를 무단으로 퍼뜨리거나, 서비스 운영을 방해하는 경우 회사는 이용을 제한하거나 자격을 박탈할 수 있습니다.`
+]))}
+${art("제6조 (회원에 대한 통지)", `<p>회사는 회원이 등록한 이메일이나 서비스 안의 알림으로 회원에게 통지합니다. 회원 전체에 대한 통지는 7일 이상 서비스에 공지하는 것으로 대신할 수 있습니다.</p>`)}
+${art("제7조 (서비스의 제공·변경·중단)", ol([
+  `회사는 악보 판매·구매, 포인트 충전, 미리보기, 신청곡 게시판, 1:1 문의 등의 서비스를 제공합니다.`,
+  `설비 점검·교체, 고장, 통신 장애 등이 있으면 서비스를 잠시 멈출 수 있습니다. 회사는 미리 공지하되, 부득이한 경우 사후에 알립니다.`
+]))}
+${art("제8조 (포인트)", ol([
+  `포인트는 회사가 정한 결제 수단으로 충전하며, 충전 금액에 따라 보너스 포인트가 지급될 수 있습니다.`,
+  `포인트는 충전·지급된 날부터 ${py}년 동안 쓸 수 있고, 기간이 지나면 사라집니다.`,
+  `포인트는 다른 회원에게 넘기거나 현금으로 바꿀 수 없습니다. 다만 아직 쓰지 않은 충전 포인트의 환불은 환불정책에 따릅니다.`,
+  `보너스·이벤트로 무상 지급된 포인트는 환불 대상이 아니며, 충전을 환불하면 그 충전으로 받은 보너스 포인트도 함께 회수합니다.`
+]))}
+${art("제9조 (구매 계약의 성립과 공급)", ol([
+  `구매자가 악보 상세 화면에서 구매를 누르고 포인트가 차감되면 계약이 성립합니다.`,
+  `구매한 악보는 마이페이지 구매 내역에서 바로 내려받을 수 있습니다. 다운로드는 구매 후 ${rd}일 동안 가능합니다.`,
+  `회사는 구매 전에 미리보기, 난이도, 악기, 가격 등 판단에 필요한 정보를 보여줍니다.`
+]))}
+${art("제10조 (청약철회와 환불)", ol([
+  `구매자는 악보 파일을 열람(다운로드)하지 않았다면 구매 후 ${rd}일 안에 구매를 취소할 수 있으며, 결제한 포인트를 전액 돌려받습니다.`,
+  `악보 파일은 디지털 콘텐츠이므로 한 번 열람(다운로드)하면 「전자상거래 등에서의 소비자보호에 관한 법률」 제17조 제2항에 따라 청약철회가 제한됩니다. 회사는 이 사실을 구매 화면과 환불정책에 미리 알립니다.`,
+  `다만 파일이 열리지 않거나 손상된 경우, 설명과 전혀 다른 곡인 경우 등 콘텐츠에 중대한 하자가 있으면 열람 여부와 관계없이 교환 또는 환불을 받을 수 있습니다. 난이도·편곡 스타일에 대한 개인적인 느낌 차이는 하자로 보지 않습니다.`,
+  `자세한 기준과 절차는 환불정책에서 정합니다.`
+]))}
+${art("제11조 (아티스트(판매자)의 의무와 정산)", ol([
+  `아티스트는 자신이 직접 채보·편곡하였거나 판매할 정당한 권리를 가진 악보만 등록해야 하며, 저작권 등 제3자의 권리를 침해한 경우 그 책임은 아티스트에게 있습니다.`,
+  `회사는 권리 침해 신고가 들어오거나 침해가 의심되는 악보의 판매를 중지하고 아티스트에게 소명을 요청할 수 있습니다.`,
+  `판매 수수료는 판매 금액의 ${fee}%이며, 나머지 ${100 - fee}%가 아티스트의 적립금이 됩니다. 환불된 거래는 적립금에서 빠집니다.`,
+  `적립금은 ${minW}원 이상부터 출금을 신청할 수 있고, 회사는 매월 ${payDay}일에 지급합니다. 세금 신고에 필요한 정보는 아티스트가 정확히 제출해야 합니다.`
+]))}
+${art("제12조 (회사의 의무)", `<p>회사는 법령과 이 약관이 금지하는 행위를 하지 않으며, 안정적으로 서비스를 제공하기 위해 노력합니다. 회원의 개인정보는 개인정보처리방침에 따라 보호합니다.</p>`)}
+${art("제13조 (회원의 의무)", ol([
+  `회원은 아이디(이메일)와 비밀번호를 스스로 관리해야 하며, 다른 사람이 쓰게 해서는 안 됩니다. 도용을 알게 되면 바로 회사에 알려야 합니다.`,
+  `회원은 다음 행위를 해서는 안 됩니다: 구매한 악보의 복제·재배포·재판매, 계정 공유와 대리 이용, 다른 사람의 정보 도용, 서비스 운영을 방해하는 행위, 다른 회원을 비방하거나 불쾌감을 주는 게시물 작성.`
+]))}
+${art("제14조 (저작권과 이용 범위)", ol([
+  `콘텐츠의 저작권은 원저작자 및 해당 악보를 등록한 아티스트에게 있습니다.`,
+  `구매자는 구매한 악보를 개인 연습·교육 목적으로만 쓸 수 있으며, 권리자의 허락 없이 복제·배포·공연·방송·상업적으로 이용할 수 없습니다.`
+]))}
+${art("제15조 (책임의 제한)", `<p>회사는 천재지변, 회원의 잘못, 회원 사이의 거래 분쟁 등 회사의 고의나 과실 없이 생긴 손해에 대해서는 책임을 지지 않습니다. 회사는 악보 거래의 중개자로서 성실히 분쟁 해결을 돕습니다.</p>`)}
+${art("제16조 (분쟁 해결과 관할)", ol([
+  `회사는 회원의 불만을 고객센터 1:1 문의로 받아 처리합니다.`,
+  `회사와 회원 사이의 분쟁은 대한민국 법을 따르며, 소송은 민사소송법상 관할 법원에 제기합니다.`
+]))}
+<p class="pd-date">부칙: 이 약관은 ${POLICY_EFFECTIVE_DATE}부터 적용합니다.</p>`;
+
+  if (key === "privacy") return `
+<p class="pd-lead">${B.name}(이하 "회사")는 「개인정보 보호법」에 따라 악보대장 이용자의 개인정보를 보호하고, 관련 고충을 빠르게 처리하기 위해 다음과 같이 개인정보처리방침을 둡니다.</p>
+${art("제1조 (처리 목적)", ol([
+  `회원 관리: 가입 의사 확인, 본인 식별, 부정 이용 방지, 고지·통지`,
+  `서비스 제공: 악보 구매·다운로드, 포인트 충전·환불, 아티스트 판매·정산`,
+  `고객 지원: 1:1 문의 응대, 분쟁 처리`,
+  `서비스 개선: 이용 통계, 오류 확인`
+]))}
+${art("제2조 (처리하는 개인정보 항목)", ol([
+  `회원가입(필수): 이메일, 비밀번호(암호화 저장), 이름. 구글로 가입하는 경우 구글이 제공하는 이메일·이름`,
+  `아티스트 신청·정산(필수): 활동명, 연락처, 정산 계좌(은행·계좌번호·예금주), 샘플 악보`,
+  `결제: 결제 일시, 금액, 결제 수단 정보(카드번호 등 결제 정보는 결제대행사가 처리하며 회사는 저장하지 않습니다)`,
+  `자동 수집: 접속 기록, 브라우저 정보, 서비스 이용 기록, 쿠키·브라우저 저장소`
+]))}
+${art("제3조 (보유·이용 기간)", `<p>회원 정보는 탈퇴할 때까지 보관하고, 탈퇴하면 지체 없이 파기합니다. 다만 법령에 따라 다음 정보는 정해진 기간 동안 보관합니다.</p>${ol([
+  `계약 또는 청약철회 등에 관한 기록: 5년 (전자상거래법)`,
+  `대금 결제 및 재화 등의 공급에 관한 기록: 5년 (전자상거래법)`,
+  `소비자의 불만 또는 분쟁 처리에 관한 기록: 3년 (전자상거래법)`,
+  `접속 기록: 3개월 (통신비밀보호법)`
+])}`)}
+${art("제4조 (제3자 제공)", `<p>회사는 정보주체의 동의나 법률의 특별한 규정이 있는 경우를 제외하고는 개인정보를 제3자에게 제공하지 않습니다.</p>`)}
+${art("제5조 (처리 위탁과 국외 이전)", `<p>회사는 원활한 서비스를 위해 다음과 같이 개인정보 처리를 맡기고 있습니다.</p>${ol([
+  `Supabase Inc.(미국): 회원 정보·구매 기록·파일 저장 및 로그인 처리. 회원가입 시부터 탈퇴 시까지 네트워크를 통해 국외 서버에 저장됩니다.`,
+  `Vercel Inc.(미국): 웹사이트 호스팅 및 접속 기록 처리`,
+  `Google LLC(미국): 구글 계정 로그인(구글로 가입한 경우)`,
+  `결제대행사(계약 후 이 방침에 이름을 추가합니다): 포인트 충전 결제 처리`,
+  `이메일 발송 서비스: 인증·비밀번호 재설정 메일 발송`
+])}<p>회사는 위탁 계약 시 개인정보가 안전하게 관리되도록 필요한 사항을 정하고 감독합니다. 국외 이전을 원하지 않으면 탈퇴할 수 있으나, 이 경우 서비스를 이용할 수 없습니다.</p>`)}
+${art("제6조 (정보주체의 권리)", ol([
+  `정보주체는 언제든지 자신의 개인정보 열람, 정정, 삭제, 처리 정지를 요구할 수 있습니다.`,
+  `요구는 고객센터 1:1 문의 또는 이메일(${B.email})로 할 수 있으며, 회사는 지체 없이 조치합니다.`,
+  `정정·삭제를 요구한 경우 처리가 끝날 때까지 해당 정보를 쓰거나 제공하지 않습니다.`
+]))}
+${art("제7조 (파기)", `<p>보유 기간이 지나거나 목적을 달성한 개인정보는 지체 없이 파기합니다. 전자 파일은 복구할 수 없는 방법으로 지우고, 종이 문서는 분쇄하거나 소각합니다. 법령에 따라 보관해야 하는 정보는 다른 정보와 분리하여 보관합니다.</p>`)}
+${art("제8조 (안전성 확보 조치)", ol([
+  `비밀번호는 암호화하여 저장하며, 회사도 원래 비밀번호를 알 수 없습니다.`,
+  `모든 통신은 암호화(HTTPS)하여 주고받습니다.`,
+  `데이터베이스는 본인 또는 권한을 받은 관리자만 볼 수 있도록 접근을 제한합니다.`,
+  `개인정보를 다루는 사람을 최소한으로 정하고, 관리자 계정은 보안을 강화합니다.`
+]))}
+${art("제9조 (쿠키 등의 사용)", `<p>회사는 로그인 상태 유지, 장바구니, 최근 본 악보 등을 위해 브라우저 저장소(쿠키·localStorage)를 사용합니다. 브라우저 설정에서 저장을 막을 수 있으나, 이 경우 로그인 등 일부 기능을 쓸 수 없습니다.</p>`)}
+${art("제10조 (개인정보 보호책임자)", `<p>개인정보 관련 문의·불만·피해구제는 아래로 연락해주세요. 회사는 지체 없이 답변하고 처리합니다.</p><p>개인정보 보호책임자: ${B.ceo} (대표)<br>연락처: ${B.email} · 고객센터 1:1 문의</p>`)}
+${art("제11조 (권익침해 구제 방법)", ol([
+  `개인정보 침해신고센터 (privacy.kisa.or.kr / 국번 없이 118)`,
+  `개인정보 분쟁조정위원회 (kopico.go.kr / 1833-6972)`,
+  `대검찰청 사이버수사과 (spo.go.kr / 국번 없이 1301)`,
+  `경찰청 사이버수사국 (ecrm.police.go.kr / 국번 없이 182)`
+]))}
+<p class="pd-date">이 개인정보처리방침은 ${POLICY_EFFECTIVE_DATE}부터 적용합니다.</p>`;
+
+  if (key === "refund") return `
+<p class="pd-lead">악보대장의 악보는 내려받는 즉시 쓸 수 있는 디지털 파일이라, 열람 전과 후의 환불 기준이 다릅니다. 구매 전에 꼭 확인해주세요.</p>
+${art("1. 악보 구매 취소 (포인트로 전액 환불)", ol([
+  `<b>파일을 열람(다운로드)하지 않았고, 구매 후 ${rd}일 이내</b>라면 마이페이지 → 구매 내역에서 바로 환불할 수 있습니다.`,
+  `환불한 포인트는 즉시 다시 쓸 수 있으며, 원래 포인트의 유효기간을 그대로 따릅니다.`,
+  `한 번이라도 열람(다운로드)한 악보는 디지털 콘텐츠 특성상 청약철회가 제한되어 환불되지 않습니다(전자상거래법 제17조 제2항).`
+]))}
+${art("2. 하자가 있는 악보", ol([
+  `파일이 열리지 않거나 깨진 경우, 설명과 전혀 다른 곡인 경우, 페이지가 크게 빠진 경우에는 열람 여부와 관계없이 교환 또는 전액 환불해드립니다.`,
+  `고객센터 1:1 문의에서 "환불"을 골라 구매한 악보와 문제 내용을 알려주세요. 확인 후 처리 결과를 알려드립니다.`,
+  `난이도·편곡 스타일이 생각과 달랐다는 등 개인적인 느낌 차이는 하자로 보지 않습니다. 구매 전 미리보기로 확인해주세요.`
+]))}
+${art("3. 충전 포인트 환불", ol([
+  `<b>충전 후 ${cd}일 이내, 그 충전분을 한 번도 쓰지 않았다면</b> 결제한 금액 전액을 결제 수단으로 돌려드립니다.`,
+  `일부라도 썼거나 ${cd}일이 지났다면 원칙적으로 충전 포인트는 환불되지 않습니다. 다만 법령상 환불 사유(서비스 종료 등)에 해당하면 남은 충전 포인트를 환불합니다.`,
+  `충전 때 받은 보너스 포인트와 이벤트 포인트는 환불 대상이 아니며, 충전을 환불하면 함께 회수됩니다.`,
+  `신청은 고객센터 1:1 문의("결제·포인트")로 해주세요. 카드 결제는 카드사 사정에 따라 취소가 반영되기까지 3~7영업일이 걸릴 수 있습니다.`
+]))}
+${art("4. 다운로드 기간", `<p>구매한 악보는 구매 후 ${rd}일 동안 내려받을 수 있습니다. 내려받은 파일은 기기에 잘 보관해주세요.</p>`)}
+<p class="pd-date">이 환불정책은 ${POLICY_EFFECTIVE_DATE}부터 적용합니다.</p>`;
+  return "";
+}
+const POLICY_DOC_TITLES = { terms: "이용약관", privacy: "개인정보처리방침", refund: "환불정책" };
+function openPolicyDoc(key) {
+  if (!POLICY_DOC_TITLES[key]) return;
+  let ov = document.getElementById("policy-modal");
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "policy-modal"; ov.className = "modal-overlay";
+    ov.innerHTML = `<div class="modal-box policy-box" role="dialog" aria-modal="true" aria-labelledby="policy-title">
+      <button type="button" class="modal-close" data-policy-close aria-label="닫기">✕</button>
+      <p id="policy-title" class="login-lead"></p>
+      <div class="policy-tabs">${Object.keys(POLICY_DOC_TITLES).map(k => `<button type="button" data-policy-tab="${k}">${POLICY_DOC_TITLES[k]}</button>`).join("")}</div>
+      <div class="policy-body"></div></div>`;
+    document.body.appendChild(ov);
+    ov.addEventListener("click", (e) => {
+      if (e.target === ov || e.target.closest("[data-policy-close]")) { ov.classList.remove("open"); return; }
+      const t = e.target.closest("[data-policy-tab]");
+      if (t) openPolicyDoc(t.dataset.policyTab);
+    });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") ov.classList.remove("open"); });
+  }
+  ov.querySelector("#policy-title").textContent = POLICY_DOC_TITLES[key];
+  ov.querySelectorAll("[data-policy-tab]").forEach(b => b.classList.toggle("active", b.dataset.policyTab === key));
+  const body = ov.querySelector(".policy-body");
+  body.innerHTML = policyDocHtml(key);
+  body.scrollTop = 0;
+  ov.classList.add("open");
+}
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("[data-policy]");
+  if (!a) return;
+  e.preventDefault();
+  openPolicyDoc(a.dataset.policy);
+});
+/* 주소창 ?doc=terms|privacy|refund 로 들어오면 해당 문서를 바로 연다 (다른 곳에서 링크 걸 때 사용) */
+document.addEventListener("DOMContentLoaded", () => {
+  try { const d = new URLSearchParams(location.search).get("doc"); if (d) openPolicyDoc(d); } catch (e) { /* 무시 */ }
+});
+/* 2026-11-22: 회원가입 필수 동의 (만 14세·이용약관·개인정보) — 전체 동의 체크박스와 연동 */
+function signupAgreed(errorId) {
+  const items = [...document.querySelectorAll("#login-pane-signup .agree-item")];
+  const ok = items.length === 0 || items.every(i => i.checked);
+  const box = document.querySelector("#login-pane-signup .signup-agree");
+  if (box) box.classList.toggle("need", !ok);
+  if (!ok) {
+    const el = document.getElementById(errorId || "signup-error");
+    if (el) el.textContent = "필수 항목(만 14세 이상·이용약관·개인정보 수집·이용)에 모두 동의해주세요.";
+  }
+  return ok;
+}
+document.addEventListener("change", (e) => {
+  const t = e.target;
+  if (!t.closest || !t.closest("#login-pane-signup .signup-agree")) return;
+  const items = [...document.querySelectorAll("#login-pane-signup .agree-item")];
+  const all = document.getElementById("agree-all");
+  if (t.id === "agree-all") items.forEach(i => { i.checked = t.checked; });
+  else if (all) all.checked = items.every(i => i.checked);
+  if (items.every(i => i.checked)) {
+    document.querySelector("#login-pane-signup .signup-agree")?.classList.remove("need");
+    const el = document.getElementById("signup-error");
+    if (el && /필수 항목/.test(el.textContent)) el.textContent = "";
+  }
+});
