@@ -2189,7 +2189,8 @@ function showLoginPane(pane) {
 function resetLoginForm() {
   PENDING_ROLE = "buyer";
   showLoginPane("login");
-  for (const id of ["login-email", "login-password", "signup-name", "signup-email", "signup-password", "signup-password2", "forgot-email", "setpassword-new", "setpassword-new2"]) {
+  if (typeof suResetCode === "function") suResetCode();
+  for (const id of ["login-email", "login-password", "signup-name", "signup-email", "signup-code", "signup-password", "signup-password2", "forgot-email", "setpassword-new", "setpassword-new2"]) {
     const el = document.getElementById(id);
     if (el) el.value = "";
   }
@@ -2313,6 +2314,105 @@ async function submitLogin() {
   if (errorEl) errorEl.textContent = "이메일 또는 비밀번호가 올바르지 않습니다.";
 }
 
+/* 2026-11-22: 이메일 가입 — 메일 링크 대신 가입 창 안에서 인증코드 입력 (mydrumsheet 방식)
+   1) "인증코드 발송": 임시 비밀번호로 Supabase 계정을 먼저 만들고(signUp) 인증코드 메일을 보낸다.
+      이미 가입된 이메일(구글 가입 포함)이면 Supabase 가 에러 없이 identities 가 빈 결과를 주므로 그걸로 알아낸다.
+   2) "가입하기": 코드를 확인(verifyOtp)하면 로그인되고, 곧바로 손님이 적은 비밀번호로 바꾼다(updateUser).
+   ※ Supabase › Authentication › Emails › "Confirm signup" 양식에 {{ .Token }} 이 있어야 메일에 코드가 나온다.
+     (같은 양식의 {{ .ConfirmationURL }} 링크는 기존 회원 비밀번호 설정·로그인 화면의 "인증 메일 다시 보내기"용으로 남겨둔다) */
+let SU_CODE_EMAIL = "";        // 인증코드를 보낸 이메일(소문자). 이메일을 고치면 다시 받아야 한다
+let SU_CODE_COOLDOWN = 0;      // 다시 받기까지 남은 초
+let SU_CODE_TIMER = null;
+let SU_JUST_SIGNED_UP = false; // 방금 코드 인증으로 가입 → 로그인 처리 뒤 "가입 완료" 화면
+let SU_PW_FAILED = "";
+const SU_DUP_MSG = "이미 가입된 이메일이에요. 로그인해주세요. (구글로 가입했다면 'Google로 로그인'을 눌러주세요)";
+
+function suTempPassword() {
+  const a = new Uint8Array(18);
+  crypto.getRandomValues(a);
+  return "Tmp!" + Array.from(a, x => x.toString(16).padStart(2, "0")).join("") + "aA1";
+}
+function suInfo(id, text, kind) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.textContent = text || "";
+  el.classList.toggle("ok", kind === "ok");
+  el.classList.toggle("err", kind === "err");
+}
+function suAuthErrorText(error) {
+  const m = String((error && error.message) || error || "");
+  const sec = m.match(/after (\d+) seconds?/i);
+  if (sec) return `${sec[1]}초 뒤에 다시 받을 수 있어요.`;
+  if (/rate limit/i.test(m)) return "메일을 너무 자주 보냈어요. 잠시 후 다시 시도해주세요.";
+  if (/expired|invalid/i.test(m)) return "인증코드가 맞지 않거나 시간이 지났어요. 다시 확인하거나 '다시 받기'를 눌러주세요.";
+  return "문제가 생겼어요: " + m;
+}
+/* 인증코드 버튼·입력칸 상태를 그린다. 반환값: 가입하기를 눌러도 되는지(코드를 받았고 숫자를 다 적었는지) */
+function suPaintCode() {
+  const email = (document.getElementById("signup-email")?.value || "").trim().toLowerCase();
+  const btn = document.getElementById("su-code-send");
+  const field = document.getElementById("su-code-field");
+  const sent = !!SU_CODE_EMAIL && email === SU_CODE_EMAIL;
+  if (field) field.hidden = !sent;
+  if (btn && btn.dataset.busy !== "1") {
+    btn.textContent = !sent ? "인증코드 발송" : (SU_CODE_COOLDOWN > 0 ? `다시 받기 ${SU_CODE_COOLDOWN}초` : "다시 받기");
+    btn.disabled = !SU_EMAIL_RE.test(email) || (sent && SU_CODE_COOLDOWN > 0);
+  }
+  const code = (document.getElementById("signup-code")?.value || "").replace(/\s/g, "");
+  return sent && /^\d{6,10}$/.test(code);
+}
+function suStartCooldown(sec) {
+  SU_CODE_COOLDOWN = sec;
+  clearInterval(SU_CODE_TIMER);
+  SU_CODE_TIMER = setInterval(() => {
+    SU_CODE_COOLDOWN -= 1;
+    if (SU_CODE_COOLDOWN <= 0) { SU_CODE_COOLDOWN = 0; clearInterval(SU_CODE_TIMER); }
+    suPaintCode();
+  }, 1000);
+  suPaintCode();
+}
+function suResetCode() {
+  SU_CODE_EMAIL = "";
+  SU_CODE_COOLDOWN = 0;
+  clearInterval(SU_CODE_TIMER);
+  suInfo("su-email-info", "");
+  suInfo("su-code-info", "");
+  const b = document.getElementById("su-code-send");
+  if (b) delete b.dataset.busy;
+}
+
+async function suSendCode() {
+  const email = (document.getElementById("signup-email")?.value || "").trim().toLowerCase();
+  const btn = document.getElementById("su-code-send");
+  suInfo("su-email-info", "");
+  if (!SU_EMAIL_RE.test(email)) { suInfo("su-email-info", "이메일 형식을 확인해주세요.", "err"); return; }
+  if (findUserByEmail(email)) { suInfo("su-email-info", SU_DUP_MSG, "err"); return; }
+  const sb = getSb();
+  if (!sb) { suInfo("su-email-info", "가입 기능을 불러오지 못했어요. 잠시 후 다시 시도해주세요.", "err"); return; }
+  if (btn) { btn.dataset.busy = "1"; btn.disabled = true; btn.textContent = "보내는 중…"; }
+  let data = null, error = null;
+  try {
+    ({ data, error } = await sb.auth.signUp({ email, password: suTempPassword(), options: { emailRedirectTo: SITE_URL } }));
+  } catch (e) { error = e; }
+  if (btn) delete btn.dataset.busy;
+  const nowEmail = (document.getElementById("signup-email")?.value || "").trim().toLowerCase();
+  if (error) {
+    suInfo("su-email-info", /already|registered|exists/i.test(String(error.message || "")) ? SU_DUP_MSG : suAuthErrorText(error), "err");
+    suValidate();
+    return;
+  }
+  if (data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0) {
+    suInfo("su-email-info", SU_DUP_MSG, "err");
+    suValidate();
+    return;
+  }
+  SU_CODE_EMAIL = email;
+  suInfo("su-code-info", `${email}(으)로 인증코드를 보냈어요. 메일이 안 보이면 스팸함도 확인해주세요.`, "ok");
+  suStartCooldown(60);
+  suValidate();
+  if (nowEmail === email) setTimeout(() => document.getElementById("signup-code")?.focus({ preventScroll: true }), 30);
+}
+
 async function submitSignup() {
   const nameInput = document.getElementById("signup-name");
   const emailInput = document.getElementById("signup-email");
@@ -2320,9 +2420,10 @@ async function submitSignup() {
   const pw2Input = document.getElementById("signup-password2");
   const errorEl = document.getElementById("signup-error");
   const name = nameInput ? nameInput.value.trim() : "";
-  const email = emailInput ? emailInput.value.trim() : "";
+  const email = emailInput ? emailInput.value.trim().toLowerCase() : "";
   const password = pwInput ? pwInput.value : "";
   const password2 = pw2Input ? pw2Input.value : "";
+  const code = (document.getElementById("signup-code")?.value || "").replace(/\s/g, "");
   if (errorEl) errorEl.textContent = "";
   if (!signupAgreed("signup-error")) return;
 
@@ -2330,7 +2431,7 @@ async function submitSignup() {
     if (errorEl) errorEl.textContent = "이름, 이메일, 비밀번호를 모두 입력해주세요.";
     return;
   }
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+  if (!SU_EMAIL_RE.test(email)) {
     if (errorEl) errorEl.textContent = "이메일 형식을 확인해주세요.";
     return;
   }
@@ -2343,7 +2444,15 @@ async function submitSignup() {
     return;
   }
   if (findUserByEmail(email)) {
-    if (errorEl) errorEl.textContent = "이미 가입된 이메일입니다. 로그인해주세요.";
+    if (errorEl) errorEl.textContent = SU_DUP_MSG;
+    return;
+  }
+  if (SU_CODE_EMAIL !== email) {
+    if (errorEl) errorEl.textContent = "이메일 옆의 '인증코드 발송'을 눌러 코드를 받아주세요.";
+    return;
+  }
+  if (!/^\d{6,10}$/.test(code)) {
+    if (errorEl) errorEl.textContent = "메일로 받은 인증코드를 입력해주세요.";
     return;
   }
 
@@ -2353,26 +2462,45 @@ async function submitSignup() {
     return;
   }
 
-  const submitBtn = document.getElementById("signup-submit");
-  if (submitBtn) submitBtn.disabled = true;
-  const { error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: SITE_URL } });
-  if (submitBtn) submitBtn.disabled = false;
-
-  if (error) {
-    if (errorEl) {
-      errorEl.textContent = /already|registered|exists/i.test(error.message)
-        ? "이미 가입된 이메일입니다. 로그인해주세요."
-        : "회원가입 중 문제가 발생했습니다: " + error.message;
-    }
-    return;
-  }
-
   try {
     localStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify({ email, name, role: "buyer" }));
   } catch (e) { /* 저장이 막힌 브라우저에서는 그냥 넘어간다 (기본값 buyer 로 가입된다) */ }
 
-  // 2026-11-22: 창을 닫지 않고 "메일함을 확인해주세요" 안내 화면으로 바꾼다
-  showCheckEmailPane(email);
+  const submitBtn = document.getElementById("signup-submit");
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "가입 중…"; }
+  SU_JUST_SIGNED_UP = true;
+  SU_PW_FAILED = "";
+  // 코드가 맞으면 Supabase 가 로그인시키고 SIGNED_IN → handleSupabaseSignedIn 이 회원을 만들고 "가입 완료" 화면을 띄운다
+  let res = await sb.auth.verifyOtp({ email, token: code, type: "email" });
+  if (res.error) {
+    const r2 = await sb.auth.verifyOtp({ email, token: code, type: "signup" });
+    if (!r2.error) res = r2;
+  }
+  if (submitBtn) submitBtn.textContent = "가입하기";
+  if (res.error) {
+    SU_JUST_SIGNED_UP = false;
+    if (submitBtn) submitBtn.disabled = false;
+    if (errorEl) errorEl.textContent = suAuthErrorText(res.error);
+    return;
+  }
+  // 인증코드를 보낼 때 쓴 임시 비밀번호 → 손님이 적은 비밀번호로 바꾼다
+  const { error: pwErr } = await sb.auth.updateUser({ password });
+  if (pwErr) {
+    SU_PW_FAILED = "가입은 됐지만 비밀번호 저장에 실패했어요. 다음 로그인 때 '비밀번호를 잊으셨나요?'로 새 비밀번호를 정해주세요.";
+    const m = document.getElementById("su-done-msg");
+    if (m) m.textContent = SU_PW_FAILED;
+  }
+}
+
+/* 가입 완료(3단계) 화면 */
+function suShowDone(name) {
+  showLoginPane("signup");
+  suSetStage(3, true);
+  const n = document.getElementById("su-done-name");
+  if (n) n.textContent = name || "";
+  const m = document.getElementById("su-done-msg");
+  if (m) m.textContent = SU_PW_FAILED;
+  document.getElementById("login-modal")?.classList.add("open");
 }
 
 function showCheckEmailPane(email) {
@@ -2513,6 +2641,8 @@ async function handleSupabaseSignedIn(session) {
 
   const after = AFTER_LOGIN;
   AFTER_LOGIN = null;
+  const justSignedUp = SU_JUST_SIGNED_UP;
+  SU_JUST_SIGNED_UP = false;
   closeLoginModal();
   if (after) {
     showView("buyer");
@@ -2520,7 +2650,9 @@ async function handleSupabaseSignedIn(session) {
   } else {
     showView(user.role === "seller" ? "seller" : "buyer");
   }
-  toast(`${user.name}님 환영합니다!`);
+  // 2026-11-22: 인증코드로 방금 가입했으면 "가입 완료" 화면 (이어서 할 동작이 있으면 그걸 먼저 보여준다)
+  if (justSignedUp && !after) suShowDone(user.name);
+  else toast(`${user.name}님 환영합니다!`);
 }
 
 /* Supabase Auth 상태 변화를 듣는다.
@@ -3540,6 +3672,12 @@ async function initCommon() {
   attachPasswordHint("signup-password");
   attachPasswordHint("setpassword-new");
   document.getElementById("checkemail-ok")?.addEventListener("click", () => closeLoginModal());
+  // 2026-11-22: 가입 창 안 인증코드
+  document.getElementById("su-code-send")?.addEventListener("click", suSendCode);
+  document.getElementById("signup-email")?.addEventListener("input", () => suInfo("su-email-info", ""));
+  document.getElementById("signup-code")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitSignup(); });
+  document.getElementById("signup-code")?.addEventListener("input", () => { const er = document.getElementById("signup-error"); if (er) er.textContent = ""; });
+  document.getElementById("su-done-ok")?.addEventListener("click", () => closeLoginModal());
   document.getElementById("checkemail-wrong")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("signup"); suSetStage(2, true); document.getElementById("signup-email")?.focus(); });
   document.getElementById("checkemail-resend")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget;
@@ -3645,7 +3783,7 @@ ${art("제3조 (약관의 게시와 개정)", ol([
   `회원이 바뀐 약관에 동의하지 않으면 탈퇴할 수 있습니다. 공지한 적용일까지 거부 의사를 밝히지 않으면 동의한 것으로 봅니다.`
 ]))}
 ${art("제4조 (회원가입)", ol([
-  `이용하려는 사람은 회사가 정한 양식에 정보를 적고 이 약관과 개인정보 수집·이용에 동의하여 가입을 신청합니다. 이메일 가입은 인증 메일의 링크를 눌러야 완료됩니다.`,
+  `이용하려는 사람은 회사가 정한 양식에 정보를 적고 이 약관과 개인정보 수집·이용에 동의하여 가입을 신청합니다. 이메일 가입은 이메일로 받은 인증코드를 입력해야 완료됩니다.`,
   `만 14세 미만은 가입할 수 없습니다.`,
   `다른 사람의 정보를 도용하거나 거짓 정보를 적은 경우, 이전에 약관 위반으로 자격을 잃은 경우에는 가입을 거절하거나 나중에 취소할 수 있습니다.`
 ]))}
@@ -3878,8 +4016,9 @@ function suValidate(touchedId) {
     f.classList.toggle("bad", shown && !c.ok);
     const m = f.querySelector(".su-msg"); if (m) m.textContent = shown && !c.ok ? c.msg : "";
   }
+  const codeReady = suPaintCode(); // 2026-11-22: 인증코드까지 받아서 적어야 "가입하기"가 켜진다
   const btn = document.getElementById("signup-submit");
-  if (btn) btn.disabled = !Object.values(checks).every(c => c.ok);
+  if (btn && btn.textContent !== "가입 중…") btn.disabled = !(Object.values(checks).every(c => c.ok) && codeReady);
 }
 document.addEventListener("DOMContentLoaded", () => {
   const pane = document.getElementById("login-pane-signup");
