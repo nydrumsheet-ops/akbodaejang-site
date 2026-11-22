@@ -1113,7 +1113,7 @@ function renderDetailPage(el, p) {
   } else {
     buyArea = `
       <div class="buy-row">
-        <button class="btn btn-primary" id="d-buy">바로 구매</button>
+        <button class="btn btn-primary btn-pay" id="d-buy">바로 구매</button>
         <button class="btn" id="d-cart">${inCart ? "장바구니 보기" : "장바구니 담기"}</button>
         <button class="btn wish-big" id="d-wish" aria-label="${wished ? "찜 해제" : "찜하기"}" style="color:${wished ? "var(--hot)" : "var(--text)"};"><span class="ico ${wished ? "ico-heart-solid" : "ico-heart"}"></span></button>
       </div>
@@ -1431,8 +1431,8 @@ function renderCartPage(el) {
         <div class="sum-line total"><span>합계</span><span>${formatPoint(total)}</span></div>
         <div class="sum-line" style="color:${after < 0 ? "var(--danger)" : "var(--muted)"};"><span>결제 후 잔액</span><span>${formatPoint(after)}</span></div>
         ${after < 0
-          ? `<button class="btn btn-accent" style="width:100%;margin-top:12px;" id="cart-charge">${formatPoint(-after)} 부족 · 충전하기</button>`
-          : `<button class="btn btn-primary" style="width:100%;margin-top:12px;" id="cart-buy" ${valid.length ? "" : "disabled"}>전체 구매</button>`}
+          ? `<button class="btn btn-accent btn-pay" style="width:100%;margin-top:12px;" id="cart-charge">${formatPoint(-after)} 부족 · 충전하기</button>`
+          : `<button class="btn btn-primary btn-pay" style="width:100%;margin-top:12px;" id="cart-buy" ${valid.length ? "" : "disabled"}>전체 구매</button>`}
         <p class="buy-note">합계 포인트가 모자라면 한 건도 결제되지 않아요.</p>
       </div>
     </div>
@@ -1502,7 +1502,7 @@ function renderMyPage(el, p) {
         <div class="point-card">
           <div class="pc-label">${esc(user.name)}님의 보유 포인트</div>
           <div class="pc-value">${formatPoint(user.points)}</div>
-          <button class="btn btn-small" style="margin-top:10px;background:var(--accent-fill);border-color:var(--accent-fill);color:var(--on-accent);" data-tab="points">충전하기</button>
+          <button class="btn btn-small btn-pay" style="margin-top:10px;" data-tab="points">충전하기</button>
         </div>
         <div class="panel side-menu" style="padding:8px;">
           ${tabs.map(([k, l]) => `<button class="${tab === k ? "active" : ""}" data-tab="${k}">${l}</button>`).join("")}
