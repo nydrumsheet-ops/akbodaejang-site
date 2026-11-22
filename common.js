@@ -3963,3 +3963,16 @@ purchaseScore = withLoading(purchaseScore, "구매하는 중…");
 purchaseCart = withLoading(purchaseCart, "구매하는 중…");
 refundPurchase = withLoading(refundPurchase, "환불하는 중…");
 getScoreDownloadUrl = withLoading(getScoreDownloadUrl, "다운로드 준비 중…");
+/* 2026-11-22: 맨 위로 버튼 — 화면 높이의 1.5배(최소 600px) 넘게 내리면 보이고, 누르면 부드럽게 맨 위로 */
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("to-top");
+  if (!btn) return;
+  let ticking = false;
+  const update = () => { ticking = false; btn.classList.toggle("show", window.scrollY > Math.max(600, window.innerHeight * 1.5)); };
+  window.addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(update); } }, { passive: true });
+  btn.addEventListener("click", () => {
+    const reduce = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    window.scrollTo({ top: 0, behavior: reduce ? "auto" : "smooth" });
+  });
+  update();
+});
