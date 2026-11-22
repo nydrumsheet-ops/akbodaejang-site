@@ -37,7 +37,11 @@ const PENDING_SIGNUP_KEY = "madi.pendingSignup.v1"; // 회원가입 중 입력�
 /* 공유 서버(Supabase) 연결 정보. publishable key 는 공개되어도 되는 키다. */
 const SUPABASE_URL = "https://qvnprznzritqopwqmqlq.supabase.co";
 const SUPABASE_ANON_KEY = "sb_publishable_Gf-vX_Cm_8sFZ_oGep5Azg_DtU0_yFK";
-const SITE_URL = "https://akbodaejang-site.vercel.app"; // 로그인 이메일(인증·재설정)이 돌아올 주소
+const SITE_URL = "https://www.akboss.kr"; // 로그인 이메일(인증·재설정)이 돌아올 주소 (2026-11-22: 예전 vercel 주소 → 공식 주소)
+/* 2026-11-22 버그 수정: "비밀번호 재설정" 메일 링크로 들어오면 Supabase 가 페이지를 여는 순간(로그인 상태 리스너를
+   붙이기 전) 재설정 신호(PASSWORD_RECOVERY)를 보내 버려서, 새 비밀번호 입력창이 뜨지 않았다.
+   그래서 페이지 주소에 재설정 표시가 있는지 처음에 미리 기억해 두고, 로그인 세션이 확인되면 입력창을 띄운다. */
+const AUTH_RECOVERY_FROM_URL = /type=recovery/.test(location.hash || "") || new URLSearchParams(location.search || "").has("akb_recovery");
 const SUPPORT_PHONE = "010-4824-9729"; // 2026-11-21: 고객센터 연락처 — 운영자 요청으로 화면에는 표시하지 않고 기록으로만 보관(필요할 때 여기서 꺼내 쓴다)
 
 /* 이 이메일로 가입(또는 이미 가입)하면 관리자 권한이 자동으로 붙는다. (2026-10-13 추가)
@@ -2270,6 +2274,17 @@ async function submitLogin() {
     return;
   }
 
+  // 2026-11-22: 이메일 인증을 아직 안 한 경우 "비밀번호가 틀렸다"로 보여서 헷갈렸다 → 따로 안내하고 인증 메일을 다시 보낼 수 있게
+  if (error && (error.code === "email_not_confirmed" || /not confirmed/i.test(error.message || ""))) {
+    if (errorEl) {
+      errorEl.innerHTML = `이메일 인증이 아직 안 됐어요. 가입할 때 받은 메일의 인증 링크를 눌러주세요. <button type="button" id="login-resend-confirm" style="border:0;background:none;padding:0;color:inherit;text-decoration:underline;cursor:pointer;font:inherit;">인증 메일 다시 보내기</button>`;
+      document.getElementById("login-resend-confirm")?.addEventListener("click", async () => {
+        const { error: e2 } = await sb.auth.resend({ type: "signup", email, options: { emailRedirectTo: SITE_URL } });
+        errorEl.textContent = e2 ? "인증 메일을 보내지 못했어요: " + e2.message : "인증 메일을 다시 보냈어요. 메일함(스팸함 포함)을 확인해주세요.";
+      });
+    }
+    return;
+  }
   if (errorEl) errorEl.textContent = "이메일 또는 비밀번호가 올바르지 않습니다.";
 }
 
@@ -2350,7 +2365,7 @@ async function submitForgotPassword() {
   }
   const submitBtn = document.getElementById("forgot-submit");
   if (submitBtn) submitBtn.disabled = true;
-  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: SITE_URL });
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: `${SITE_URL}/?akb_recovery=1` });
   if (submitBtn) submitBtn.disabled = false;
   if (error) {
     if (errorEl) errorEl.textContent = "요청 중 문제가 발생했습니다: " + error.message;
@@ -2390,6 +2405,10 @@ async function submitSetPassword() {
   }
   closeLoginModal();
   toast("비밀번호가 설정되었습니다.");
+  // 2026-11-22: 재설정 링크로 들어온 경우 화면상 로그인까지 마무리한다
+  if (!getCurrentUser()) {
+    try { const { data } = await sb.auth.getSession(); if (data && data.session) handleSupabaseSignedIn(data.session); } catch (e) { /* 무시 */ }
+  }
 }
 
 /* 2026-11-01: 구글 간편 로그인.
@@ -2481,11 +2500,22 @@ function initSupabaseAuth() {
     try { pending = !!sessionStorage.getItem(OAUTH_PENDING_KEY); sessionStorage.removeItem(OAUTH_PENDING_KEY); } catch (e) { /* 무시 */ }
     return pending;
   };
+  let recoveryShown = false;
+  const showRecovery = () => {
+    if (recoveryShown) return;
+    recoveryShown = true;
+    resetLoginForm();
+    showLoginPane("setpassword");
+    document.getElementById("login-modal")?.classList.add("open");
+    // 주소창에 남은 재설정 표시는 지운다 (새로고침해도 다시 뜨지 않게)
+    try { if (location.search.includes("akb_recovery")) history.replaceState(history.state, "", location.pathname); } catch (e) { /* 무시 */ }
+  };
   sb.auth.onAuthStateChange((event, session) => {
     if (event === "PASSWORD_RECOVERY") {
-      resetLoginForm();
-      showLoginPane("setpassword");
-      document.getElementById("login-modal")?.classList.add("open");
+      showRecovery();
+    } else if ((event === "INITIAL_SESSION" || event === "SIGNED_IN") && session && AUTH_RECOVERY_FROM_URL && !recoveryShown) {
+      // 재설정 신호를 놓친 경우: 세션은 이미 생겼으니 새 비밀번호 입력창을 띄운다
+      setTimeout(showRecovery, 0);
     } else if (event === "SIGNED_IN" && session) {
       takeOauthPending();
       handleSupabaseSignedIn(session);
