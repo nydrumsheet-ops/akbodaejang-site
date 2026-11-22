@@ -1498,6 +1498,18 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 #login-pane-checkemail .su-steps{margin-top:10px}
 #su-agree-error:empty{display:none}
 #su-next{margin-top:16px}
+/* 2026-11-22: 이메일 인증코드 (가입 창 안에서 6자리 코드) */
+.su-row{display:flex;gap:8px;align-items:stretch}
+.su-row .su-input{flex:1;min-width:0}
+.su-code-btn{flex:0 0 auto;height:48px;padding:0 14px;border-radius:var(--radius-field);border:1px solid var(--ink-solid);background:#ffffff;color:var(--ink-solid);font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;font-variant-numeric:tabular-nums}
+.su-code-btn:disabled{border-color:#ececec;background:#ececec;color:#a3a3a3;cursor:not-allowed}
+.su-info{margin:5px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
+.su-info:empty{display:none}
+.su-info.ok{color:#17633a}
+.su-info.err{color:#c0392b}
+.su-field[hidden]{display:none}
+.su-done-title{margin:8px 0 6px;font-size:20px;font-weight:700;color:var(--c-ink);text-align:center}
+.su-stage[data-su-stage="3"] .login-sub{text-align:center}
 /* 2026-11-22: 가입 화면이 길어져 작은 화면에서 아래 버튼이 잘리던 문제 — 창 안에서 스크롤 */
 #login-modal .modal-box{max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow-y:auto}
 /* 2026-11-22: 비밀번호 조건 표시 · 가입 안내 · 인증 메일 안내 화면 */
@@ -1870,12 +1882,20 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
         <p class="signup-google-note">구글 계정은 이메일 인증 없이 바로 가입돼요.</p>
         <div class="login-or">또는 이메일로 가입</div>
         <div class="su-field" data-su-field="name"><label for="signup-name">이름 <em class="su-req">*</em></label><div class="su-input"><input type="text" id="signup-name" placeholder="2~20자" maxlength="20" autocomplete="name"><span class="su-mark" aria-hidden="true"></span></div><p class="su-msg"></p></div>
-        <div class="su-field" data-su-field="email"><label for="signup-email">이메일 <em class="su-req">*</em></label><div class="su-input"><input type="email" id="signup-email" placeholder="자주 쓰는 이메일" autocomplete="username"><span class="su-mark" aria-hidden="true"></span></div><p class="su-msg"></p></div>
+        <div class="su-field" data-su-field="email"><label for="signup-email">이메일 <em class="su-req">*</em></label><div class="su-row"><div class="su-input"><input type="email" id="signup-email" placeholder="자주 쓰는 이메일" autocomplete="username"><span class="su-mark" aria-hidden="true"></span></div><button type="button" id="su-code-send" class="su-code-btn" disabled>인증코드 발송</button></div><p class="su-msg"></p><p id="su-email-info" class="su-info"></p></div>
+        <div class="su-field" data-su-field="code" id="su-code-field" hidden><label for="signup-code">인증코드 <em class="su-req">*</em></label><div class="su-input"><input type="text" id="signup-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="메일로 받은 6자리 숫자"><span class="su-mark" aria-hidden="true"></span></div><p id="su-code-info" class="su-info"></p></div>
         <div class="su-field" data-su-field="pw"><label for="signup-password">비밀번호 <em class="su-req">*</em></label><div class="su-input"><input type="password" id="signup-password" placeholder="8자 이상, 영문·숫자·특수문자" autocomplete="new-password"><span class="su-mark" aria-hidden="true"></span></div></div>
         <div class="su-field" data-su-field="pw2"><label for="signup-password2">비밀번호 확인 <em class="su-req">*</em></label><div class="su-input"><input type="password" id="signup-password2" placeholder="비밀번호를 한 번 더 입력" autocomplete="new-password"><span class="su-mark" aria-hidden="true"></span></div><p class="su-msg"></p></div>
         <p id="signup-error" class="login-error"></p>
-        <p class="signup-verify-note">가입하면 적어주신 이메일로 인증 메일이 가요. 메일의 링크를 눌러야 가입이 끝나요.</p>
+        <p class="signup-verify-note">이메일로 받은 인증코드를 입력하면 바로 가입돼요.</p>
         <div class="su-actions"><button type="button" id="su-prev" class="su-prev">이전</button><button id="signup-submit" class="login-btn-primary su-btn" disabled>가입하기</button></div>
+      </div>
+      <!-- 2026-11-22: 3단계 가입 완료 (인증코드 확인 → 바로 로그인) -->
+      <div class="su-stage" data-su-stage="3">
+        <p class="su-done-title">가입이 끝났어요!</p>
+        <p class="login-sub"><b id="su-done-name"></b>님, 악보대장에 오신 걸 환영해요.</p>
+        <p id="su-done-msg" class="login-error"></p>
+        <button type="button" id="su-done-ok" class="login-btn-primary">시작하기</button>
       </div>
     </div>
 
