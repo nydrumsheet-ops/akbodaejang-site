@@ -1498,11 +1498,17 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 .akb-loading.show{display:flex;animation:akb-load-in .2s ease .3s both}
 .akb-loading.boot{background:#ffffff}
 @keyframes akb-load-in{from{opacity:0}to{opacity:1}}
-.akb-spin{width:38px;height:38px;border-radius:50%;border:3px solid #e6e6e6;border-top-color:var(--accent-fill);animation:akb-spin .8s linear infinite}
-@keyframes akb-spin{to{transform:rotate(360deg)}}
+/* 2026-11-22: 로딩 표시를 테두리 원 → 주황 그라데이션 점 3개 "물결"로 (포인트 아이콘과 같은 색) */
+.akb-dots{display:flex;align-items:flex-end;gap:8px;height:28px}
+.akb-dots i{display:block;width:11px;height:11px;border-radius:50%;animation:akb-wave 1s ease-in-out infinite}
+.akb-dots i:nth-child(1){background:#F7890F}
+.akb-dots i:nth-child(2){background:#F8972A;animation-delay:.15s}
+.akb-dots i:nth-child(3){background:#F9A53F;animation-delay:.3s}
+@keyframes akb-wave{0%,60%,100%{transform:translateY(0);opacity:.55}30%{transform:translateY(-10px);opacity:1}}
+@keyframes akb-blink{0%,100%{opacity:.45}50%{opacity:1}}
 .akb-loading p{margin:0;font-size:14px;font-weight:600;color:#756b61}
 .akb-loading p:empty{display:none}
-@media (prefers-reduced-motion:reduce){.akb-spin{animation-duration:1.8s}}
+@media (prefers-reduced-motion:reduce){.akb-dots i{animation:akb-blink 1.6s ease-in-out infinite;transform:none}.akb-dots i:nth-child(2){animation-delay:.25s}.akb-dots i:nth-child(3){animation-delay:.5s}}
 /* 2026-11-22: 맨 위로 버튼 — 화면을 일정 이상 내리면 오른쪽 아래에 나타남 */
 .to-top{position:fixed;right:24px;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:70;width:52px;height:52px;border-radius:50%;border:1px solid #e0e0e0;background:#ffffff;color:#2c2622;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.08);opacity:0;visibility:hidden;transform:translateY(10px);transition:opacity .2s ease,transform .2s ease,visibility .2s,background-color .15s ease,border-color .15s ease}
 .to-top.show{opacity:1;visibility:visible;transform:none}
@@ -1827,6 +1833,7 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
     // 2026-11-22: 다크모드에서 장바구니 아이콘이 잘 안 보여서 포인트 아이콘과 같은 주황(#F9A53F)으로
     'html[data-theme="dark"] .cart-btn,html[data-theme="dark"] #header-cart-btn .ico-cart,html[data-theme="dark"] .md-quick .ico-cart{color:#F9A53F}',
     'html[data-theme="dark"] .cart-btn{border-color:#F9A53F}',
+    'html[data-theme="dark"] .akb-dots i:nth-child(1){background:#F7890F}html[data-theme="dark"] .akb-dots i:nth-child(2){background:#F8972A}html[data-theme="dark"] .akb-dots i:nth-child(3){background:#F9A53F}',
     'html[data-theme="dark"] .video-card{background:#2b241f;color:#f3ece4}',
     'html[data-theme="dark"] .video-card:hover{background:#362d27}',
     'html[data-theme="dark"] .video-card .vc-sub{color:#b8ad9f}',
@@ -1913,7 +1920,7 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
 <body ontouchstart=""><!-- ontouchstart: 아이폰에서도 누르는 순간(:active) 효과가 보이게 (2026-11-21) -->
 
 <!-- 2026-11-22: 로딩 표시 (처음 접속 때 데이터를 받는 동안 + 구매·다운로드 등 기다리는 작업) -->
-<div id="akb-loading" class="akb-loading show boot" role="status" aria-live="polite"><div class="akb-spin" aria-hidden="true"></div><p id="akb-loading-text">불러오는 중…</p></div>
+<div id="akb-loading" class="akb-loading show boot" role="status" aria-live="polite"><div class="akb-dots" aria-hidden="true"><i></i><i></i><i></i></div><p id="akb-loading-text">불러오는 중…</p></div>
 <div id="notice-bar" class="notice-bar" hidden></div>
 <header class="site-header">
   <div class="container header-row">
