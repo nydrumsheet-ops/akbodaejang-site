@@ -896,7 +896,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .rank-num.top{background:var(--accent-fill);color:var(--text-inverse)}
 .video-flag{position:absolute;left:10px;top:10px;z-index:2;width:28px;height:28px;display:flex;align-items:center;justify-content:center;background:#ffffff;border:1px solid #efefef;border-radius:50%;color:#f07845;font-size:11px;box-shadow:var(--shadow-sm)}
 .diff-badge{position:absolute;top:8px;right:8px;z-index:2;font:700 12px/1 var(--font-text);padding:6px 10px;border-radius:var(--radius-pill);box-shadow:var(--shadow-sm)}
-.cart-btn{flex-shrink:0;width:34px;height:34px;border-radius:6px;border:1px solid #E6E6E6;background:#ffffff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color 180ms ease,border-color 180ms ease}
+.cart-btn{color:#000000;flex-shrink:0;width:34px;height:34px;border-radius:6px;border:1px solid #E6E6E6;background:#ffffff;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background-color 180ms ease,border-color 180ms ease}
 /* 2026-10-29: 악보 카드 장바구니 버튼 hover — B안: 거의 흰 배경 + 브랜드 주황 테두리·아이콘(난이도 배지와 형태로 구분) */
 .cart-btn:hover{background:var(--accent-tint);border-color:var(--accent)}
 .cart-btn:hover svg{stroke:var(--accent)}
@@ -1187,6 +1187,22 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .footer-links a:hover,.footer-links button:hover{text-decoration:underline}
 .site-footer p{margin:4px 0;line-height:1.6}
 @media (max-width:760px){.footer-links{gap:8px 16px}}
+/* 2026-11-22: 사업자 정보 — PC는 "·"로 이어서, 휴대폰은 한 줄에 하나(이름 칸 + 내용) */
+.footer-biz{display:flex;flex-wrap:wrap;row-gap:2px;line-height:1.7}
+.footer-biz>span{white-space:nowrap}
+.footer-biz>span.fb-wide{white-space:normal}
+.footer-biz>span:not(:last-child)::after{content:"·";margin:0 8px;color:#b5b5b5}
+.footer-biz em{font-style:normal;color:var(--muted);margin-right:5px}
+@media (max-width:760px){
+.site-footer{padding-block:28px 40px}
+.footer-links{display:grid;grid-template-columns:repeat(3,auto);justify-content:start;gap:10px 18px;margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid #dcdcdc}
+.footer-biz{display:grid;grid-template-columns:max-content 1fr;gap:3px 12px;font-size:12.5px}
+.footer-biz>span{display:contents;white-space:normal}
+.footer-biz>span::after{content:none!important}
+.footer-biz em{margin:0}
+.footer-bizcheck{grid-column:2;margin-left:0}
+.footer-copy{margin-top:16px!important;font-size:12px}
+}
 /* 2026-11-21: 761~1000px 창에서 헤더 버튼이 몇 px 넘치던 문제 — 이름·포인트 글자는 숨기고 아이콘만 */
 @media (max-width:1000px){.icon-btn-label{display:none}}
 @media (max-width:760px){
@@ -1461,7 +1477,7 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 @media (hover:hover){.hdr-points:hover{background:#ffe8d8;border-color:#e88a4c}}
 .hdr-points:active{transform:scale(.96)}
 .hdr-points:focus-visible{outline:2px solid var(--ink-solid);outline-offset:2px}
-.hdr-coin{width:18px;height:18px;fill:none;stroke:#e06a26;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.hdr-coin{width:18px;height:18px;fill:none;stroke:url(#akb-pt-grad);stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
 .hdr-wish .ico{color:#d6456b}
 @media (max-width:760px){.hdr-points{height:32px;padding:0 9px;font-size:13px;gap:4px}.hdr-coin{width:16px;height:16px}}
 /* 넓지 않은 PC 창: 이름 글자는 숨기고(아이콘만) 포인트를 보이게 — 검색창이 너무 좁아지지 않게 */
@@ -1508,6 +1524,97 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 .su-info.ok{color:#17633a}
 .su-info.err{color:#c0392b}
 .su-field[hidden]{display:none}
+/* ===== 2026-11-22: 휴대폰 헤더 정리 + 메뉴(드로어) ===== */
+.m-menu-btn{display:none}
+.akb-sheet{position:fixed;inset:0;z-index:95;display:none}
+.akb-sheet.open{display:block}
+body:has(.akb-sheet.open){overflow:hidden}
+.md-scrim{position:absolute;inset:0;background:rgba(0,0,0,.42);animation:mds-fade .2s ease}
+.md-panel{position:absolute;top:0;right:0;bottom:0;width:min(86vw,360px);background:#ffffff;display:flex;flex-direction:column;overflow-y:auto;overscroll-behavior:contain;padding:14px 20px calc(20px + env(safe-area-inset-bottom,0px));box-shadow:-8px 0 24px rgba(0,0,0,.12);animation:md-in .24s cubic-bezier(.2,.7,.2,1)}
+@keyframes md-in{from{transform:translateX(100%)}to{transform:none}}
+@media (prefers-reduced-motion:reduce){.md-panel,.md-scrim{animation:none}}
+.md-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px}
+.md-head .logo{font-size:21px}
+.md-close{width:40px;height:40px;margin-right:-8px;display:inline-flex;align-items:center;justify-content:center;border:0;background:none;color:#2c2622;cursor:pointer}
+.md-auth{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:18px}
+.md-btn{height:44px;border-radius:var(--radius-control);border:1px solid #2c2622;background:#ffffff;color:#2c2622;font-size:14px;font-weight:700;cursor:pointer}
+.md-btn.primary{background:#2c2622;color:#ffffff}
+.md-user{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px}
+.md-user b{font-size:16px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.md-quick{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:18px}
+.md-quick button{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;padding:11px 0 9px;border:1px solid #e6e6e6;border-radius:12px;background:#ffffff;color:#2c2622;font-size:12px;cursor:pointer}
+.md-quick .ico{font-size:19px}
+.md-quick .badge{position:absolute;top:5px;right:12px}
+.md-sec{margin:4px 0 2px;font-size:12px;font-weight:700;color:#8a8079}
+.md-grid{display:grid;grid-template-columns:1fr 1fr;column-gap:12px;margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #eeeeee}
+.md-links button{display:block;width:100%;text-align:left;padding:11px 2px;border:0;background:none;color:#2c2622;font-size:15px;cursor:pointer}
+.md-links button.active{color:#e0602a;font-weight:700}
+#md-extra:empty{display:none}
+#md-extra{margin-bottom:12px;padding-bottom:10px;border-bottom:1px solid #eeeeee}
+.md-foot{margin-top:auto;padding-top:8px}
+.md-theme{display:inline-flex;align-items:center;gap:8px;border:0;background:none;color:#2c2622;font-size:14px;padding:8px 0;cursor:pointer}
+@media (max-width:760px){
+.header-row{flex-wrap:nowrap;gap:8px;padding-block:10px}
+.logo{flex:0 0 auto;font-size:21px;gap:5px}
+.logo small{font-size:9px;padding:3px 5px}
+.search-wrap{order:0;flex:1 1 auto;flex-basis:auto;min-width:0;max-width:none}
+#header-search{height:40px;padding:0 40px 0 12px;font-size:14px}
+.search-btn{width:32px;height:32px;right:4px;font-size:16px}
+#header-auth{order:0;flex:0 0 auto;flex-basis:auto;max-width:none}
+#header-auth>:not(.nt-wrap){display:none!important}
+#theme-toggle{display:none}
+.m-menu-btn{display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;width:38px;height:40px;margin-right:-6px;border:0;background:none;padding:0;color:#2c2622;cursor:pointer}
+}
+/* ===== 2026-11-22: 상세 필터 — 휴대폰에서는 저절로 펼치지 않고, 펼쳐도 촘촘하게 ===== */
+.ft-count{display:inline-flex;align-items:center;justify-content:center;min-width:18px;height:18px;margin-left:6px;padding:0 5px;border-radius:9px;background:#e0602a;color:#ffffff;font-size:11px;font-weight:700}
+.filter-toggle>span:first-child{display:inline-flex;align-items:center}
+@media (max-width:760px){
+.filter-panel{padding:12px 14px;gap:0;border-width:1px;margin-bottom:14px}
+.filter-panel .filter-active{margin-top:10px;padding-top:10px;flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none}
+.filter-panel .filter-active::-webkit-scrollbar{display:none}
+.filter-active .filter-pill,.filter-active .filter-reset{flex-shrink:0;white-space:nowrap}
+.filter-body{gap:8px;margin-top:12px}
+.filter-line{gap:8px}
+.filter-label{width:40px;font-size:11px}
+.filter-panel .toggle-row{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;gap:6px}
+.filter-panel .toggle-row::-webkit-scrollbar{display:none}
+.filter-panel .toggle-row .toggle{flex-shrink:0;white-space:nowrap}
+.filter-panel .chip{height:30px;padding:0 11px;font-size:13px}
+}
+/* ===== 2026-11-22: 악보 목록 바둑판/목록 보기 전환 ===== */
+.toolbar-right{display:flex;align-items:center;gap:8px;margin-left:auto}
+.view-toggle{display:inline-flex;border:1px solid #e0e0e0;border-radius:10px;overflow:hidden;background:#ffffff}
+.view-toggle button{width:36px;height:34px;display:inline-flex;align-items:center;justify-content:center;border:0;background:#ffffff;color:#9a9a9a;cursor:pointer;padding:0}
+.view-toggle button+button{border-left:1px solid #e0e0e0}
+.view-toggle button[aria-pressed="true"]{background:#f1f1f1;color:#2c2622}
+.score-grid.is-list{grid-template-columns:minmax(0,1fr)!important;gap:0!important}
+.score-grid.is-list .score-card{flex-direction:row;align-items:center;gap:16px;padding:12px 0;border-bottom:1px solid #ececec}
+.score-grid.is-list .thumb{width:96px;flex-shrink:0}
+.score-grid.is-list .rank-num{display:none}
+.score-grid.is-list .diff-badge{transform:scale(.78);transform-origin:top left}
+.score-grid.is-list .card-body{display:grid;grid-template-columns:minmax(0,1fr) auto;grid-template-areas:"seller foot" "title foot" "artist foot";column-gap:16px;row-gap:2px;align-items:center;min-width:0}
+.score-grid.is-list .card-seller{grid-area:seller;margin:0}
+.score-grid.is-list .card-title{grid-area:title;margin:0}
+.score-grid.is-list .card-artist{grid-area:artist}
+.score-grid.is-list .card-foot{grid-area:foot;flex-direction:row-reverse;align-items:center;margin:0;padding:0;gap:14px}
+.score-grid.is-list .score-card:hover .thumb{transform:none;box-shadow:none}
+@media (max-width:760px){
+.score-grid.is-list .score-card{gap:12px;padding:10px 0;align-items:flex-start}
+.score-grid.is-list .thumb{width:76px}
+.score-grid.is-list .card-body{grid-template-columns:minmax(0,1fr);grid-template-areas:"seller" "title" "artist" "foot"}
+.score-grid.is-list .card-title{font-size:14px}
+.score-grid.is-list .card-foot{flex-direction:row;justify-content:space-between;padding-top:6px}
+.score-grid.is-list .card-foot-right{flex-direction:row;align-items:center;gap:8px}
+}
+/* ===== 2026-11-22: 로그인 "아이디 저장" 켜고 끄기 ===== */
+.remember-row{display:flex;align-items:center;gap:8px;margin:2px 0 12px;font-size:13px;color:#4a423c;cursor:pointer;user-select:none;width:max-content}
+#login-modal .remember-row input{position:absolute;opacity:0;width:1px;height:1px;margin:0;padding:0;border:0}
+.rm-track{position:relative;width:36px;height:20px;border-radius:10px;background:#d4d4d4;transition:background-color .18s ease;flex-shrink:0}
+.rm-track::after{content:"";position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#ffffff;box-shadow:0 1px 2px rgba(0,0,0,.25);transition:transform .18s ease}
+.remember-row input:checked+.rm-track{background:#F7890F}
+.remember-row input:checked+.rm-track::after{transform:translateX(16px)}
+.remember-row input:focus-visible+.rm-track{outline:2px solid #2c2622;outline-offset:2px}
+
 /* 2026-11-22: 닉네임·활동명 규칙 안내 (항상 보이게) */
 .su-rule{margin:5px 0 0;font-size:12px;color:var(--muted);line-height:1.5}
 #login-pane-nickname .su-field{margin:6px 0 16px}
@@ -1641,16 +1748,27 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
     }
     return "bg";
   }
-  function mapDecls(style) {
+  function mapDecls(style, orig) {
     var parts = [];
     for (var i = 0; i < style.length; i++) {
       var p = style[i];
       if (!COLOR_PROPS.test(p)) continue;
       var v = style.getPropertyValue(p); if (!v) continue;
       var nv = mapValue(v, kindFor(p, style));
-      if (nv !== null) parts.push(p + ":" + nv + (style.getPropertyPriority(p) ? " !important" : ""));
+      var imp = style.getPropertyPriority(p) ? " !important" : "";
+      if (nv !== null) { parts.push(p + ":" + nv + imp); if (orig) orig.push(p + ":" + v + imp); }
     }
     return parts.join(";");
+  }
+  /* 2026-11-22: 배너(.hero)는 다크모드에서도 밝은 화면 그대로 둔다.
+     바꾼 규칙마다 ".hero 안에서는 원래 색"으로 되돌리는 규칙을 바로 뒤에 붙인다(같은 우선순위 → 뒤에 온 것이 이김) */
+  function heroSel(list) {
+    return list.map(function (s) {
+      s = s.trim();
+      var m = s.match(/^(:root|html|body)\b/);
+      if (m) return PREFIX + " .hero" + s.slice(m[0].length);
+      return ":where(" + PREFIX + " .hero) " + s;
+    }).join(",");
   }
   var PREFIX = 'html[data-theme="dark"]';
   function prefixSel(sel) {
@@ -1666,7 +1784,18 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
       var r = rules[i];
       if (r.type === 1) { // style rule
         if (r.selectorText.indexOf("data-theme") >= 0) continue;
-        var d = mapDecls(r.style); if (d) out.push(prefixSel(r.selectorText) + "{" + d + "}");
+        var keep = r.selectorText.split(",").filter(function (s) { return !/\bhero/.test(s); }); // 배너 전용 규칙은 바꾸지 않는다
+        if (!keep.length) continue;
+        var orig = [], d = mapDecls(r.style, orig);
+        if (d) out.push(prefixSel(keep.join(",")) + "{" + d + "}");
+        // :root 의 변수는 다른 변수를 가리키는 것(--text: var(--c-ink) 등)까지 배너 안에서 원래 값으로 다시 계산되게 전부 되돌린다
+        var rootish = keep.filter(function (s) { return /^\s*(:root|html)\b/.test(s); });
+        if (rootish.length) {
+          var vars = [];
+          for (var j = 0; j < r.style.length; j++) { var vp = r.style[j]; if (vp.indexOf("--") === 0) vars.push(vp + ":" + r.style.getPropertyValue(vp)); }
+          if (vars.length) out.push(heroSel(rootish) + "{" + vars.join(";") + "}");
+        }
+        if (d) out.push(heroSel(keep) + "{" + orig.join(";") + "}");
       } else if (r.type === 4) { // @media
         var inner = []; walk(r.cssRules, inner);
         if (inner.length) out.push("@media " + r.media.mediaText + "{" + inner.join("") + "}");
@@ -1694,7 +1823,7 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
   var DARK_EXTRA = [
     'html[data-theme="dark"]{color-scheme:dark}',
     'html[data-theme="dark"] img,html[data-theme="dark"] video,html[data-theme="dark"] iframe{color-scheme:normal}',
-    'html[data-theme="dark"] .hero-slide .btn{color:#ffffff}',
+    'html[data-theme="dark"] .hero{color-scheme:light;color:var(--text)}',
     'html[data-theme="dark"] .video-card{background:#2b241f;color:#f3ece4}',
     'html[data-theme="dark"] .video-card:hover{background:#362d27}',
     'html[data-theme="dark"] .video-card .vc-sub{color:#b8ad9f}',
@@ -1706,6 +1835,7 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
   /* ---- 화면에서 style="" 로 넣은 색 ---- */
   function mapInline(el) {
     if (root.dataset.theme !== "dark") return;
+    if (el.closest && el.closest(".hero")) return; // 배너는 원래 색 그대로
     var css = el.getAttribute("style"); if (!css || !COLOR_RE.test(css)) { COLOR_RE.lastIndex = 0; return; }
     COLOR_RE.lastIndex = 0;
     if (el.__akbDk === css) return;          // 이미 바꾼 결과
@@ -1793,6 +1923,7 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
       <div id="search-suggest"></div>
     </div>
     <div id="header-auth"></div>
+    <button type="button" id="m-menu-btn" class="m-menu-btn" aria-label="메뉴 열기" aria-controls="m-drawer" aria-expanded="false"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M4 6h16M4 12h16M4 18h16"/></svg></button>
     <button type="button" id="theme-toggle" class="theme-toggle" aria-label="어두운 화면으로 바꾸기"><svg class="ic-moon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg><svg class="ic-sun" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4.2"/><path d="M12 2v2.2M12 19.8V22M4.9 4.9l1.6 1.6M17.5 17.5l1.6 1.6M2 12h2.2M19.8 12H22M4.9 19.1l1.6-1.6M17.5 6.5l1.6-1.6"/></svg></button>
   </div>
   <div class="container menu-row" id="menu-row">
@@ -1811,6 +1942,28 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
     <button class="menu-btn" data-menu="notices">공지</button>
   </div>
 </header>
+
+<!-- 2026-11-22: 포인트 아이콘 그라데이션("프로" 글자 색) — 문서에 한 번만 -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false"><defs><linearGradient id="akb-pt-grad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#F7890F"/><stop offset="1" stop-color="#F9A53F"/></linearGradient></defs></svg>
+
+<!-- 2026-11-22: 휴대폰 메뉴 (헤더의 계정 버튼·다크모드·메뉴를 한곳에) -->
+<div id="m-drawer" class="akb-sheet" aria-hidden="true">
+  <div class="md-scrim" data-md-close></div>
+  <div class="md-panel" role="dialog" aria-modal="true" aria-label="메뉴">
+    <div class="md-head"><span class="logo">악보대장<small>Beta</small></span><button type="button" class="md-close" data-md-close aria-label="메뉴 닫기"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+    <div id="md-account"></div>
+    <p class="md-sec">악기별 악보</p>
+    <div class="md-links md-grid">
+      <button type="button" data-md-menu="home">홈</button><button type="button" data-md-menu="드럼">드럼</button><button type="button" data-md-menu="기타">기타</button><button type="button" data-md-menu="피아노">피아노</button><button type="button" data-md-menu="베이스">베이스</button><button type="button" data-md-menu="바이올린">바이올린</button><button type="button" data-md-menu="보컬">보컬</button>
+    </div>
+    <p class="md-sec">둘러보기</p>
+    <div class="md-links md-grid">
+      <button type="button" data-md-menu="video">연주영상</button><button type="button" data-md-menu="new">신규 악보</button><button type="button" data-md-menu="requests">신청곡</button><button type="button" data-md-menu="faq">FAQ</button><button type="button" data-md-menu="notices">공지</button>
+    </div>
+    <div id="md-extra"></div>
+    <div class="md-foot"><button type="button" class="md-theme" id="md-theme"></button></div>
+  </div>
+</div>
 
 <div id="app-shell">
   <div class="nav-bar"><nav id="main-nav" class="container"></nav></div>
@@ -1832,9 +1985,16 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
       <a href="#" id="admin-preview-link">관리자 화면 미리보기</a>
     </div>
     <!-- 2026-11-22: 사업자 정보 (전자상거래법 표시 의무) — mydrumsheet.com 과 같은 사업자 -->
-    <p>상호 뉴욕뮤직스토어 · 대표 반진영 · 사업자등록번호 317-05-51377 <a class="footer-bizcheck" href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=3170551377" target="_blank" rel="noopener">사업자정보확인</a></p>
-    <p>통신판매업 신고 제 2024-충북청주-1981 호 · 주소 28123 충청북도 청주시 청원구 오창읍 오창중앙로 123-12 한라트리플타워 6층</p>
-    <p>고객센터 010-4824-9729 · 이메일 support@mydrumsheet.com · 1:1 문의 · 개인정보 보호책임자 반진영</p>
+    <div class="footer-biz">
+      <span><em>상호</em>뉴욕뮤직스토어</span>
+      <span><em>대표</em>반진영</span>
+      <span><em>사업자등록번호</em>317-05-51377 <a class="footer-bizcheck" href="https://www.ftc.go.kr/bizCommPop.do?wrkr_no=3170551377" target="_blank" rel="noopener">사업자정보확인</a></span>
+      <span><em>통신판매업 신고</em>제 2024-충북청주-1981 호</span>
+      <span class="fb-wide"><em>주소</em>28123 충청북도 청주시 청원구 오창읍 오창중앙로 123-12 한라트리플타워 6층</span>
+      <span><em>고객센터</em>010-4824-9729</span>
+      <span><em>이메일</em>support@mydrumsheet.com</span>
+      <span><em>개인정보 보호책임자</em>반진영</span>
+    </div>
     <p class="footer-copy">© 뉴욕뮤직스토어. 악보대장은 mydrumsheet.com 의 후속 서비스입니다.</p>
   </div>
 </footer>
@@ -1850,6 +2010,7 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
       <p class="login-sub">이메일과 비밀번호를 입력해주세요.</p>
       <input type="email" id="login-email" placeholder="이메일" autocomplete="username">
       <input type="password" id="login-password" placeholder="비밀번호" autocomplete="current-password">
+      <label class="remember-row" for="login-remember"><input type="checkbox" id="login-remember" role="switch"><span class="rm-track" aria-hidden="true"></span><span>아이디 저장</span></label>
       <p id="login-error" class="login-error"></p>
       <button id="login-submit" class="login-btn-primary">로그인</button>
       <div class="login-or">또는</div>
