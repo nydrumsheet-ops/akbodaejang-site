@@ -1356,6 +1356,15 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 .sb-defaults .cs-btn{height:36px;font-size:13px;border-radius:8px}
 .cs-wrap select.sm-in ~ .cs-btn{height:38px;font-size:13px;border-color:#E6E6E6;border-radius:8px;font-weight:400}
 .adm-menu-logout{display:none !important}
+/* 2026-11-22: 비밀번호 조건 표시 · 가입 안내 · 인증 메일 안내 화면 */
+.pw-hint{display:flex;flex-wrap:wrap;gap:6px 10px;margin:-4px 0 10px;font-size:12px;color:var(--muted)}
+.pw-hint span::before{content:"○ ";}
+.pw-hint span.ok{color:#17633a;font-weight:600}
+.pw-hint span.ok::before{content:"✓ ";}
+.signup-google-note{margin:6px 0 0;font-size:12px;color:var(--muted);text-align:center}
+.signup-verify-note{margin:0 0 10px;font-size:12px;color:var(--muted);line-height:1.5}
+.checkemail-steps{margin:0 0 16px;padding-left:20px;font-size:14px;line-height:1.8;color:var(--text)}
+#checkemail-msg.ok{color:#17633a}
 /* 2026-11-21: 입력칸 테두리가 진한 갈색(#756b61, 글자색 변수와 같이 묶여 있었음)이라 검게 튀던 문제 → 버튼 테두리와 같은 연회색.
    눌렀을 때(포커스) 오렌지 테두리+오렌지 번짐 → 진한 글자색 테두리 + 옅은 회색 번짐 */
 .toolbar select,.field,.sort-dd-btn,#login-modal input{border-color:#d6d6d6}
@@ -1452,15 +1461,33 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
     <div id="login-pane-signup" class="login-pane">
       <p class="login-lead">회원가입</p>
       <p id="signup-role-sub" class="login-sub">구매자로 가입합니다.</p>
+      <!-- 2026-11-22: 인증 메일 없이 바로 가입되는 구글 가입을 맨 위로 -->
+      <button type="button" class="login-btn-social" data-google-login="signup-error"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span>Google로 3초 만에 가입하기</span></button>
+      <p class="signup-google-note">구글 계정은 이메일 인증 없이 바로 가입돼요.</p>
+      <div class="login-or">또는 이메일로 가입</div>
       <input type="text" id="signup-name" placeholder="이름">
       <input type="email" id="signup-email" placeholder="이메일" autocomplete="username">
-      <input type="password" id="signup-password" placeholder="비밀번호 (6자 이상)" autocomplete="new-password">
+      <input type="password" id="signup-password" placeholder="비밀번호" autocomplete="new-password">
       <input type="password" id="signup-password2" placeholder="비밀번호 확인" autocomplete="new-password">
       <p id="signup-error" class="login-error"></p>
-      <button id="signup-submit" class="login-btn-primary">회원가입</button>
-      <div class="login-or">또는</div>
-      <button type="button" class="login-btn-social" data-google-login="signup-error"><svg width="18" height="18" viewBox="0 0 48 48" aria-hidden="true"><path fill="#FFC107" d="M43.6 20.5H42V20H24v8h11.3C33.7 32.7 29.2 36 24 36c-6.6 0-12-5.4-12-12s5.4-12 12-12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 12.9 4 4 12.9 4 24s8.9 20 20 20 20-8.9 20-20c0-1.3-.1-2.4-.4-3.5z"/><path fill="#FF3D00" d="M6.3 14.7l6.6 4.8C14.7 15.1 19 12 24 12c3 0 5.8 1.1 7.9 3l5.7-5.7C34 6.1 29.3 4 24 4 16.3 4 9.7 8.3 6.3 14.7z"/><path fill="#4CAF50" d="M24 44c5.2 0 9.9-2 13.4-5.2l-6.2-5.2C29.2 35.1 26.7 36 24 36c-5.2 0-9.6-3.3-11.3-7.9l-6.5 5C9.5 39.6 16.2 44 24 44z"/><path fill="#1976D2" d="M43.6 20.5H42V20H24v8h11.3c-.8 2.2-2.2 4.2-4.1 5.6l6.2 5.2C37 39.2 44 34 44 24c0-1.3-.1-2.4-.4-3.5z"/></svg><span>Google로 가입하기</span></button>
+      <p class="signup-verify-note">가입하면 적어주신 이메일로 인증 메일이 가요. 메일의 링크를 눌러야 가입이 끝나요.</p>
+      <button id="signup-submit" class="login-btn-primary">이메일로 회원가입</button>
       <p class="login-links"><a href="#" id="go-login-link">이미 계정이 있으신가요? <b>로그인</b></a></p>
+    </div>
+
+    <!-- 2026-11-22: 이메일 가입 직후 안내 화면 (예전엔 몇 초 뜨는 문구뿐이라 인증해야 하는 줄 몰랐다) -->
+    <div id="login-pane-checkemail" class="login-pane">
+      <p class="login-lead">메일함을 확인해주세요</p>
+      <p class="login-sub"><b id="checkemail-address"></b>(으)로 인증 메일을 보냈어요.</p>
+      <ol class="checkemail-steps">
+        <li>메일함에서 <b>악보대장</b> 인증 메일을 열어요.</li>
+        <li>메일 안의 <b>인증 링크</b>를 누르면 가입이 끝나요.</li>
+        <li>메일이 안 보이면 <b>스팸함</b>도 확인해주세요.</li>
+      </ol>
+      <p id="checkemail-msg" class="login-error"></p>
+      <button type="button" id="checkemail-resend" class="login-btn-social">인증 메일 다시 보내기</button>
+      <button type="button" id="checkemail-ok" class="login-btn-primary" style="margin-top:8px;">확인</button>
+      <p class="login-links"><a href="#" id="checkemail-wrong">이메일을 잘못 적었나요? <b>다시 가입하기</b></a></p>
     </div>
 
     <div id="login-pane-forgot" class="login-pane">
@@ -1486,7 +1513,7 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
     <div id="login-pane-setpassword" class="login-pane">
       <p class="login-lead">새 비밀번호 설정</p>
       <p class="login-sub">사용하실 새 비밀번호를 입력해주세요.</p>
-      <input type="password" id="setpassword-new" placeholder="새 비밀번호 (6자 이상)" autocomplete="new-password">
+      <input type="password" id="setpassword-new" placeholder="새 비밀번호" autocomplete="new-password">
       <input type="password" id="setpassword-new2" placeholder="새 비밀번호 확인" autocomplete="new-password">
       <p id="setpassword-error" class="login-error"></p>
       <button id="setpassword-submit" class="login-btn-primary">비밀번호 설정</button>
