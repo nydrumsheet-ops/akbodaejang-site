@@ -757,7 +757,7 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .sb-chip.active{background:var(--ink-solid);border-color:var(--ink-solid);color:#ffffff}
 .sb-chip.active b{color:#ffffff}
 .sb-table{margin-top:10px;border:1px solid #E6E6E6;border-radius:10px;background:#ffffff}
-.sb-head,.sb-row{display:grid;grid-template-columns:20px minmax(0,2fr) minmax(0,1.4fr) 92px 108px 92px 64px;gap:8px;align-items:center;padding:8px 12px}
+.sb-head,.sb-row{display:grid;grid-template-columns:20px minmax(0,2fr) minmax(0,1.4fr) 92px 108px 96px 92px 64px;gap:8px;align-items:center;padding:8px 12px}
 .sb-head{font-size:12px;font-weight:600;color:var(--muted);border-bottom:1px solid #E6E6E6;background:#EFEFEF;border-radius:10px 10px 0 0}
 .sb-row{border-bottom:1px solid #E6E6E6}
 .sb-row:last-child{border-bottom:none}
@@ -1632,6 +1632,17 @@ body:has(.akb-sheet.open){overflow:hidden}
 .ps-empty{grid-column:1/-1;padding:16px;border:1px dashed #dcdcdc;border-radius:12px;color:#8a8079;font-size:14px;text-align:center}
 @media (max-width:1000px){.ps-list{grid-template-columns:repeat(3,minmax(0,1fr))}}
 @media (max-width:760px){.ps-list{grid-template-columns:minmax(0,1fr);gap:6px}.ps-item{height:44px}}
+/* ===== 2026-11-22: 장르 ===== */
+.g-chips{display:flex;flex-wrap:wrap;gap:6px}
+.g-chip{position:relative;display:inline-flex;cursor:pointer}
+.g-chip input{position:absolute;opacity:0;width:1px;height:1px;margin:0}
+.g-chip span{display:inline-flex;align-items:center;height:32px;padding:0 12px;border:1px solid #dcdcdc;border-radius:16px;background:#ffffff;color:#2c2622;font-size:13px;transition:background-color .15s ease,border-color .15s ease}
+.g-chip input:checked+span{background:#2c2622;border-color:#2c2622;color:#ffffff;font-weight:600}
+.g-chip input:focus-visible+span{outline:2px solid #F7890F;outline-offset:2px}
+.g-chip input:disabled+span{opacity:.5;cursor:not-allowed}
+@media (hover:hover){.g-chip:hover span{border-color:#9a9a9a}}
+button.tag-genre{border:0;cursor:pointer;font-family:inherit}
+@media (hover:hover){button.tag-genre:hover{text-decoration:underline;text-underline-offset:2px}}
 /* ===== 2026-11-22: 로그인 "아이디 저장" 켜고 끄기 ===== */
 .remember-row{display:flex;align-items:center;gap:8px;margin:2px 0 12px;font-size:13px;color:#4a423c;cursor:pointer;user-select:none;width:max-content}
 #login-modal .remember-row input{position:absolute;opacity:0;width:1px;height:1px;margin:0;padding:0;border:0}
