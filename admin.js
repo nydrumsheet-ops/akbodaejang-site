@@ -956,6 +956,28 @@ function renderAdminReviewList() {
    승인하면 common.js의 approveArtistApplication → becomeSeller(silent)가 호출되어
    그 회원이 바로 판매자 권한을 받고, 신청서의 아티스트명이 활동명으로 들어간다. */
 
+/* 2026-11-22: 아티스트 신청 샘플 저장소(artist-samples)를 비공개로 바꿨다. 예전처럼 공개 주소로는 열리지 않으므로,
+   "파일 열기"를 누르면 관리자 권한으로 10분짜리 시간 제한 링크를 만들어 새 탭에서 연다. */
+document.addEventListener("click", async (e) => {
+  const link = e.target.closest && e.target.closest("[data-sample-open]");
+  if (!link) return;
+  e.preventDefault();
+  const url = link.dataset.sampleOpen || "";
+  const m = url.match(/\/artist-samples\/(.+?)(\?|$)/);
+  const sb = typeof getSb === "function" ? getSb() : null;
+  if (!m || !sb) { if (url) window.open(url, "_blank", "noopener"); return; }
+  const win = window.open("", "_blank"); // 팝업 차단을 피하려고 누르는 순간 먼저 연다
+  try {
+    const { data, error } = await sb.storage.from("artist-samples").createSignedUrl(decodeURIComponent(m[1]), 600);
+    if (error || !data || !data.signedUrl) throw error || new Error("no url");
+    if (win) { win.opener = null; win.location.href = data.signedUrl; } else window.open(data.signedUrl, "_blank", "noopener");
+  } catch (err) {
+    if (win) win.close();
+    toast("샘플 파일을 열지 못했어요. 다시 로그인한 뒤 시도해 주세요.", true);
+    console.warn("[admin] 샘플 파일 링크 생성 실패", err);
+  }
+});
+
 function renderAdminArtistApps(body) {
   body.innerHTML = `
     <div style="${ADMIN_PANEL}">
@@ -1000,7 +1022,7 @@ function renderAdminArtistAppList() {
         <div style="font-size:12px;color:var(--muted);margin-top:4px;line-height:1.7;">
           이름 ${esc(a.name)} · 휴대폰 ${esc(a.phone)} · 이메일 ${esc(a.email)}<br>
           판매자 영상: <a href="${esc(a.videoUrl)}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:underline;text-underline-offset:2px;">${esc(a.videoUrl)}</a><br>
-          악보/MR 샘플: <a href="${esc(a.sampleFileUrl)}" target="_blank" rel="noopener" style="color:var(--text);text-decoration:underline;text-underline-offset:2px;">파일 열기</a><br>
+          악보/MR 샘플: <a href="#" data-sample-open="${esc(a.sampleFileUrl)}" style="color:var(--text);text-decoration:underline;text-underline-offset:2px;">파일 열기</a><br>
           신청일 ${formatDate(a.createdAt)}${a.status === "거절" && a.rejectReason ? ` · 거절 사유: ${esc(a.rejectReason)}` : ""}
         </div>
         ${a.status === "심사대기" ? `
