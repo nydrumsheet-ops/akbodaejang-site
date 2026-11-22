@@ -1621,6 +1621,12 @@ function renderMyPage(el, p) {
     const email = emailLocal && emailDomain ? `${emailLocal}@${emailDomain}` : "";
 
     if (!file) { setMsg("악보/MR 샘플 파일을 선택해주세요.", true); return; }
+    // 2026-11-22: 아티스트명 규칙·중복을 파일 올리기 전에 확인
+    const artistName = document.getElementById("aa-name").value.trim();
+    const artistFmt = nickFormatError(artistName, "아티스트명");
+    if (artistFmt) { setMsg(artistFmt, true); return; }
+    const artistSt = await checkNickAvailable(artistName);
+    if (artistSt !== "ok") { setMsg(nickStatusMessage(artistSt, "아티스트명"), true); return; }
 
     const submitBtn = document.getElementById("aa-submit");
     submitBtn.disabled = true;
@@ -1807,7 +1813,7 @@ function artistApplyFormHTML() {
       </div>
       <div class="aa-row">
         <div class="aa-label">아티스트명 *</div>
-        <div class="aa-input-wrap"><input class="aa-field" id="aa-name" placeholder="구매자에게 보일 이름"></div>
+        <div class="aa-input-wrap"><input class="aa-field" id="aa-name" placeholder="구매자에게 보일 이름 (예: 그루브랩)" maxlength="12"><p class="aa-note">※ 한글·영문·숫자만 2~12자 (띄어쓰기·특수문자 불가), 다른 회원이 쓰는 이름은 쓸 수 없어요</p></div>
       </div>
       <div class="aa-row">
         <div class="aa-label">휴대폰 *</div>
