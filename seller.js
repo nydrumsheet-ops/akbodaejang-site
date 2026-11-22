@@ -58,10 +58,10 @@ function renderSeller() {
     </div>
     <div data-seller-sec="profile" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">아티스트 프로필</h2>
-      <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">악보 목록·상세페이지·아티스트 페이지에 구매자가 보는 이름이에요. 가입할 때 적은 이름과 달라도 괜찮아요.</p>
+      <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">악보 목록·상세페이지·아티스트 페이지에 구매자가 보는 이름이에요. 닉네임과 달라도 괜찮아요.<br><b>한글·영문·숫자만 2~12자 (띄어쓰기·특수문자 불가)</b>, 다른 회원이 쓰는 이름은 쓸 수 없어요.</p>
       <div id="seller-profile-msg" style="font-size:13px;margin:0 0 8px;"></div>
       <div style="display:flex;gap:8px;flex-wrap:wrap;">
-        <input type="text" id="sp-displayname" placeholder="예: 그루브랩" maxlength="30"
+        <input type="text" id="sp-displayname" placeholder="예: 그루브랩" maxlength="12"
           style="flex:1;min-width:160px;padding:10px;border:1px solid var(--border);border-radius:8px;font-size:14px;">
         <button id="sp-save"
           style="padding:10px 16px;border:1px solid var(--border);border-radius:8px;background:#EFEFEF;font-size:13px;cursor:pointer;"
@@ -1015,10 +1015,19 @@ function renderSellerTrend() {
 
 /* ---------- 아티스트 프로필 ---------- */
 
-function handleSaveDisplayName(sellerId) {
+async function handleSaveDisplayName(sellerId) {
   const msgEl = document.getElementById("seller-profile-msg");
   const input = document.getElementById("sp-displayname");
-  const name = input ? input.value : "";
+  const name = input ? input.value.trim() : "";
+
+  // 2026-11-22: 닉네임과 같은 규칙 + 다른 회원과 겹치는지 서버에 확인
+  const fmtErr = nickFormatError(name, "활동명");
+  if (fmtErr) { showSellerMsg(msgEl, fmtErr, true); return; }
+  const cur = STATE.users[sellerId] && STATE.users[sellerId].sellerInfo && STATE.users[sellerId].sellerInfo.displayName;
+  if (name !== cur) {
+    const st = await checkNickAvailable(name);
+    if (st !== "ok") { showSellerMsg(msgEl, nickStatusMessage(st, "활동명"), true); return; }
+  }
 
   const result = setSellerDisplayName(sellerId, name);
   if (!result.ok) {
