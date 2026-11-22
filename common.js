@@ -2207,12 +2207,29 @@ function resetLoginForm() {
    이 모달이 뜨고, afterLogin 으로 넘긴 동작은 로그인 직후 이어서 실행된다.
    2026-10-19: role 인자는 더 이상 "아티스트로 가입" 분기를 타지 않는다(항상 로그인 탭으로 연다) —
    호출부 호환을 위해 인자 자체는 남겨뒀다. */
+/* 2026-11-22: 로그인 "아이디 저장" — 켜 두면 로그인에 성공한 이메일을 이 브라우저에 기억해 다음에 미리 채운다 (간편 로그인은 해당 없음) */
+const REMEMBER_EMAIL_KEY = "akb.rememberEmail";
+function getRememberedEmail() { try { return localStorage.getItem(REMEMBER_EMAIL_KEY) || ""; } catch (e) { return ""; } }
+function saveRememberedEmail(email) {
+  const on = !!document.getElementById("login-remember")?.checked;
+  try { if (on && email) localStorage.setItem(REMEMBER_EMAIL_KEY, email); else localStorage.removeItem(REMEMBER_EMAIL_KEY); } catch (e) { /* 저장이 막힌 브라우저 */ }
+}
+function fillRememberedEmail() {
+  const saved = getRememberedEmail();
+  const cb = document.getElementById("login-remember");
+  if (cb) cb.checked = !!saved;
+  const inp = document.getElementById("login-email");
+  if (inp && saved) inp.value = saved;
+  return !!saved;
+}
+
 function openLoginModal(role, afterLogin) {
   resetLoginForm();
+  const hasSaved = fillRememberedEmail();
   AFTER_LOGIN = typeof afterLogin === "function" ? afterLogin : null;
   document.getElementById("login-modal")?.classList.add("open");
   setTimeout(() => {
-    document.getElementById("login-email")?.focus();
+    document.getElementById(hasSaved ? "login-password" : "login-email")?.focus();
   }, 30);
 }
 
@@ -2292,6 +2309,7 @@ async function submitLogin() {
   if (submitBtn) submitBtn.disabled = false;
 
   if (!error && data && data.session) {
+    saveRememberedEmail(email); // 2026-11-22: 아이디 저장
     // 로그인 성공 처리는 onAuthStateChange 의 SIGNED_IN 이벤트(handleSupabaseSignedIn)에서 한다
     return;
   }
@@ -2992,7 +3010,41 @@ function applyNavState(state) {
   updateDocTitle();
 }
 
-window.addEventListener("popstate", (e) => { applyNavState(e.state); });
+/* 2026-11-22: 창(로그인 창 등)이 열린 상태에서 휴대폰 "뒤로 가기"를 누르면 페이지를 떠나지 않고 창만 닫는다.
+   창이 열릴 때 같은 주소로 기록을 하나 쌓아 두고(akbModal), 뒤로 가기가 오면 그 기록을 쓰면서 창을 닫는다.
+   버튼(✕ 등)으로 닫으면 쌓아 둔 기록을 조용히 되돌린다. */
+const MODAL_SEL = ".modal-overlay, .ss-modal-overlay, .akb-sheet";
+let MODAL_GUARD = false;      // 창 때문에 쌓아 둔 기록이 있는지
+let MODAL_IGNORE_POP = false; // 우리가 직접 되돌린 기록의 popstate 는 무시
+function anyModalOpen() { return !!document.querySelector(".modal-overlay.open, .ss-modal-overlay.open, .akb-sheet.open"); }
+function closeAllModals() {
+  document.querySelectorAll(".modal-overlay.open, .ss-modal-overlay.open, .akb-sheet.open").forEach(el => {
+    if (el.id === "login-modal" && typeof closeLoginModal === "function") closeLoginModal();
+    else if (el.id === "score-success-modal" && typeof closeScoreSuccessModal === "function") closeScoreSuccessModal();
+    else el.classList.remove("open");
+  });
+}
+function syncModalGuard() {
+  const open = anyModalOpen();
+  if (open && !MODAL_GUARD) {
+    MODAL_GUARD = true;
+    try { history.pushState(Object.assign({}, history.state || currentNavState(), { akbModal: 1 }), ""); } catch (e) { MODAL_GUARD = false; }
+  } else if (!open && MODAL_GUARD) {
+    MODAL_GUARD = false;
+    // 창을 닫으면서 다른 화면으로 이동했다면(기록이 새로 쌓였다면) 그대로 둔다
+    if (history.state && history.state.akbModal) { MODAL_IGNORE_POP = true; history.back(); }
+  }
+}
+document.addEventListener("DOMContentLoaded", () => {
+  new MutationObserver(muts => {
+    if (muts.some(m => m.target.matches && m.target.matches(MODAL_SEL))) syncModalGuard();
+  }).observe(document.body, { subtree: true, attributes: true, attributeFilter: ["class"] });
+});
+window.addEventListener("popstate", (e) => {
+  if (MODAL_IGNORE_POP) { MODAL_IGNORE_POP = false; return; }
+  if (MODAL_GUARD) { MODAL_GUARD = false; closeAllModals(); return; } // 뒤로 가기 = 창 닫기
+  applyNavState(e.state);
+});
 
 function renderNav() {
   const navBarWrap = document.querySelector(".nav-bar");
@@ -3135,6 +3187,95 @@ function renderHeaderAuth() {
     toggleAdminMenu();
   });
 }
+
+/* ---------- 2026-11-22: 휴대폰 메뉴(드로어) ----------
+   휴대폰 헤더는 로고 · 검색 · 알림 · 메뉴 버튼만 두고, 계정 버튼·다크모드·메뉴는 여기로 모은다. */
+function renderMobileDrawer() {
+  const acc = document.getElementById("md-account");
+  if (!acc) return;
+  const user = getCurrentUser();
+  if (!user) {
+    acc.innerHTML = `<div class="md-auth"><button type="button" class="md-btn" data-md-act="login">로그인</button><button type="button" class="md-btn primary" data-md-act="signup">회원가입</button></div>`;
+  } else {
+    const cartN = (user.cart || []).length;
+    acc.innerHTML = `
+      <div class="md-user"><b>${esc(user.name)}님</b>
+        <button type="button" class="hdr-points" data-md-act="points" aria-label="보유 포인트 ${formatPoint(user.points)}, 포인트·충전으로 가기"><svg class="hdr-coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/><path d="M10 16.5V8h2.9a2.6 2.6 0 0 1 0 5.2H10"/></svg><span>${formatPoint(user.points)}</span></button>
+      </div>
+      <div class="md-quick">
+        <button type="button" data-md-act="mypage"><i class="ico ico-user"></i>마이페이지</button>
+        <button type="button" data-md-act="wish"><i class="ico ico-heart"></i>찜</button>
+        <button type="button" data-md-act="cart"><i class="ico ico-cart"></i>장바구니${cartN ? `<span class="badge">${cartN}</span>` : ""}</button>
+        <button type="button" data-md-act="logout"><svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9"/></svg>로그아웃</button>
+      </div>`;
+  }
+  const extra = document.getElementById("md-extra");
+  if (extra) {
+    const items = [];
+    if (!user || user.role === "buyer") items.push(`<button type="button" data-md-act="artist">아티스트 가입</button>`);
+    if (user && user.isAdmin) Object.keys(ADMIN_MENU_LABELS).forEach(v => items.push(`<button type="button" data-md-view="${v}">${ADMIN_MENU_LABELS[v]}</button>`));
+    else if (user && (user.role === "seller" || user.role === "both")) items.push(`<button type="button" data-md-view="seller">판매자 센터</button>`);
+    extra.innerHTML = items.length ? `<div class="md-links md-grid" style="border:0;margin:0;padding:0;">${items.join("")}</div>` : "";
+  }
+  const cur = document.querySelector("#menu-row .menu-btn.active")?.dataset.menu;
+  document.querySelectorAll("#m-drawer [data-md-menu]").forEach(b => b.classList.toggle("active", b.dataset.mdMenu === cur));
+  const dark = document.documentElement.dataset.theme === "dark";
+  const th = document.getElementById("md-theme");
+  if (th) th.innerHTML = dark
+    ? `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>라이트 모드`
+    : `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z"/></svg>다크 모드`;
+}
+function openMobileDrawer() {
+  const d = document.getElementById("m-drawer");
+  if (!d) return;
+  renderMobileDrawer();
+  d.classList.add("open");
+  d.setAttribute("aria-hidden", "false");
+  document.getElementById("m-menu-btn")?.setAttribute("aria-expanded", "true");
+  setTimeout(() => d.querySelector(".md-close")?.focus({ preventScroll: true }), 50);
+}
+function closeMobileDrawer() {
+  const d = document.getElementById("m-drawer");
+  if (!d || !d.classList.contains("open")) return;
+  d.classList.remove("open");
+  d.setAttribute("aria-hidden", "true");
+  document.getElementById("m-menu-btn")?.setAttribute("aria-expanded", "false");
+}
+document.addEventListener("DOMContentLoaded", () => {
+  document.getElementById("m-menu-btn")?.addEventListener("click", openMobileDrawer);
+  // 휴대폰 헤더 검색칸은 좁아서 짧은 안내 문구로
+  const hs = document.getElementById("header-search");
+  const mq = window.matchMedia("(max-width:760px)");
+  const setPh = () => { if (hs) hs.placeholder = mq.matches ? "악보 검색" : "곡 제목, 가수, 아티스트 검색"; };
+  setPh(); mq.addEventListener?.("change", setPh);
+  const d = document.getElementById("m-drawer");
+  if (!d) return;
+  d.addEventListener("click", (e) => {
+    if (e.target.closest("[data-md-close]")) { closeMobileDrawer(); return; }
+    const m = e.target.closest("[data-md-menu]");
+    if (m) { closeMobileDrawer(); document.querySelector(`#menu-row [data-menu="${m.dataset.mdMenu}"]`)?.click(); return; }
+    const v = e.target.closest("[data-md-view]");
+    if (v) { closeMobileDrawer(); showView(v.dataset.mdView); return; }
+    const a = e.target.closest("[data-md-act]");
+    if (a) {
+      const act = a.dataset.mdAct;
+      closeMobileDrawer();
+      if (act === "login") openLoginModal("buyer");
+      else if (act === "signup") { openLoginModal("buyer"); showLoginPane("signup"); }
+      else if (act === "points") goBuyer("mypage", { tab: "points" });
+      else if (act === "mypage") goBuyer("mypage");
+      else if (act === "wish") goBuyer("mypage", { tab: "wish" });
+      else if (act === "cart") requireLogin(() => goBuyer("cart"));
+      else if (act === "logout") logout();
+      else if (act === "artist" && typeof startArtist === "function") startArtist();
+      return;
+    }
+  });
+  document.getElementById("md-theme")?.addEventListener("click", () => { if (window.akbToggleTheme) window.akbToggleTheme(); renderMobileDrawer(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeMobileDrawer(); });
+  // 화면이 넓어지면(가로 회전 등) 닫는다
+  window.matchMedia("(min-width:761px)").addEventListener?.("change", (q) => { if (q.matches) closeMobileDrawer(); });
+});
 
 /* ---------- 헤더 "관리자 페이지" 목록 (2026-10-30 추가) ----------
    관리자 계정은 메뉴 아래의 스토어/판매자 센터/관리자 줄(.nav-bar) 대신 이 목록으로 화면을 오간다. */
@@ -3805,6 +3946,7 @@ async function initCommon() {
   document.getElementById("signup-code")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitSignup(); });
   document.getElementById("signup-code")?.addEventListener("input", () => { const er = document.getElementById("signup-error"); if (er) er.textContent = ""; });
   document.getElementById("su-done-ok")?.addEventListener("click", () => closeLoginModal());
+  document.getElementById("login-remember")?.addEventListener("change", (e) => { if (!e.target.checked) { try { localStorage.removeItem(REMEMBER_EMAIL_KEY); } catch (er) { /* 무시 */ } } });
   // 2026-11-22: 닉네임 정하기 창
   document.getElementById("nick-input")?.addEventListener("input", nickPaint);
   document.getElementById("nick-input")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitNickname(); });
