@@ -2008,6 +2008,8 @@ function submitArtistApplication(userId, data) {
   if (!name || !artistName || !phone || !email || !videoUrl || !sampleFileUrl) {
     return { ok: false, message: "악보/MR 샘플, 판매자 영상, 이름, 아티스트명, 휴대폰, 이메일을 모두 입력해주세요." };
   }
+  const artistFmt = nickFormatError(artistName, "아티스트명"); // 2026-11-22: 닉네임과 같은 규칙
+  if (artistFmt) return { ok: false, message: artistFmt };
   const already = Object.values(STATE.artistApplications).some(a => a.userId === userId && a.status === "심사대기");
   if (already) {
     return { ok: false, message: "이미 심사 대기 중인 신청이 있습니다." };
@@ -2180,7 +2182,7 @@ function showLoginPane(pane) {
   // 2026-11-22: 회원가입 창은 단계형 — 다른 화면에서 들어오면 1단계(약관 동의)부터
   const su = document.getElementById("login-pane-signup");
   if (pane === "signup" && su && su.style.display !== "block" && typeof suSetStage === "function") suSetStage(1, true);
-  for (const p of ["login", "signup", "forgot", "setpassword", "findid", "checkemail"]) {
+  for (const p of ["login", "signup", "forgot", "setpassword", "findid", "checkemail", "nickname"]) {
     const el = document.getElementById(`login-pane-${p}`);
     if (el) el.style.display = p === pane ? "block" : "none";
   }
@@ -2215,6 +2217,7 @@ function openLoginModal(role, afterLogin) {
 }
 
 function closeLoginModal() {
+  if (typeof cancelNicknamePane === "function") cancelNicknamePane();
   document.getElementById("login-modal")?.classList.remove("open");
   resetLoginForm();
 }
@@ -2320,6 +2323,53 @@ async function submitLogin() {
    2) "가입하기": 코드를 확인(verifyOtp)하면 로그인되고, 곧바로 손님이 적은 비밀번호로 바꾼다(updateUser).
    ※ Supabase › Authentication › Emails › "Confirm signup" 양식에 {{ .Token }} 이 있어야 메일에 코드가 나온다.
      (같은 양식의 {{ .ConfirmationURL }} 링크는 기존 회원 비밀번호 설정·로그인 화면의 "인증 메일 다시 보내기"용으로 남겨둔다) */
+/* 2026-11-22: 닉네임·아티스트 활동명 규칙 — 한글(완성형)·영문·숫자만 2~12자, 띄어쓰기·특수문자 불가.
+   닉네임·활동명·심사 대기 아티스트명은 서로 겹칠 수 없다(대소문자 무시). 서버(닉네임규칙_2026-11-22.sql)도 같은 규칙으로 막는다.
+   기존 회원(직원)은 바꾸기 전까지 그대로 둔다. */
+const NICK_RULE_TEXT = "한글·영문·숫자만 2~12자 (띄어쓰기·특수문자 불가)";
+function nickFormatError(n, label) {
+  label = label || "닉네임";
+  n = String(n || "");
+  if (!n) return `${label}을 입력해주세요.`;
+  if (/\s/.test(n)) return "띄어쓰기는 쓸 수 없어요.";
+  if (/[ㄱ-ㅎㅏ-ㅣ]/.test(n)) return "자음·모음만 따로 쓸 수 없어요.";
+  if (!/^[가-힣A-Za-z0-9]*$/.test(n)) return "한글·영문·숫자만 쓸 수 있어요.";
+  if (n.length < 2 || n.length > 12) return `${label}은 2~12자로 정해주세요.`;
+  return "";
+}
+/* 서버에 사용 가능한지 묻는다 → "ok" | "taken" | "format" | "error". forUserId 는 관리자가 신청자 기준으로 확인할 때만 */
+async function checkNickAvailable(nick, forUserId) {
+  if (nickFormatError(nick)) return "format";
+  const sb = getSb();
+  if (!sb) return "error";
+  try {
+    const { data, error } = await sb.rpc("akb_nick_available", forUserId ? { nick, for_user: forUserId } : { nick });
+    if (error) return "error";
+    return ["ok", "taken", "format"].includes(data) ? data : "error";
+  } catch (e) { return "error"; }
+}
+function nickStatusMessage(status, label) {
+  label = label || "닉네임";
+  if (status === "taken") return `이미 사용 중인 ${label}이에요. 다른 ${label}을 정해주세요.`;
+  if (status === "format") return `${label}은 ${NICK_RULE_TEXT}로 정해주세요.`;
+  if (status === "error") return `${label}을 확인하지 못했어요. 잠시 후 다시 시도해주세요.`;
+  return "";
+}
+/* 입력하는 동안 쓰는 확인(0.35초 쉬면 서버에 묻는다). 결과가 오면 repaint() 를 다시 부른다 */
+const NICK_LIVE = { value: "", status: "", timer: null };
+function nickLiveStatus(v, repaint) {
+  if (NICK_LIVE.value !== v) {
+    NICK_LIVE.value = v;
+    NICK_LIVE.status = "checking";
+    clearTimeout(NICK_LIVE.timer);
+    NICK_LIVE.timer = setTimeout(async () => {
+      const r = await checkNickAvailable(v);
+      if (NICK_LIVE.value === v) { NICK_LIVE.status = r; repaint(); }
+    }, 350);
+  }
+  return NICK_LIVE.status;
+}
+
 let SU_CODE_EMAIL = "";        // 인증코드를 보낸 이메일(소문자). 이메일을 고치면 다시 받아야 한다
 let SU_CODE_COOLDOWN = 0;      // 다시 받기까지 남은 초
 let SU_CODE_TIMER = null;
@@ -2428,7 +2478,11 @@ async function submitSignup() {
   if (!signupAgreed("signup-error")) return;
 
   if (!name || !email || !password) {
-    if (errorEl) errorEl.textContent = "이름, 이메일, 비밀번호를 모두 입력해주세요.";
+    if (errorEl) errorEl.textContent = "닉네임, 이메일, 비밀번호를 모두 입력해주세요.";
+    return;
+  }
+  if (nickFormatError(name)) {
+    if (errorEl) errorEl.textContent = nickFormatError(name);
     return;
   }
   if (!SU_EMAIL_RE.test(email)) {
@@ -2462,12 +2516,19 @@ async function submitSignup() {
     return;
   }
 
+  const submitBtn = document.getElementById("signup-submit");
+  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "가입 중…"; }
+  // 2026-11-22: 닉네임 중복은 가입 직전에 서버에 한 번 더 묻는다
+  const nickSt = await checkNickAvailable(name);
+  if (nickSt !== "ok") {
+    if (submitBtn) { submitBtn.textContent = "가입하기"; submitBtn.disabled = false; }
+    if (errorEl) errorEl.textContent = nickStatusMessage(nickSt);
+    return;
+  }
+
   try {
     localStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify({ email, name, role: "buyer" }));
   } catch (e) { /* 저장이 막힌 브라우저에서는 그냥 넘어간다 (기본값 buyer 로 가입된다) */ }
-
-  const submitBtn = document.getElementById("signup-submit");
-  if (submitBtn) { submitBtn.disabled = true; submitBtn.textContent = "가입 중…"; }
   SU_JUST_SIGNED_UP = true;
   SU_PW_FAILED = "";
   // 코드가 맞으면 Supabase 가 로그인시키고 SIGNED_IN → handleSupabaseSignedIn 이 회원을 만들고 "가입 완료" 화면을 띄운다
@@ -2618,21 +2679,31 @@ async function handleSupabaseSignedIn(session) {
     // 관리자 지정 이메일(STATE.adminEmails)로 로그인하면 기존 회원이어도 관리자 권한을 붙여준다
     if (isAdminEmail(email)) user.isAdmin = true;
   } else {
-    // 2026-11-01: 구글로 처음 온 회원은 구글 계정 이름을 쓴다
+    // 2026-11-22: 새 회원은 닉네임이 있어야 만든다. 이메일 가입은 가입 창에서 정한 닉네임을 쓰고,
+    // 구글 가입(또는 다른 기기에서 인증 링크를 연 경우)은 닉네임을 정하는 창을 띄운다 (구글 이름은 칸에 미리 채우는 용도로만)
     const meta = session.user.user_metadata || {};
-    let name = String(meta.full_name || meta.name || "").trim() || email.split("@")[0];
+    let name = "";
     let role = "buyer";
     try {
       const raw = localStorage.getItem(PENDING_SIGNUP_KEY);
       const pending = raw ? JSON.parse(raw) : null;
       if (pending && pending.email && pending.email.toLowerCase() === email.toLowerCase()) {
-        name = pending.name || name;
+        name = pending.name || "";
         role = pending.role || role;
       }
     } catch (e) { /* 무시 */ }
+    if (!name || nickFormatError(name)) {
+      openNicknamePane(session, String(meta.full_name || meta.name || ""));
+      return;
+    }
     user = makeUser(name, email, role);
     user.supabaseUserId = authId;
   }
+  finishSignedIn(user);
+}
+
+/* 로그인 마무리 (회원 정보 저장 → 화면 전환 → 환영 안내) */
+function finishSignedIn(user) {
   try { localStorage.removeItem(PENDING_SIGNUP_KEY); } catch (e) { /* 무시 */ }
 
   save();
@@ -2653,6 +2724,62 @@ async function handleSupabaseSignedIn(session) {
   // 2026-11-22: 인증코드로 방금 가입했으면 "가입 완료" 화면 (이어서 할 동작이 있으면 그걸 먼저 보여준다)
   if (justSignedUp && !after) suShowDone(user.name);
   else toast(`${user.name}님 환영합니다!`);
+}
+
+/* 2026-11-22: 닉네임 정하기 창 (구글 등으로 처음 가입한 회원) */
+let NICK_PENDING = null; // { session } — 닉네임을 정해야 회원 정보가 만들어진다
+function nickSuggest(raw) {
+  const s = String(raw || "").replace(/[^가-힣A-Za-z0-9]/g, "").slice(0, 12);
+  return s.length >= 2 ? s : "";
+}
+function openNicknamePane(session, suggestion) {
+  NICK_PENDING = { session };
+  showLoginPane("nickname");
+  const inp = document.getElementById("nick-input");
+  if (inp) inp.value = nickSuggest(suggestion);
+  nickPaint();
+  document.getElementById("login-modal")?.classList.add("open");
+  setTimeout(() => inp?.focus({ preventScroll: true }), 60);
+}
+function nickPaint() {
+  const v = (document.getElementById("nick-input")?.value || "").trim();
+  const f = document.querySelector("#login-pane-nickname [data-nick-field]");
+  const fmt = v ? nickFormatError(v) : "";
+  const st = v && !fmt ? nickLiveStatus(v, nickPaint) : "";
+  const ok = !!v && !fmt && st === "ok";
+  if (f) { f.classList.toggle("ok", ok); f.classList.toggle("bad", !!v && (!!fmt || st === "taken")); }
+  const text = !v ? "" : fmt ? fmt : st === "checking" ? "확인 중…" : st === "ok" ? "사용할 수 있는 닉네임이에요." : nickStatusMessage(st);
+  suInfo("nick-info", text, ok ? "ok" : (st === "checking" ? "" : "err"));
+  const b = document.getElementById("nick-submit");
+  if (b && b.dataset.busy !== "1") b.disabled = !ok;
+}
+async function submitNickname() {
+  const v = (document.getElementById("nick-input")?.value || "").trim();
+  const b = document.getElementById("nick-submit");
+  const pending = NICK_PENDING;
+  if (!pending) { closeLoginModal(); return; }
+  const fmt = nickFormatError(v);
+  if (fmt) { suInfo("nick-info", fmt, "err"); return; }
+  if (b) { b.dataset.busy = "1"; b.disabled = true; b.textContent = "확인 중…"; }
+  const st = await checkNickAvailable(v);
+  if (b) { delete b.dataset.busy; b.textContent = "가입 완료하기"; }
+  if (st !== "ok") { suInfo("nick-info", nickStatusMessage(st), "err"); nickPaint(); return; }
+  NICK_PENDING = null;
+  const session = pending.session;
+  let user = findUserByEmail(session.user.email);
+  if (!user) {
+    user = makeUser(v, session.user.email, "buyer");
+    user.supabaseUserId = session.user.id;
+  }
+  finishSignedIn(user);
+}
+/* 닉네임을 정하지 않고 창을 닫으면 로그인도 풀어 둔다 (다음에 다시 가입하면 이 창이 다시 뜬다) */
+function cancelNicknamePane() {
+  if (!NICK_PENDING) return false;
+  NICK_PENDING = null;
+  try { getSb()?.auth.signOut(); } catch (e) { /* 무시 */ }
+  toast("닉네임을 정해야 가입이 끝나요. 다음에 다시 가입해주세요.");
+  return true;
 }
 
 /* Supabase Auth 상태 변화를 듣는다.
@@ -2731,8 +2858,8 @@ function setSellerDisplayName(userId, name) {
   const user = STATE.users[userId];
   if (!user) return { ok: false, message: "회원을 찾을 수 없습니다." };
   const trimmed = (name || "").trim();
-  if (!trimmed) return { ok: false, message: "활동명을 입력해주세요." };
-  if (trimmed.length > 30) return { ok: false, message: "활동명은 30자 이내로 입력해주세요." };
+  const fmtErr = nickFormatError(trimmed, "활동명"); // 2026-11-22: 닉네임과 같은 규칙 (중복은 seller.js 가 저장 전에 서버에 묻는다)
+  if (fmtErr) return { ok: false, message: fmtErr };
   if (!user.sellerInfo) {
     user.sellerInfo = { bankName: "", bankAccount: "", accountHolder: user.name, settleBalance: 0, displayName: trimmed };
   } else {
@@ -3678,6 +3805,11 @@ async function initCommon() {
   document.getElementById("signup-code")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitSignup(); });
   document.getElementById("signup-code")?.addEventListener("input", () => { const er = document.getElementById("signup-error"); if (er) er.textContent = ""; });
   document.getElementById("su-done-ok")?.addEventListener("click", () => closeLoginModal());
+  // 2026-11-22: 닉네임 정하기 창
+  document.getElementById("nick-input")?.addEventListener("input", nickPaint);
+  document.getElementById("nick-input")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitNickname(); });
+  document.getElementById("nick-submit")?.addEventListener("click", submitNickname);
+  document.getElementById("nick-cancel")?.addEventListener("click", (e) => { e.preventDefault(); closeLoginModal(); });
   document.getElementById("checkemail-wrong")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("signup"); suSetStage(2, true); document.getElementById("signup-email")?.focus(); });
   document.getElementById("checkemail-resend")?.addEventListener("click", async (e) => {
     const btn = e.currentTarget;
@@ -3785,6 +3917,7 @@ ${art("제3조 (약관의 게시와 개정)", ol([
 ${art("제4조 (회원가입)", ol([
   `이용하려는 사람은 회사가 정한 양식에 정보를 적고 이 약관과 개인정보 수집·이용에 동의하여 가입을 신청합니다. 이메일 가입은 이메일로 받은 인증코드를 입력해야 완료됩니다.`,
   `만 14세 미만은 가입할 수 없습니다.`,
+  `닉네임과 아티스트 활동명은 한글·영문·숫자만 2~12자(띄어쓰기·특수문자 불가)로 정하며, 다른 회원이 쓰고 있는 이름은 쓸 수 없습니다. 닉네임과 활동명은 구매 후기·악보 목록 등에서 다른 이용자에게 공개됩니다.`,
   `다른 사람의 정보를 도용하거나 거짓 정보를 적은 경우, 이전에 약관 위반으로 자격을 잃은 경우에는 가입을 거절하거나 나중에 취소할 수 있습니다.`
 ]))}
 ${art("제5조 (회원 탈퇴와 자격 상실)", ol([
@@ -3845,7 +3978,7 @@ ${art("제1조 (처리 목적)", ol([
   `서비스 개선: 이용 통계, 오류 확인`
 ]))}
 ${art("제2조 (처리하는 개인정보 항목)", ol([
-  `회원가입(필수): 이메일, 비밀번호(암호화 저장), 이름. 구글로 가입하는 경우 구글이 제공하는 이메일·이름`,
+  `회원가입(필수): 이메일, 비밀번호(암호화 저장), 닉네임. 구글로 가입하는 경우 구글이 제공하는 이메일(구글 계정 이름은 닉네임 칸에 미리 채우는 데만 쓰고 저장하지 않음)`,
   `아티스트 신청·정산(필수): 활동명, 연락처, 정산 계좌(은행·계좌번호·예금주), 샘플 악보`,
   `결제: 결제 일시, 금액, 결제 수단 정보(카드번호 등 결제 정보는 결제대행사가 처리하며 회사는 저장하지 않습니다)`,
   `자동 수집: 접속 기록, 브라우저 정보, 서비스 이용 기록, 쿠키·브라우저 저장소`
@@ -4001,8 +4134,12 @@ const SU_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 function suValidate(touchedId) {
   const v = id => (document.getElementById(id)?.value || "");
   const name = v("signup-name").trim(), email = v("signup-email").trim(), pw = v("signup-password"), pw2 = v("signup-password2");
+  // 2026-11-22: 닉네임 — 규칙 확인 후 서버에 중복을 묻는다(입력을 0.35초 쉬면)
+  const nameFmt = name ? nickFormatError(name) : "";
+  const nameSt = name && !nameFmt ? nickLiveStatus(name, () => suValidate()) : "";
+  suInfo("su-name-info", nameFmt || !name ? "" : nameSt === "checking" ? "확인 중…" : nameSt === "ok" ? "사용할 수 있는 닉네임이에요." : "", nameSt === "ok" ? "ok" : "");
   const checks = {
-    name:  { ok: name.length >= 2 && name.length <= 20, has: !!name, msg: "이름은 2~20자로 적어주세요." },
+    name:  { ok: !nameFmt && nameSt === "ok", has: !!name, msg: nameFmt || nickStatusMessage(nameSt), now: (!!nameFmt && !/2~12자/.test(nameFmt)) || nameSt === "taken" },
     email: { ok: SU_EMAIL_RE.test(email), has: !!email, msg: "이메일 형식을 확인해주세요." },
     pw:    { ok: !passwordRuleError(pw), has: !!pw, msg: "" },
     pw2:   { ok: !!pw2 && pw2 === pw, has: !!pw2, msg: "비밀번호가 서로 달라요." }
@@ -4011,7 +4148,7 @@ function suValidate(touchedId) {
     const f = document.querySelector(`#login-pane-signup [data-su-field="${k}"]`);
     if (!f) continue;
     // 다 적기 전에는 빨간 표시를 서두르지 않는다: 칸을 떠났거나(blurred) 이미 맞았던 적이 있을 때만 ✕
-    const shown = c.has && (f.dataset.blurred === "1" || c.ok);
+    const shown = c.has && (f.dataset.blurred === "1" || c.ok || !!c.now);
     f.classList.toggle("ok", c.has && c.ok);
     f.classList.toggle("bad", shown && !c.ok);
     const m = f.querySelector(".su-msg"); if (m) m.textContent = shown && !c.ok ? c.msg : "";
