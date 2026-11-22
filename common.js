@@ -3609,7 +3609,7 @@ async function initCommon() {
   window.addEventListener("resize", updateAllScrollFades);
 }
 
-document.addEventListener("DOMContentLoaded", () => { initCommon(); });
+document.addEventListener("DOMContentLoaded", () => { initCommon().finally(() => { if (typeof hideBootLoading === "function") hideBootLoading(); }); });
 
 /* 2026-11-22: 이용약관·개인정보처리방침·환불정책 (mydrumsheet.com 의 약관 구조·원칙을 악보대장(포인트·판매자 마켓)에 맞게 고쳐 씀).
    footer 링크·회원가입 동의에서 openPolicyDoc("terms"|"privacy"|"refund") 로 연다. 주소창 ?doc=terms 로도 열린다.
@@ -3938,3 +3938,28 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   window.akbReportError = report; // 점검용
 })();
+/* 2026-11-22: 로딩 표시 — showLoading("문구") / hideLoading(). 여러 작업이 겹쳐도 마지막 작업이 끝날 때 사라진다.
+   CSS 에서 0.3초 늦게 나타나므로 금방 끝나는 작업에는 보이지 않는다. */
+let AKB_LOADING_N = 0;
+function showLoading(text) {
+  const el = document.getElementById("akb-loading"); if (!el) return;
+  AKB_LOADING_N++;
+  const t = document.getElementById("akb-loading-text"); if (t) t.textContent = text || "";
+  el.classList.remove("boot"); el.classList.add("show");
+}
+function hideLoading() {
+  AKB_LOADING_N = Math.max(0, AKB_LOADING_N - 1);
+  if (AKB_LOADING_N === 0) document.getElementById("akb-loading")?.classList.remove("show", "boot");
+}
+function hideBootLoading() {
+  const el = document.getElementById("akb-loading");
+  if (el && el.classList.contains("boot")) el.classList.remove("show", "boot");
+}
+setTimeout(hideBootLoading, 15000); // 서버가 늦어도 15초 뒤에는 첫 화면 로딩을 걷어낸다
+function withLoading(fn, text) {
+  return async function () { showLoading(text); try { return await fn.apply(this, arguments); } finally { hideLoading(); } };
+}
+purchaseScore = withLoading(purchaseScore, "구매하는 중…");
+purchaseCart = withLoading(purchaseCart, "구매하는 중…");
+refundPurchase = withLoading(refundPurchase, "환불하는 중…");
+getScoreDownloadUrl = withLoading(getScoreDownloadUrl, "다운로드 준비 중…");
