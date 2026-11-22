@@ -53,7 +53,7 @@ const FAQ_LIST = [
   { id: "f8", cat: "기타", q: "신청곡은 어떻게 신청하나요?",
     a: () => `스토어 › 신청곡에서 곡 제목·작곡가·가수·악기를 적으면 무료로 올라가요. 신청이 많은 곡부터 채보해서 악보로 만들어요. 완성되면 신청하신 분께도 따로 드리지 않고, 다른 구매자와 똑같이 구매하실 수 있어요.` },
   // 2026-10-20 추가(mydrumsheet.com FAQ 이전): PDF 다운로드·열람 관련 기술 문의.
-  { id: "f10", cat: "기타", q: "PDF 파일을 받았는데 악보가 안 열려요.",
+  { id: "f12", cat: "기타", q: "PDF 파일을 받았는데 악보가 안 열려요.", // 2026-11-22: f10 이 겹쳐 두 질문이 같이 열리던 문제
     a: () => `쓰고 계신 PDF 뷰어 프로그램에 문제가 있을 수 있어요. Chrome 브라우저로 파일을 다시 받아보시면 대부분 바로 열려요.` }
 ];
 
@@ -275,7 +275,7 @@ function diffTagStyle(difficulty) {
 }
 function cartIcon() {
   // 2026-11-21: 선이 굵어 거슬린다는 의견 — 2 → 1.25 로 가늘게
-  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
+  return `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true" focusable="false">
     <circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle>
     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
   </svg>`;
@@ -853,6 +853,24 @@ function activeFilterChips(p) {
   return out;
 }
 
+/* 2026-11-22: 악보 목록 바둑판/목록 보기 (이 브라우저에 기억) */
+const LIST_VIEW_KEY = "akb.listView";
+function getListViewMode() { try { return localStorage.getItem(LIST_VIEW_KEY) === "list" ? "list" : "grid"; } catch (e) { return "grid"; } }
+function viewToggleHTML(mode) {
+  return `<div class="view-toggle" role="group" aria-label="보기 방식">
+    <button type="button" data-view-mode="grid" aria-pressed="${mode !== "list"}" aria-label="바둑판으로 보기" title="바둑판으로 보기"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="3.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="3.5" width="7" height="7" rx="1.5"/><rect x="3.5" y="13.5" width="7" height="7" rx="1.5"/><rect x="13.5" y="13.5" width="7" height="7" rx="1.5"/></svg></button>
+    <button type="button" data-view-mode="list" aria-pressed="${mode === "list"}" aria-label="목록으로 보기" title="목록으로 보기"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="4.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg></button>
+  </div>`;
+}
+function bindViewToggle(el) {
+  el.querySelectorAll("[data-view-mode]").forEach(b => b.addEventListener("click", () => {
+    const mode = b.dataset.viewMode === "list" ? "list" : "grid";
+    try { localStorage.setItem(LIST_VIEW_KEY, mode); } catch (e) { /* 무시 */ }
+    el.querySelectorAll(".score-grid").forEach(g => g.classList.toggle("is-list", mode === "list"));
+    el.querySelectorAll("[data-view-mode]").forEach(x => x.setAttribute("aria-pressed", String(x.dataset.viewMode === mode)));
+  }));
+}
+
 function renderListPage(el, p) {
   const list = filterScores(p);
   const pageNo = Math.max(1, Number(p.page) || 1);
@@ -873,7 +891,11 @@ function renderListPage(el, p) {
 
   // 2026-10-20 변경: 난이도 필터를 체크박스 다중 선택으로 바꾸면서, 매우 쉬움부터 매우 어려움까지 5단계를 전부 보여준다.
   const DIFF_CHECK_ORDER = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"];
-  const filterOpen = LIST_FILTER_OPEN === null ? activeFilterChips(p).length > 0 : LIST_FILTER_OPEN;
+  // 2026-11-22: 휴대폰에서는 악기 칩만 눌러도 필터가 크게 펼쳐져 자리를 차지했다 → 휴대폰은 직접 열 때만 펼친다(고른 조건은 아래 줄에 보임)
+  const isMobileW = window.matchMedia && window.matchMedia("(max-width:760px)").matches;
+  const filterOpen = LIST_FILTER_OPEN === null ? (activeFilterChips(p).length > 0 && !isMobileW) : LIST_FILTER_OPEN;
+  const filterCount = activeFilterChips(p).length;
+  const viewMode = getListViewMode();
   const checkedDiffs = selectedDifficulties(p);
 
   el.innerHTML = `
@@ -883,7 +905,7 @@ function renderListPage(el, p) {
 
     <div class="panel filter-panel">
       <button type="button" class="filter-toggle${filterOpen ? " is-open" : ""}" id="filter-toggle" aria-expanded="${filterOpen ? "true" : "false"}" aria-controls="filter-body">
-        <span>상세 필터</span>
+        <span>상세 필터${filterCount ? `<span class="ft-count" aria-label="조건 ${filterCount}개">${filterCount}</span>` : ""}</span>
         <span class="ft-arrow" aria-hidden="true">${chevron(false)}</span>
       </button>
       <div class="filter-body" id="filter-body" ${filterOpen ? "" : "hidden"}>
@@ -943,17 +965,17 @@ function renderListPage(el, p) {
         const opts = [["popular", "인기순"], ["latest", "최신순"], ["priceLow", "낮은 가격순"], ["priceHigh", "높은 가격순"], ["views", "조회순"], ["rating", "별점순"]];
         const cur = p.sort || "popular";
         const curLabel = (opts.find(o => o[0] === cur) || opts[0])[1];
-        return `<div class="sort-menu">
+        return `<div class="toolbar-right">${viewToggleHTML(viewMode)}<div class="sort-menu">
           <button type="button" class="sort-btn" id="f-sort-btn" aria-haspopup="listbox" aria-expanded="false" aria-label="정렬: ${curLabel}">${curLabel}<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
           <ul class="sort-list" id="f-sort-list" role="listbox" aria-label="정렬" hidden>
             ${opts.map(([v, l]) => `<li><button type="button" role="option" data-sort="${v}" aria-selected="${cur === v}" class="${cur === v ? "on" : ""}">${l}</button></li>`).join("")}
           </ul>
-        </div>`;
+        </div></div>`;
       })()}
     </div>
 
     ${shown.length
-      ? `<div class="score-grid">${shown.map(s => scoreCard(s, { hideVideoBadge: true, slot: arranged.slots.get(s.id) || "" })).join("")}</div>`
+      ? `<div class="score-grid${viewMode === "list" ? " is-list" : ""}">${shown.map(s => scoreCard(s, { hideVideoBadge: true, slot: arranged.slots.get(s.id) || "" })).join("")}</div>`
       : `<div class="empty">
            <p style="margin:0 0 10px;">조건에 맞는 악보가 없어요.</p>
            <button class="btn btn-small" id="go-request">이 곡 신청하기</button>
@@ -963,6 +985,7 @@ function renderListPage(el, p) {
   `;
 
   bindCards(el);
+  bindViewToggle(el);
   // 2026-11-21: 필터 패널이 화면을 너무 많이 차지해 답답해 보이던 문제 —
   // 기본은 접어두고, 토글 버튼으로 펼치고 접는다(선택된 조건이 있으면 자동으로 펼쳐둠).
   document.getElementById("filter-toggle")?.addEventListener("click", (e) => {
@@ -1367,11 +1390,11 @@ function renderArtistPage(el, p) {
         <button class="chip ${inst ? "" : "active"}" data-a-inst="">전체 ${approvedScores().filter(s => s.sellerId === u.id).length}</button>
         ${instruments.map(i => `<button class="chip ${inst === i ? "active" : ""}" data-a-inst="${esc(i)}">${esc(i)}</button>`).join("")}
       </div>
-      <select id="a-sort" aria-label="정렬">
+      <div class="toolbar-right">${viewToggleHTML(getListViewMode())}<select id="a-sort" aria-label="정렬">
         ${[["popular", "인기순"], ["latest", "최신순"], ["priceLow", "낮은 가격순"]].map(([v, l]) => `<option value="${v}" ${sort === v ? "selected" : ""}>${l}</option>`).join("")}
-      </select>
+      </select></div>
     </div>
-    ${list.length ? `<div class="score-grid">${list.map(s => scoreCard(s)).join("")}</div>` : `<div class="empty">아직 판매 중인 악보가 없어요.</div>`}
+    ${list.length ? `<div class="score-grid${getListViewMode() === "list" ? " is-list" : ""}">${list.map(s => scoreCard(s)).join("")}</div>` : `<div class="empty">아직 판매 중인 악보가 없어요.</div>`}
   `;
 
   bindCards(el);
@@ -1383,6 +1406,7 @@ function renderArtistPage(el, p) {
   }));
   el.querySelectorAll("[data-a-inst]").forEach(b => b.addEventListener("click", () => goBuyer("artist", { id: u.id, sort, instrument: b.dataset.aInst }, { keepScroll: true })));
   document.getElementById("a-sort")?.addEventListener("change", (e) => goBuyer("artist", { id: u.id, instrument: inst, sort: e.target.value }, { keepScroll: true }));
+  bindViewToggle(el);
 }
 
 /* ============================================================
