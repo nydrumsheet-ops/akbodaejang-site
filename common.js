@@ -3904,3 +3904,37 @@ document.addEventListener("DOMContentLoaded", () => {
   });
   suSetStage(1, true);
 });
+/* 2026-11-22: 손님 화면 오류 기록 — 화면에서 난 오류를 서버(client_errors 표)에 남겨 관리자 › 도구 › 오류 기록에서 본다.
+   한 화면에서 최대 10건, 같은 오류는 한 번만 보낸다. 확장 프로그램·다른 사이트 스크립트 오류는 건너뛴다. */
+(function () {
+  const sent = new Set(); let count = 0;
+  const IGNORE = /ResizeObserver loop|Script error\.?$|chrome-extension:|moz-extension:|safari-extension:|Non-Error promise rejection/i;
+  function report(message, source, stack) {
+    try {
+      message = String(message || "").slice(0, 500);
+      source = String(source || "");
+      if (!message || IGNORE.test(message) || IGNORE.test(source) || IGNORE.test(String(stack || ""))) return;
+      if (source && source !== "(promise)" && !source.startsWith(location.origin) && !source.startsWith("/")) return; // 다른 사이트 스크립트
+      const key = message + "|" + source;
+      if (sent.has(key) || count >= 10) return;
+      sent.add(key); count++;
+      const sb = typeof getSb === "function" ? getSb() : null;
+      if (!sb) return;
+      let page = location.pathname + location.search;
+      try { if (typeof BUYER_ROUTE !== "undefined" && CURRENT_VIEW) page += ` [${CURRENT_VIEW}${CURRENT_VIEW === "buyer" ? ":" + BUYER_ROUTE.page : ""}]`; } catch (e) { /* 무시 */ }
+      sb.rpc("rpc_log_client_error", {
+        p_message: message, p_source: source.replace(location.origin, ""), p_stack: String(stack || "").slice(0, 2000),
+        p_page: page.slice(0, 300), p_ua: navigator.userAgent.slice(0, 300)
+      }).then(() => {}, () => {});
+    } catch (e) { /* 오류 기록 중 오류는 무시 */ }
+  }
+  window.addEventListener("error", (e) => {
+    if (!e || !e.message) return; // 이미지·파일 로딩 실패 등은 제외
+    report(e.message, e.filename ? `${e.filename}:${e.lineno || 0}:${e.colno || 0}` : "", e.error && e.error.stack);
+  });
+  window.addEventListener("unhandledrejection", (e) => {
+    const r = e && e.reason;
+    report(r && r.message ? r.message : String(r), "(promise)", r && r.stack);
+  });
+  window.akbReportError = report; // 점검용
+})();
