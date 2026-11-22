@@ -1435,6 +1435,27 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 .su-prev{flex:0 0 88px;height:48px;border-radius:var(--radius-control);border:1px solid #d6d6d6;background:#ffffff;color:var(--c-ink);font:var(--type-button);cursor:pointer}
 .su-prev:hover{background:#f5f5f5}
 .su-actions .su-btn{flex:1}
+/* 2026-11-22: 헤더 보유 포인트 · 찜 버튼 */
+.hdr-points{flex-shrink:0;display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 12px;border:1.5px solid #f0a46f;border-radius:var(--radius-control);background:#fff4ec;color:#a8460f;font:700 14px/1 var(--font-text);font-variant-numeric:tabular-nums;cursor:pointer;white-space:nowrap;transition:background-color .18s var(--ease),border-color .18s var(--ease),transform .08s var(--ease)}
+@media (hover:hover){.hdr-points:hover{background:#ffe8d8;border-color:#e88a4c}}
+.hdr-points:active{transform:scale(.96)}
+.hdr-points:focus-visible{outline:2px solid var(--ink-solid);outline-offset:2px}
+.hdr-coin{width:18px;height:18px;fill:none;stroke:#e06a26;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.hdr-wish .ico{color:#d6456b}
+@media (max-width:760px){.hdr-points{height:32px;padding:0 9px;font-size:13px;gap:4px}.hdr-coin{width:16px;height:16px}}
+/* 넓지 않은 PC 창: 이름 글자는 숨기고(아이콘만) 포인트를 보이게 — 검색창이 너무 좁아지지 않게 */
+@media (max-width:1400px){#header-my-btn .icon-btn-label{display:none}}
+.search-wrap{min-width:200px}
+/* 휴대폰: 1줄 = 로고 + 다크모드 버튼, 2줄 = 계정 버튼들, 3줄 = 검색. 찜은 마이페이지에서 */
+@media (max-width:760px){
+.search-wrap{min-width:0}
+.theme-toggle{order:1}
+#header-auth{order:2;flex-basis:100%;justify-content:flex-start}
+.hdr-wish{display:none}
+#header-auth{gap:2px}
+#header-auth .icon-btn{padding:0 6px}
+#header-artist-link,#header-auth .auth-btn{padding:0 7px}
+}
 #login-pane-checkemail .su-steps{margin-top:10px}
 #su-agree-error:empty{display:none}
 #su-next{margin-top:16px}
