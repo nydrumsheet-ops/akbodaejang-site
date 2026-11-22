@@ -2692,8 +2692,29 @@ function currentNavState() {
   return state;
 }
 
+/* 2026-11-22: 악보 상세는 주소에 ?s=악보아이디 를 붙여, 주소를 복사해 보내거나 검색엔진이 악보 페이지를 알 수 있게 한다.
+   (나머지 화면은 지금처럼 주소가 바뀌지 않는다) 탭 제목도 악보 이름으로 바꾼다. */
+const DEFAULT_DOC_TITLE = "악보대장 - 아티스트가 직접 만든 악보 마켓";
+function navUrlFor(state) {
+  if (state && state.view === "buyer" && state.buyerPage === "detail" && state.buyerParams && state.buyerParams.id) {
+    return location.pathname + "?s=" + encodeURIComponent(state.buyerParams.id);
+  }
+  return location.pathname;
+}
+function updateDocTitle() {
+  let t = DEFAULT_DOC_TITLE;
+  try {
+    if (CURRENT_VIEW === "buyer" && typeof BUYER_ROUTE !== "undefined" && BUYER_ROUTE.page === "detail") {
+      const sc = STATE && STATE.scores && STATE.scores[BUYER_ROUTE.params.id];
+      if (sc) t = `${sc.title}${sc.artist ? " - " + sc.artist : ""} ${sc.instrument || ""} 악보 | 악보대장`.replace(/\s+/g, " ");
+    }
+  } catch (e) { /* 무시 */ }
+  document.title = t;
+}
 function pushNavState() {
-  try { history.pushState(currentNavState(), ""); } catch (e) { /* 일부 환경(파일로 직접 열었을 때 등)에서는 history API가 막힐 수 있다 */ }
+  const st = currentNavState();
+  try { history.pushState(st, "", navUrlFor(st)); } catch (e) { /* 일부 환경(파일로 직접 열었을 때 등)에서는 history API가 막힐 수 있다 */ }
+  updateDocTitle();
 }
 
 function applyNavState(state) {
@@ -2709,6 +2730,7 @@ function applyNavState(state) {
   if (state.view === "buyer" && typeof goBuyer === "function") {
     goBuyer(state.buyerPage || "home", state.buyerParams || {}, { fromHistory: true, keepScroll: true });
   }
+  updateDocTitle();
 }
 
 window.addEventListener("popstate", (e) => { applyNavState(e.state); });
@@ -3573,7 +3595,15 @@ async function initCommon() {
   // 첫 화면은 기록을 "쌓지" 않고 지금 자리를 바꿔치기한다(replaceState).
   // 그래야 처음 열자마자 뒤로가기를 눌러도 빈 화면으로 가지 않는다.
   showView("buyer", { fromHistory: true });
-  try { history.replaceState(currentNavState(), ""); } catch (e) {}
+  // 2026-11-22: 주소에 ?s=악보아이디 가 있으면 그 악보 상세를 바로 연다
+  const linkedScore = new URLSearchParams(location.search).get("s");
+  if (linkedScore && STATE.scores && STATE.scores[linkedScore] && typeof goBuyer === "function") {
+    goBuyer("detail", { id: linkedScore }, { fromHistory: true });
+    try { history.replaceState(currentNavState(), "", navUrlFor(currentNavState())); } catch (e) {}
+  } else {
+    try { history.replaceState(currentNavState(), ""); } catch (e) {}
+  }
+  updateDocTitle();
 
   bindScrollFade(document.getElementById("menu-row"));
   window.addEventListener("resize", updateAllScrollFades);
