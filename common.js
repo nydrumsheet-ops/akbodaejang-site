@@ -2155,8 +2155,29 @@ function findUserByEmail(email) {
   return Object.values(STATE.users).find(u => !u._partial && String(u.email || "").toLowerCase() === e) || null;
 }
 
+/* 2026-11-22: 비밀번호 규칙 — 8자 이상 + 영문·숫자·특수문자 (Supabase 인증 설정에도 최소 8자·영문+숫자 규칙을 켜 둠) */
+const PW_RULES = [["len", "8자 이상", pw => pw.length >= 8], ["letter", "영문", pw => /[A-Za-z]/.test(pw)], ["digit", "숫자", pw => /\d/.test(pw)], ["special", "특수문자", pw => /[^A-Za-z0-9\s]/.test(pw)]];
+function passwordRuleError(pw) {
+  const miss = PW_RULES.filter(([, , ok]) => !ok(pw || "")).map(([, label]) => label);
+  return miss.length ? `비밀번호는 8자 이상, 영문·숫자·특수문자를 모두 넣어주세요. (부족: ${miss.join(", ")})` : "";
+}
+function attachPasswordHint(inputId) {
+  const input = document.getElementById(inputId);
+  if (!input || input.dataset.pwHint) return;
+  input.dataset.pwHint = "1";
+  const hint = document.createElement("div");
+  hint.className = "pw-hint";
+  hint.innerHTML = PW_RULES.map(([k, label]) => `<span data-rule="${k}">${label}</span>`).join("");
+  input.insertAdjacentElement("afterend", hint);
+  const paint = () => PW_RULES.forEach(([k, , ok]) => hint.querySelector(`[data-rule="${k}"]`).classList.toggle("ok", ok(input.value || "")));
+  input.addEventListener("input", paint);
+  const d = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value");
+  Object.defineProperty(input, "value", { configurable: true, get() { return d.get.call(this); }, set(v) { d.set.call(this, v); paint(); } });
+  paint();
+}
+
 function showLoginPane(pane) {
-  for (const p of ["login", "signup", "forgot", "setpassword", "findid"]) {
+  for (const p of ["login", "signup", "forgot", "setpassword", "findid", "checkemail"]) {
     const el = document.getElementById(`login-pane-${p}`);
     if (el) el.style.display = p === pane ? "block" : "none";
   }
@@ -2223,6 +2244,7 @@ function closeScoreSuccessModal() {
    새 계정을 만들어서 이어붙인다. 이메일 인증 메일을 보내고, 인증을 마치면
    handleSupabaseSignedIn 이 같은 이메일의 기존 회원 데이터를 찾아 연결한다. */
 async function migrateExistingUser(email, password, errorEl) {
+  if (passwordRuleError(password)) { if (errorEl) errorEl.textContent = passwordRuleError(password); return; }
   const sb = getSb();
   if (!sb) {
     if (errorEl) errorEl.textContent = "로그인 기능을 불러오지 못했습니다. 잠시 후 다시 시도해주세요.";
@@ -2308,8 +2330,8 @@ async function submitSignup() {
     if (errorEl) errorEl.textContent = "이메일 형식을 확인해주세요.";
     return;
   }
-  if (password.length < 6) {
-    if (errorEl) errorEl.textContent = "비밀번호는 6자 이상이어야 합니다.";
+  if (passwordRuleError(password)) {
+    if (errorEl) errorEl.textContent = passwordRuleError(password);
     return;
   }
   if (password !== password2) {
@@ -2345,8 +2367,19 @@ async function submitSignup() {
     localStorage.setItem(PENDING_SIGNUP_KEY, JSON.stringify({ email, name, role: "buyer" }));
   } catch (e) { /* 저장이 막힌 브라우저에서는 그냥 넘어간다 (기본값 buyer 로 가입된다) */ }
 
-  closeLoginModal();
-  toast("인증 메일을 보냈어요! 메일의 링크를 눌러 가입을 완료해주세요.");
+  // 2026-11-22: 창을 닫지 않고 "메일함을 확인해주세요" 안내 화면으로 바꾼다
+  showCheckEmailPane(email);
+}
+
+function showCheckEmailPane(email) {
+  const addr = document.getElementById("checkemail-address");
+  if (addr) addr.textContent = email;
+  const msg = document.getElementById("checkemail-msg");
+  if (msg) { msg.textContent = ""; msg.classList.remove("ok"); }
+  const pane = document.getElementById("login-pane-checkemail");
+  if (pane) pane.dataset.email = email;
+  showLoginPane("checkemail");
+  document.getElementById("login-modal")?.classList.add("open");
 }
 
 async function submitForgotPassword() {
@@ -2382,8 +2415,8 @@ async function submitSetPassword() {
   const password = pwInput ? pwInput.value : "";
   const password2 = pw2Input ? pw2Input.value : "";
   if (errorEl) errorEl.textContent = "";
-  if (!password || password.length < 6) {
-    if (errorEl) errorEl.textContent = "비밀번호는 6자 이상이어야 합니다.";
+  if (passwordRuleError(password)) {
+    if (errorEl) errorEl.textContent = passwordRuleError(password);
     return;
   }
   if (password !== password2) {
@@ -3463,6 +3496,24 @@ async function initCommon() {
   document.getElementById("forgot-email")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitForgotPassword(); });
   document.getElementById("setpassword-submit")?.addEventListener("click", submitSetPassword);
   document.getElementById("setpassword-new2")?.addEventListener("keydown", (e) => { if (e.key === "Enter") submitSetPassword(); });
+  attachPasswordHint("signup-password");
+  attachPasswordHint("setpassword-new");
+  document.getElementById("checkemail-ok")?.addEventListener("click", () => closeLoginModal());
+  document.getElementById("checkemail-wrong")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("signup"); });
+  document.getElementById("checkemail-resend")?.addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const email = document.getElementById("login-pane-checkemail")?.dataset.email || "";
+    const msg = document.getElementById("checkemail-msg");
+    const sb = getSb();
+    if (!email || !sb) return;
+    btn.disabled = true;
+    const { error } = await sb.auth.resend({ type: "signup", email, options: { emailRedirectTo: SITE_URL } });
+    btn.disabled = false;
+    if (msg) {
+      msg.classList.toggle("ok", !error);
+      msg.textContent = error ? "다시 보내지 못했어요: " + error.message : "인증 메일을 다시 보냈어요. 메일함과 스팸함을 확인해주세요.";
+    }
+  });
 
   document.getElementById("go-signup-link")?.addEventListener("click", (e) => { e.preventDefault(); showLoginPane("signup"); });
   document.querySelectorAll("[data-google-login]").forEach(b => b.addEventListener("click", () => signInWithGoogle(b)));
