@@ -2990,6 +2990,13 @@ function updateDocTitle() {
 }
 function pushNavState() {
   const st = currentNavState();
+  // 2026-11-22: 메뉴를 누르면 showView("buyer") 와 goBuyer() 가 각각 기록을 쌓아 같은 화면이 두 번 들어가,
+  // 뒤로 가기를 두 번 눌러야 했다 → 지금 기록과 같은 화면이면 새로 쌓지 않는다(창 표시 akbModal 은 비교에서 뺀다)
+  try {
+    const cur = history.state ? Object.assign({}, history.state) : null;
+    if (cur) delete cur.akbModal;
+    if (cur && JSON.stringify(cur) === JSON.stringify(st)) { updateDocTitle(); return; }
+  } catch (e) { /* 비교 실패 시 그냥 쌓는다 */ }
   try { history.pushState(st, "", navUrlFor(st)); } catch (e) { /* 일부 환경(파일로 직접 열었을 때 등)에서는 history API가 막힐 수 있다 */ }
   updateDocTitle();
 }
