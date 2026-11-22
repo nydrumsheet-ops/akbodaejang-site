@@ -107,6 +107,7 @@ function renderAdmin() {
         <div class="adm-tools-chips">
           <button type="button" class="adm-tool-chip ${ADMIN_TOOL === "pdf" ? "active" : ""}" data-admin-tool="pdf">PDF·이관 도구${pdfRemaining ? ` <b>${pdfRemaining}</b>` : ""}</button>
           <button type="button" class="adm-tool-chip ${ADMIN_TOOL === "review" ? "active" : ""}" data-admin-tool="review">예전 악보 심사${pendingReview ? ` <b>${pendingReview}</b>` : ""}</button>
+          <button type="button" class="adm-tool-chip ${ADMIN_TOOL === "errors" ? "active" : ""}" data-admin-tool="errors">오류 기록</button>
         </div>
       </div>
       <div id="admin-tool-body"></div>`;
@@ -115,7 +116,9 @@ function renderAdmin() {
       renderAdmin();
     }));
     const toolBody = document.getElementById("admin-tool-body");
-    if (ADMIN_TOOL === "review") {
+    if (ADMIN_TOOL === "errors") {
+      renderAdminErrors(toolBody);
+    } else if (ADMIN_TOOL === "review") {
       toolBody.innerHTML = `
       <div style="${ADMIN_PANEL}">
         <h2 style="margin:0 0 4px;font-size:17px;">예전 악보 심사</h2>
@@ -3150,4 +3153,50 @@ function wireAdminContent(body) {
     const notice = id ? { ...SITE_CONTENT.notices.find(x => x.id === id), ...clean, id } : { ...clean, id: uid("notice"), createdAt: nowISO() };
     run(key, () => saveNotice(notice), "").then(r => { if (r.ok) { ADMIN_CT_MSG = { key: "notices", text: id ? "저장했어요." : "공지를 올렸어요.", error: false }; rerender(); } });
   }));
+}
+
+/* 2026-11-22: 관리자 › 도구 › 오류 기록 — 손님 화면에서 난 오류(client_errors 표, 최근 30일) */
+async function renderAdminErrors(box) {
+  box.innerHTML = `
+    <div style="${ADMIN_PANEL}">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 4px;">
+        <h2 style="margin:0;font-size:17px;flex:1;">오류 기록</h2>
+        <button type="button" class="btn btn-small" id="adm-err-reload">새로고침</button>
+        <button type="button" class="btn btn-small" id="adm-err-clear">모두 지우기</button>
+      </div>
+      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);">손님 화면에서 난 오류가 자동으로 쌓여요(최근 30일, 같은 오류는 횟수로 합침). 새 오류가 많이 보이면 개발 담당에게 이 화면을 보여주세요.</p>
+      <div id="adm-err-list" style="font-size:13px;">불러오는 중…</div>
+    </div>`;
+  document.getElementById("adm-err-reload")?.addEventListener("click", () => renderAdminErrors(box));
+  document.getElementById("adm-err-clear")?.addEventListener("click", async () => {
+    if (!confirm("오류 기록을 모두 지울까요? 되돌릴 수 없어요.")) return;
+    const sb = getSb(); if (!sb) return;
+    const { error } = await sb.from("client_errors").delete().gt("id", 0);
+    if (error) { toast("지우지 못했어요: " + error.message, true); return; }
+    renderAdminErrors(box);
+  });
+  const list = document.getElementById("adm-err-list");
+  const sb = getSb();
+  if (!sb) { list.textContent = "서버에 연결되지 않았어요."; return; }
+  const { data, error } = await sb.from("client_errors").select("*").order("last_at", { ascending: false }).limit(200);
+  if (error) {
+    list.innerHTML = /client_errors|does not exist|schema cache/i.test(error.message)
+      ? `오류 기록 표가 아직 없어요. Supabase 에서 <b>오류기록_2026-11-22.sql</b> 을 한 번 실행해야 해요.`
+      : `불러오지 못했어요: ${esc(error.message)}`;
+    return;
+  }
+  if (!data.length) { list.innerHTML = `<div class="empty" style="padding:24px 0;">최근 30일 동안 기록된 오류가 없어요.</div>`; return; }
+  const fmt = (t) => { const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  const who = (id) => { if (!id) return "비회원"; const u = Object.values(STATE.users || {}).find(x => x.supabaseUserId === id || x.id === id); return u ? esc(u.name || u.email || "회원") : "회원"; };
+  const dev = (ua) => /iPhone|iPad/.test(ua) ? "아이폰" : /Android/.test(ua) ? "안드로이드" : /KAKAOTALK/i.test(ua) ? "카카오톡" : /Mac/.test(ua) ? "맥" : /Windows/.test(ua) ? "윈도우" : "기타";
+  list.innerHTML = `<div class="list-table"><table class="st-tbl" style="width:100%;border-collapse:collapse;">
+    <thead><tr><th style="text-align:left;width:90px;">마지막</th><th style="text-align:left;">오류 내용</th><th style="text-align:left;width:200px;">화면</th><th style="width:56px;">횟수</th><th style="width:80px;">사용자</th></tr></thead>
+    <tbody>${data.map(r => `<tr>
+      <td style="white-space:nowrap;vertical-align:top;text-align:left;">${fmt(r.last_at)}</td>
+      <td style="vertical-align:top;text-align:left;"><b>${esc(r.message || "")}</b><div style="color:var(--muted);font-size:12px;margin-top:2px;word-break:break-all;">${esc(r.source || "")}</div>
+        ${r.stack ? `<details style="margin-top:4px;"><summary style="cursor:pointer;font-size:12px;color:var(--muted);">자세히</summary><pre style="white-space:pre-wrap;font-size:11px;margin:6px 0 0;">${esc(r.stack)}</pre></details>` : ""}</td>
+      <td style="vertical-align:top;text-align:left;font-size:12px;word-break:break-all;">${esc(r.page || "")}<div style="color:var(--muted);">${dev(r.ua || "")}</div></td>
+      <td style="text-align:center;vertical-align:top;">${r.hits}</td>
+      <td style="text-align:center;vertical-align:top;white-space:nowrap;">${who(r.user_id)}</td>
+    </tr>`).join("")}</tbody></table></div>`;
 }
