@@ -410,7 +410,7 @@ function scoreCard(s, opts) {
         <div class="card-foot">
           <button type="button" class="cart-btn" data-cart="${s.id}" aria-label="장바구니 담기">${cartIcon()}</button>
           <div class="card-foot-right">
-            ${r.count ? `<span class="rating"><b><span class="ico ico-star-solid"></span></b> ${r.avg} (${r.count})</span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
+            ${r.count ? `<span class="rating"><b><span class="ico ico-star-solid"></span></b> <span class="rating-avg">${r.avg}</span> <span class="rating-cnt">(${r.count})</span></span>` : `<span class="rating">조회 ${s.viewCount}</span>`}
             <span class="price">${priceHtml(s)}</span>
           </div>
         </div>
