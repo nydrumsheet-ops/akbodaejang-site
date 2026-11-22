@@ -31,6 +31,7 @@ let SB_RUNNING = false;
 let SB_STOP = false;
 let SB_DEFAULT_INST = "";
 let SB_DEFAULT_PRICE = "";
+let SB_DEFAULT_GENRE = ""; // 2026-11-22: 장르 한 번에 적용
 const SB_MAX_FILES = 100;  // 한 번에 고를 수 있는 최대 파일 수
 const SB_DIFFICULTY_ORDER = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"]; // 화면에 보여줄 순서(값은 SCORE_DIFFICULTIES 와 같음)
 
@@ -127,6 +128,11 @@ function renderSeller() {
             ${["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"].map(d => `<option value="${esc(d)}">${esc(d)}</option>`).join("")}
           </select>
         </label>
+
+        <div style="font-size:13px;grid-column:1 / -1;">
+          장르 <span style="color:#c0392b;">*</span> <span style="color:var(--muted);">(하나만 골라주세요)</span>
+          <div style="margin-top:6px;">${genreChipsHTML("sf-genre", "")}</div>
+        </div>
 
         <label style="font-size:13px;">
           가격 (포인트)
@@ -423,6 +429,7 @@ function bulkRowProblem(r) {
   if (!String(r.artist || "").trim()) miss.push("가수");
   if (!INSTRUMENTS.includes(r.instrument)) miss.push("악기");
   if (!SCORE_DIFFICULTIES.includes(r.difficulty)) miss.push("난이도");
+  if (!GENRES.includes(r.genre)) miss.push("장르");
   const price = Number(r.price);
   if (r.price === "" || !Number.isFinite(price) || price <= 0) miss.push("가격");
   return miss.length ? `입력 필요: ${miss.join("·")}` : "";
@@ -470,7 +477,7 @@ function bulkCounts() {
 
 function bulkSummarySub(r) {
   const price = Number(r.price);
-  return [r.difficulty || "난이도?", r.instrument || "악기?", r.price !== "" && Number.isFinite(price) && price > 0 ? `${price.toLocaleString()}P` : "가격?"].join(" · ");
+  return [r.difficulty || "난이도?", r.instrument || "악기?", r.genre || "장르?", r.price !== "" && Number.isFinite(price) && price > 0 ? `${price.toLocaleString()}P` : "가격?"].join(" · ");
 }
 
 function bulkHintText(r) {
@@ -511,6 +518,10 @@ function bulkRowHTML(r, i) {
         <select class="sb-in" data-sb-field="difficulty" aria-label="난이도" ${dis}>
           <option value="">난이도</option>
           ${SB_DIFFICULTY_ORDER.map(x => `<option value="${esc(x)}" ${r.difficulty === x ? "selected" : ""}>${esc(x)}</option>`).join("")}
+        </select>
+        <select class="sb-in" data-sb-field="genre" aria-label="장르" ${dis}>
+          <option value="">장르</option>
+          ${GENRES.map(x => `<option value="${esc(x)}" ${r.genre === x ? "selected" : ""}>${esc(x)}</option>`).join("")}
         </select>
         <input type="number" class="sb-in" data-sb-field="price" value="${esc(r.price)}" min="0" step="100" placeholder="가격(P)" aria-label="가격" ${dis}>
       </div>
@@ -590,6 +601,10 @@ function renderBulkPanelHTML() {
           <option value="">악기 선택</option>
           ${INSTRUMENTS.map(x => `<option value="${esc(x)}" ${SB_DEFAULT_INST === x ? "selected" : ""}>${esc(x)}</option>`).join("")}
         </select>
+        <select id="sb-def-genre" aria-label="장르 한 번에 적용" ${dis} ${field}>
+          <option value="">장르 선택</option>
+          ${GENRES.map(x => `<option value="${esc(x)}" ${SB_DEFAULT_GENRE === x ? "selected" : ""}>${esc(x)}</option>`).join("")}
+        </select>
         <input type="number" id="sb-def-price" value="${esc(SB_DEFAULT_PRICE)}" min="0" step="100" placeholder="가격(포인트)" aria-label="가격 한 번에 적용" ${dis} style="width:130px;padding:8px 10px;border:1px solid #E6E6E6;border-radius:8px;font-size:13px;background:#ffffff;">
         <button id="sb-apply-defaults" class="btn admin-stop-btn" style="border-radius:10px;background:#ffffff;" ${dis}>적용</button>
       </div>
@@ -598,7 +613,7 @@ function renderBulkPanelHTML() {
         ${SB_RUNNING ? "" : `<span style="font-size:12px;"><button id="sb-check-all" type="button" class="sb-link">모두 선택</button> · <button id="sb-uncheck-all" type="button" class="sb-link">모두 해제</button></span>`}
       </div>
       <div class="sb-table">
-        <div class="sb-head" aria-hidden="true"><span></span><span>제목</span><span>가수</span><span>악기</span><span>난이도</span><span>가격(P)</span><span>상태</span></div>
+        <div class="sb-head" aria-hidden="true"><span></span><span>제목</span><span>가수</span><span>악기</span><span>난이도</span><span>장르</span><span>가격(P)</span><span>상태</span></div>
         <div id="sb-list">
           ${visible.length ? visible.map(({ r, i }) => bulkRowHTML(r, i)).join("") : `<div style="padding:18px;text-align:center;font-size:13px;color:var(--muted);">이 조건의 곡이 없어요.</div>`}
         </div>
@@ -694,7 +709,7 @@ function addBulkFiles(sellerId, files) {
     const row = {
       key, file: f, fileName: f.name,
       title: p.title, artist: p.artist, difficulty: p.difficulty,
-      instrument: SB_DEFAULT_INST, price: SB_DEFAULT_PRICE,
+      instrument: SB_DEFAULT_INST, price: SB_DEFAULT_PRICE, genre: SB_DEFAULT_GENRE,
       include: !tooBig, status: tooBig ? "실패" : "대기",
       message: tooBig ? "30MB를 넘는 파일은 올릴 수 없어요." : ""
     };
@@ -744,15 +759,17 @@ function wireBulkPanel(sellerId) {
   });
   document.getElementById("sb-def-inst")?.addEventListener("change", (e) => { SB_DEFAULT_INST = e.target.value; });
   document.getElementById("sb-def-price")?.addEventListener("input", (e) => { SB_DEFAULT_PRICE = e.target.value; });
+  document.getElementById("sb-def-genre")?.addEventListener("change", (e) => { SB_DEFAULT_GENRE = e.target.value; });
   document.getElementById("sb-apply-defaults")?.addEventListener("click", () => {
-    if (!SB_DEFAULT_INST && SB_DEFAULT_PRICE === "") {
-      setBulkMsg(sellerId, "적용할 악기나 가격을 먼저 정해주세요.", true);
+    if (!SB_DEFAULT_INST && SB_DEFAULT_PRICE === "" && !SB_DEFAULT_GENRE) {
+      setBulkMsg(sellerId, "적용할 악기·장르·가격 중 하나를 먼저 정해주세요.", true);
       return;
     }
     let count = 0;
     for (const r of SB_ROWS) {
       if (r.status === "완료" || r.status === "등록 중") continue;
       if (SB_DEFAULT_INST) r.instrument = SB_DEFAULT_INST;
+      if (SB_DEFAULT_GENRE) r.genre = SB_DEFAULT_GENRE;
       if (SB_DEFAULT_PRICE !== "") r.price = SB_DEFAULT_PRICE;
       count++;
     }
@@ -784,6 +801,7 @@ function wireBulkPanel(sellerId) {
   // 2026-11-21: 악기·난이도 기본 select → 흰 목록 (맥 다크 모드에서 검게 펼쳐지던 문제)
   if (typeof enhanceSelect === "function") {
     enhanceSelect(document.getElementById("sb-def-inst"));
+    enhanceSelect(document.getElementById("sb-def-genre"));
     body.querySelectorAll("select.sb-in").forEach(sel => enhanceSelect(sel, { full: true, placeholder: true }));
   }
   // 휴대폰: 요약 줄이나 화살표를 누르면 그 곡을 펼쳐서 고친다
@@ -849,7 +867,7 @@ async function registerScoreFromFile(sellerId, data, file, onStep) {
   return submitScore(sellerId, {
     id: scoreId,
     title: data.title, artist: data.artist, instrument: data.instrument,
-    difficulty: data.difficulty, price: data.price,
+    difficulty: data.difficulty, genre: data.genre, price: data.price,
     hasVideo: false, videoUrl: null,
     fileUrl: up.path, previewUrls, pageCount, cardThumbUrl,
     description: "", tags: [], thumbnailUrl: null
@@ -890,7 +908,7 @@ async function runBulkRegister(sellerId) {
     try {
       res = await registerScoreFromFile(sellerId, {
         title: r.title.trim(), artist: r.artist.trim(), instrument: r.instrument,
-        difficulty: r.difficulty, price: Number(r.price)
+        difficulty: r.difficulty, genre: r.genre, price: Number(r.price)
       }, r.file, (step) => {
         r.message = step;
         const i = SB_ROWS.indexOf(r);
@@ -1094,6 +1112,7 @@ async function handleSubmitScore(sellerId) {
   const artist = document.getElementById("sf-artist").value.trim();
   const instrument = document.getElementById("sf-instrument").value;
   const difficulty = document.getElementById("sf-difficulty").value;
+  const genre = readGenreChips("sf-genre"); // 2026-11-22: 장르 필수
   const priceRaw = document.getElementById("sf-price").value;
   const hasVideo = document.getElementById("sf-hasvideo").checked;
   const videoUrl = document.getElementById("sf-videourl").value.trim();
@@ -1105,6 +1124,10 @@ async function handleSubmitScore(sellerId) {
 
   if (!title || !artist || !instrument || !difficulty || !priceRaw) {
     showSellerMsg(msgEl, "모든 항목을 입력해주세요.", true);
+    return;
+  }
+  if (!GENRES.includes(genre)) {
+    showSellerMsg(msgEl, "장르를 골라주세요.", true);
     return;
   }
   const price = Number(priceRaw);
@@ -1172,7 +1195,7 @@ async function handleSubmitScore(sellerId) {
 
   const result = submitScore(sellerId, {
     id: scoreId,
-    title, artist, instrument, difficulty, price,
+    title, artist, instrument, difficulty, genre, price,
     hasVideo,
     videoUrl: hasVideo ? videoUrl : null,
     fileUrl: uploadResult.path,
@@ -1378,6 +1401,7 @@ function renderScoreEditPanel(s) {
         <label>난이도<select class="sm-in" id="sm-diff-${s.id}" ${dis}>
           ${SM_DIFFICULTY_ORDER.map(x => `<option value="${esc(x)}" ${s.difficulty === x ? "selected" : ""}>${esc(x)}</option>`).join("")}
         </select></label>
+        <div class="sm-genre" style="grid-column:1 / -1;font-size:13px;">장르<div style="margin-top:6px;">${genreChipsHTML(`sm-genre-${s.id}`, s.genre || GENRE_OTHER, !!dis)}</div></div>
         <label>가격 (포인트)<input type="number" class="sm-in" id="sm-price-${s.id}" min="0" step="100" value="${esc(s.price)}" ${dis}></label>
         <label><span>태그 <span class="sm-sub">(쉼표로 구분, 최대 5개)</span></span><input type="text" class="sm-in" id="sm-tags-${s.id}" value="${esc((s.tags || []).join(", "))}" placeholder="예: IU, 아이유, 좋은날" ${dis}></label>
       </div>
@@ -1465,6 +1489,7 @@ async function handleSaveScoreEdit(sellerId, id) {
   const val = (k) => (document.getElementById(`sm-${k}-${id}`) || {}).value || "";
   const data = {
     title: val("title"), artist: val("artist"), instrument: val("inst"), difficulty: val("diff"),
+    genre: readGenreChips(`sm-genre-${id}`),
     price: val("price"), description: val("desc"),
     tags: val("tags").split(/[,，]/).map(t => t.trim()).filter(Boolean),
     hasVideo: !!(document.getElementById(`sm-hasvideo-${id}`) || {}).checked,
@@ -1518,6 +1543,7 @@ function updateScoreBySellerCheck(d) {
   if (!String(d.title).trim() || !String(d.artist).trim()) return "곡 제목과 가수를 입력해주세요.";
   if (!INSTRUMENTS.includes(d.instrument)) return "악기를 선택해주세요.";
   if (!SCORE_DIFFICULTIES.includes(d.difficulty)) return "난이도를 선택해주세요.";
+  if (d.genre !== undefined && !GENRES.includes(d.genre)) return "장르를 선택해주세요.";
   const price = Number(d.price);
   if (!Number.isFinite(price) || price <= 0) return "가격을 올바르게 입력해주세요.";
   if (d.hasVideo && !String(d.videoUrl).trim()) return "영상이 있다고 체크했으면 영상 링크도 입력해주세요.";
