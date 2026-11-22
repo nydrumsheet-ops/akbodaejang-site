@@ -1067,6 +1067,16 @@ function renderAdminArtistAppList() {
         return;
       }
       const adminId = getCurrentUser()?.id;
+      // 2026-11-22: 아티스트명이 규칙에 맞고 다른 회원과 겹치지 않는지 먼저 확인 (서버도 같은 규칙으로 막는다)
+      const app = STATE.artistApplications[btn.dataset.artistappApprove];
+      if (app) {
+        const st = await checkNickAvailable(app.artistName, app.userId);
+        if (st !== "ok") {
+          const why = st === "taken" ? "다른 회원이 이미 쓰는 이름이에요" : st === "format" ? "규칙(한글·영문·숫자 2~12자, 띄어쓰기·특수문자 불가)에 맞지 않아요" : "확인하지 못했어요. 잠시 후 다시 시도해주세요";
+          showAdminMsg("admin-artistapp-msg", `아티스트명 "${app.artistName}": ${why}. 거절 사유에 적어 다시 신청하도록 안내해주세요.`, true);
+          return;
+        }
+      }
       const result = approveArtistApplication(btn.dataset.artistappApprove, adminId);
       if (!result.ok) {
         showAdminMsg("admin-artistapp-msg", result.message || "승인에 실패했습니다.", true);
