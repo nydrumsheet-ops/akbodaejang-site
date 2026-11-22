@@ -951,10 +951,12 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .info-banners{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px}
 .info-banner{border-radius:var(--radius-card);padding:24px;cursor:pointer;border:0;display:flex;flex-direction:column;gap:8px;transition:transform var(--dur-base) var(--ease)}
 .info-banner:hover{transform:translateY(-2px)}
+/* 2026-11-22: 이용 방법·환불 안내·아티스트 가입 카드 테두리를 연노랑 → 다른 카드와 같은 연회색(1px), 마우스를 올리면 진하게 */
+@media (hover:hover){.info-banner.ib-1:hover,.info-banner.ib-2:hover,.info-banner.ib-3:hover{box-shadow:inset 0 0 0 1px #bdbdbd}}
 .info-banner h3{margin:0;font:var(--type-title)}
 .info-banner p{margin:0;font-size:14px;color:var(--text-body);line-height:1.55}.info-banner-ico{font-size:26px;color:var(--accent)}.info-banner-badge{width:46px;height:46px;border-radius:9px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}.info-banner-badge .ico{width:24px;height:24px;}
-.ib-1{background:transparent;box-shadow:inset 0 0 0 2px #fff8e1}.ib-1 p,.ib-2 p{font-weight:500}.ib-2{background:transparent;box-shadow:inset 0 0 0 2px #fff8e1}
-.ib-3{background:transparent;box-shadow:inset 0 0 0 2px #fff8e1;color:var(--text-primary)}.ib-3 p{color:var(--text-body)}
+.ib-1{background:#ffffff;box-shadow:inset 0 0 0 1px #e6e6e6}.ib-1 p,.ib-2 p{font-weight:500}.ib-2{background:#ffffff;box-shadow:inset 0 0 0 1px #e6e6e6}
+.ib-3{background:#ffffff;box-shadow:inset 0 0 0 1px #e6e6e6;color:var(--text-primary)}.ib-3 p{color:var(--text-body)}
 .page-title{font:var(--type-display-md);letter-spacing:var(--display-tracking);margin:0 0 6px;font-family:"Pretendard","Noto Sans KR",system-ui,sans-serif;font-weight:700}
 .breadcrumb{font-size:13px;color:var(--muted);margin-bottom:16px}
 .breadcrumb button{border:none;background:none;color:var(--muted);cursor:pointer;padding:0;font-size:13px}
