@@ -280,7 +280,7 @@ button{font:inherit;color:inherit}
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
 <style>
 /* 악보대장 — restyled on the 악보대장 design system (Studio direction). Original structure/classes kept; legacy vars mapped to DS tokens. */
-:root,[data-direction]{--primary:var(--accent);--ink-solid:#302a26;--ink-solid-hover:#1f1e1c;--primary-dark:var(--accent-ink);--primary-soft:var(--accent-soft);--hot:var(--accent);--bg:var(--surface-page);--band:var(--surface-card);--card:var(--surface-page);--text:var(--text-primary);--muted:var(--c-body);--danger:var(--c-danger);--star:#d9930f;--radius:var(--radius-card);--shadow:none;--shadow-lift:var(--shadow-md)}
+:root,[data-direction]{--primary:var(--accent);--ink-solid:#302a26;--ink-solid-hover:#1f1e1c;--primary-dark:var(--accent-ink);--primary-soft:var(--accent-soft);--hot:var(--accent);--bg:var(--surface-page);--band:var(--surface-card);--card:var(--surface-page);--text:var(--text-primary);--muted:var(--c-body);--danger:var(--c-danger);--star:#F5A623;--radius:var(--radius-card);--shadow:none;--shadow-lift:var(--shadow-md)}
 html{color-scheme:light only}
 button,input,select,textarea,option{color:var(--text);font-family:inherit}
 input,select,textarea{background-color:var(--card)}
@@ -893,7 +893,10 @@ main.container:has(> #view-buyer > .hero:first-child){padding-top:0}
 .card-foot-right{display:flex;flex-direction:column;align-items:flex-end;gap:4px}
 .price{font:700 16px/1.2 var(--font-text);font-variant-numeric:tabular-nums;color:var(--text)}
 .rating{font:500 12px/1.2 var(--font-text);font-variant-numeric:tabular-nums;color:var(--muted);white-space:nowrap}
-.rating b{color:var(--star)}
+.rating b{color:var(--star);font-size:14px}
+/* 2026-11-21: 별점 — 별은 맑은 금색(#F5A623)·조금 크게, 점수는 13px 본문색 굵게, 리뷰 수는 작은 회색 그대로 */
+.rating-avg{font-size:13px;font-weight:600;color:var(--text)}
+.rating-cnt{font-size:12px;color:var(--muted)}
 .list-table{width:100%;border-collapse:collapse;background:#ffffff}
 .list-table th{font:600 12px/1 "Pretendard",var(--font-text);letter-spacing:0;text-transform:uppercase;color:#4a4a4a;text-align:left;padding:12px 14px;background:transparent;border-bottom:1px solid var(--border);white-space:nowrap}
 .list-table td{padding:13px 14px;border-bottom:1px solid var(--border);font-size:14px;vertical-align:middle}
