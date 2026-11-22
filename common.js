@@ -3745,6 +3745,8 @@ function initHeaderSearch() {
     suggest.querySelectorAll("[data-score]").forEach(b => b.addEventListener("mousedown", (e) => {
       e.preventDefault();
       hideSuggest();
+      const sc = STATE.scores[b.dataset.score];
+      if (sc) logSearch(sc.title, 1); // 2026-11-22: 자동완성에서 곡을 고르면 곡 제목으로 기록
       if (typeof goBuyer === "function") { showView("buyer"); goBuyer("detail", { id: b.dataset.score }); }
     }));
     suggest.querySelectorAll("[data-seller]").forEach(b => b.addEventListener("mousedown", (e) => {
@@ -3760,8 +3762,10 @@ function initHeaderSearch() {
     e.preventDefault();
     hideSuggest();
     if (typeof goBuyer === "function") {
+      const q = input.value.trim();
+      if (q) logSearch(q, searchResultCount(q)); // 2026-11-22: 인기 검색어 기록
       showView("buyer");
-      goBuyer("list", { q: input.value.trim() });
+      goBuyer("list", { q });
     }
   });
 
@@ -3789,6 +3793,30 @@ function initHeaderSearch() {
 const INSTRUMENT_ICON_COMMON = {
   "드럼": "♪", "기타": "♪", "피아노": "♪", "베이스": "♪", "우쿨렐레": "♪", "칼림바": "♪", "리코더": "♪"
 };
+
+/* 2026-11-22: 인기 검색어용 검색 기록 (인기검색어_2026-11-22.sql 의 log_search).
+   검색어·결과 개수·브라우저 무작위 값만 보낸다(회원 정보 없음). 하루 1번 세기 등은 서버가 한다. */
+function akbVisitorId() {
+  try {
+    let v = localStorage.getItem("akb.vid");
+    if (!v || !/^[A-Za-z0-9-]{8,64}$/.test(v)) {
+      v = (crypto.randomUUID ? crypto.randomUUID() : Array.from(crypto.getRandomValues(new Uint8Array(16)), b => b.toString(16).padStart(2, "0")).join(""));
+      localStorage.setItem("akb.vid", v);
+    }
+    return v;
+  } catch (e) { return ""; }
+}
+function logSearch(term, resultCount) {
+  const t = String(term || "").replace(/\s+/g, " ").trim();
+  if (t.length < 2 || t.length > 20) return;
+  const vid = akbVisitorId();
+  const sb = getSb();
+  if (!vid || !sb) return;
+  try { sb.rpc("log_search", { p_term: t, p_visitor: vid, p_results: Math.max(0, Number(resultCount) || 0) }).then(() => {}, () => {}); } catch (e) { /* 기록 실패는 무시 */ }
+}
+function searchResultCount(q) {
+  try { return typeof filterScores === "function" ? filterScores({ q }).length : 0; } catch (e) { return 0; }
+}
 
 /* 헤더 메뉴의 '현재 위치' 표시 */
 function setActiveMenu(key) {
@@ -4130,7 +4158,8 @@ ${art("제2조 (처리하는 개인정보 항목)", ol([
   `회원가입(필수): 이메일, 비밀번호(암호화 저장), 닉네임. 구글로 가입하는 경우 구글이 제공하는 이메일(구글 계정 이름은 닉네임 칸에 미리 채우는 데만 쓰고 저장하지 않음)`,
   `아티스트 신청·정산(필수): 활동명, 연락처, 정산 계좌(은행·계좌번호·예금주), 샘플 악보`,
   `결제: 결제 일시, 금액, 결제 수단 정보(카드번호 등 결제 정보는 결제대행사가 처리하며 회사는 저장하지 않습니다)`,
-  `자동 수집: 접속 기록, 브라우저 정보, 서비스 이용 기록, 쿠키·브라우저 저장소`
+  `자동 수집: 접속 기록, 브라우저 정보, 서비스 이용 기록, 쿠키·브라우저 저장소`,
+  `검색어 기록(이용 통계): 검색어, 검색 시각, 검색 결과 개수, 중복 확인용 익명 값(브라우저마다 만든 무작위 값, 하루마다 바뀌는 IP 암호화 값). 회원 정보와 연결하지 않으며, 인기 검색어 집계에만 쓰고 60일 뒤 자동 삭제합니다.`
 ]))}
 ${art("제3조 (보유·이용 기간)", `<p>회원 정보는 탈퇴할 때까지 보관하고, 탈퇴하면 지체 없이 파기합니다. 다만 법령에 따라 다음 정보는 정해진 기간 동안 보관합니다.</p>${ol([
   `계약 또는 청약철회 등에 관한 기록: 5년 (전자상거래법)`,
