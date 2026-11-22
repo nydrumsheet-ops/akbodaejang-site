@@ -1487,6 +1487,14 @@ textarea.aa-field{height:auto;min-height:88px;padding:12px;resize:vertical;font-
 .akb-loading p{margin:0;font-size:14px;font-weight:600;color:#756b61}
 .akb-loading p:empty{display:none}
 @media (prefers-reduced-motion:reduce){.akb-spin{animation-duration:1.8s}}
+/* 2026-11-22: 맨 위로 버튼 — 화면을 일정 이상 내리면 오른쪽 아래에 나타남 */
+.to-top{position:fixed;right:24px;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:70;width:52px;height:52px;border-radius:50%;border:1px solid #e0e0e0;background:#ffffff;color:#2c2622;display:flex;align-items:center;justify-content:center;cursor:pointer;box-shadow:0 4px 14px rgba(0,0,0,.08);opacity:0;visibility:hidden;transform:translateY(10px);transition:opacity .2s ease,transform .2s ease,visibility .2s,background-color .15s ease,border-color .15s ease}
+.to-top.show{opacity:1;visibility:visible;transform:none}
+@media (hover:hover){.to-top:hover{background:#f5f5f5;border-color:#c8c8c8}}
+.to-top:active{transform:scale(.94)}
+.to-top:focus-visible{outline:2px solid var(--ink-solid);outline-offset:2px}
+.to-top svg{width:22px;height:22px}
+@media (max-width:760px){.to-top{right:16px;bottom:calc(16px + env(safe-area-inset-bottom,0px));width:46px;height:46px}.to-top svg{width:20px;height:20px}}
 #login-pane-checkemail .su-steps{margin-top:10px}
 #su-agree-error:empty{display:none}
 #su-next{margin-top:16px}
@@ -1816,6 +1824,8 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
   </div>
 </footer>
 
+<!-- 2026-11-22: 맨 위로 버튼 -->
+<button type="button" id="to-top" class="to-top" aria-label="맨 위로 가기" title="맨 위로"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
 <div id="login-modal" class="modal-overlay">
   <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="login-form-title">
     <button id="login-modal-close" class="modal-close" aria-label="닫기">✕</button>
