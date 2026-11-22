@@ -136,6 +136,17 @@ const POLICY = {
 };
 
 const INSTRUMENTS = ["드럼", "기타", "피아노", "베이스", "바이올린", "보컬"];
+/* 2026-11-22: 장르 (악보 하나에 1개, 서버 scores.genre 와 같은 목록 — 장르_2026-11-22.sql) */
+const GENRES = ["가요", "트로트", "팝", "J-POP", "OST", "록/메탈", "재즈", "클래식", "뉴에이지", "CCM", "그 외"];
+const GENRE_OTHER = "그 외";
+/* 장르 고르기 버튼(라디오) 묶음 — name 이 같은 것끼리 하나만 고른다 */
+function genreChipsHTML(name, selected, disabled) {
+  return `<div class="g-chips" role="radiogroup" aria-label="장르">${GENRES.map(g => `<label class="g-chip"><input type="radio" data-native name="${name}" value="${esc(g)}" ${selected === g ? "checked" : ""} ${disabled ? "disabled" : ""}><span>${esc(g)}</span></label>`).join("")}</div>`;
+}
+function readGenreChips(name) {
+  const el = document.querySelector(`input[name="${name}"]:checked`);
+  return el ? el.value : "";
+}
 /* 2026-10-20 변경: 난이도 이름을 전면 교체했다 (기존 → 새 이름):
    초급→매우 쉬움, 초중급→쉬움, 중급→보통, 고급→어려움, 프로→매우 어려움.
    구조(홈화면 큰 카테고리 3개 + 카테고리 안의 세부 단계)는 그대로 유지하고 이름만 바꿨다. */
@@ -277,6 +288,7 @@ function rowFromScore(s) {
     status: s.status, reject_reason: s.rejectReason || null, created_at: s.createdAt,
     approved_at: s.approvedAt || null, sales_count: s.salesCount || 0, view_count: s.viewCount || 0,
     description: s.description || "", tags: s.tags || [], thumbnail_url: s.thumbnailUrl || null,
+    genre: GENRES.includes(s.genre) ? s.genre : GENRE_OTHER,
     discount_rate: d ? d.rate : null, discount_start: d ? d.startAt : null, discount_end: d ? d.endAt : null
   };
 }
@@ -291,6 +303,7 @@ function scoreFromRow(r) {
     status: r.status, rejectReason: r.reject_reason,
     createdAt: r.created_at, approvedAt: r.approved_at, salesCount: r.sales_count, viewCount: r.view_count,
     description: r.description || "", tags: r.tags || [], thumbnailUrl: r.thumbnail_url,
+    genre: GENRES.includes(r.genre) ? r.genre : GENRE_OTHER,
     discount: (r.discount_rate != null && r.discount_start && r.discount_end)
       ? { rate: r.discount_rate, startAt: r.discount_start, endAt: r.discount_end } : null
   };
@@ -500,6 +513,7 @@ async function load() {
     }
   }
   for (const s of Object.values(STATE.scores)) {
+    if (!GENRES.includes(s.genre)) s.genre = GENRE_OTHER; // 2026-11-22: 장르가 없던 악보는 "그 외"
     if (typeof s.description !== "string") s.description = "";
     if (!Array.isArray(s.tags)) s.tags = [];
     if (typeof s.thumbnailUrl !== "string" || !s.thumbnailUrl.trim()) s.thumbnailUrl = null;
@@ -754,7 +768,7 @@ function seedDemoData() {
       createdAt: daysAgoISO(ago), approvedAt: daysAgoISO(ago),
       salesCount: 0, viewCount: Math.floor(Math.random() * 300) + 20,
       description: `${instrument} ${difficulty} 단계 연습용 데모 악보입니다. 실제 판매 악보가 아니라 화면 확인을 위한 예시입니다.`,
-      tags: [], thumbnailUrl: null, discount: null
+      tags: [], thumbnailUrl: null, discount: null, genre: GENRE_OTHER
     };
     scoreIds.push(id);
   }
@@ -767,7 +781,7 @@ function seedDemoData() {
       price: 2000, hasVideo: false, videoUrl: null, fileUrl: "demo.pdf",
       previewInfo: `첫 ${POLICY.preview.bars}마디 미리보기`, status: "심사중", rejectReason: null,
       createdAt: nowISO(), approvedAt: null, salesCount: 0, viewCount: 0, description: "",
-      tags: [], thumbnailUrl: null, discount: null
+      tags: [], thumbnailUrl: null, discount: null, genre: GENRE_OTHER
     };
   }
 
@@ -917,6 +931,7 @@ function updateScoreBySeller(sellerId, scoreId, data) {
   if (!title || !artist) return { ok: false, message: "곡 제목과 가수를 입력해주세요." };
   if (!INSTRUMENTS.includes(data.instrument)) return { ok: false, message: "악기를 선택해주세요." };
   if (!SCORE_DIFFICULTIES.includes(data.difficulty)) return { ok: false, message: "난이도를 선택해주세요." };
+  if (data.genre !== undefined && !GENRES.includes(data.genre)) return { ok: false, message: "장르를 선택해주세요." };
   const price = Number(data.price);
   if (!Number.isFinite(price) || price <= 0) return { ok: false, message: "가격을 올바르게 입력해주세요." };
   const videoUrl = String(data.videoUrl || "").trim();
@@ -926,6 +941,7 @@ function updateScoreBySeller(sellerId, scoreId, data) {
   s.artist = artist;
   s.instrument = data.instrument;
   s.difficulty = data.difficulty;
+  if (data.genre !== undefined) s.genre = data.genre;
   s.price = Math.round(price);
   s.description = String(data.description || "").trim();
   s.tags = Array.isArray(data.tags) ? [...new Set(data.tags.map(t => String(t).trim()).filter(Boolean))].slice(0, 5) : (s.tags || []);
@@ -1797,6 +1813,7 @@ function submitScore(sellerId, data) {
   STATE.scores[scoreId] = {
     id: scoreId, sellerId,
     title: data.title, artist: data.artist, instrument: data.instrument, difficulty,
+    genre: GENRES.includes(data.genre) ? data.genre : GENRE_OTHER,
     price: data.price, hasVideo: !!data.hasVideo,
     videoUrl: data.videoUrl || null, fileUrl: data.fileUrl || null,
     previewUrl: data.previewUrl || null,
