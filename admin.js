@@ -2892,6 +2892,7 @@ function adminScoreEditHTML(s) {
         <label>가수<input type="text" class="sm-in" id="asc-artist-${s.id}" value="${esc(s.artist)}" ${dis}></label>
         <label>악기<select class="sm-in" id="asc-inst-${s.id}" ${dis}>${INSTRUMENTS.map(x => `<option value="${esc(x)}" ${s.instrument === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
         <label>난이도<select class="sm-in" id="asc-diff-${s.id}" ${dis}>${ADMIN_SC_DIFF.map(x => `<option value="${esc(x)}" ${s.difficulty === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
+        <label>장르<select class="sm-in" id="asc-genre-${s.id}" ${dis}>${GENRES.map(x => `<option value="${esc(x)}" ${(s.genre || GENRE_OTHER) === x ? "selected" : ""}>${esc(x)}</option>`).join("")}</select></label>
         <label>가격 (포인트)<input type="number" class="sm-in" id="asc-price-${s.id}" min="0" step="100" value="${esc(s.price)}" ${dis}></label>
         <label><span>태그 <span class="sm-sub">(쉼표로 구분, 최대 5개)</span></span><input type="text" class="sm-in" id="asc-tags-${s.id}" value="${esc((s.tags || []).join(", "))}" ${dis}></label>
       </div>
@@ -2933,7 +2934,7 @@ function wireAdminScoreList(wrap) {
     const id = b.dataset.ascSave;
     const v = k => (document.getElementById(`asc-${k}-${id}`) || {}).value || "";
     const res = updateScoreBySeller(meId, id, {
-      title: v("title"), artist: v("artist"), instrument: v("inst"), difficulty: v("diff"), price: v("price"),
+      title: v("title"), artist: v("artist"), instrument: v("inst"), difficulty: v("diff"), genre: v("genre"), price: v("price"),
       description: v("desc"), tags: v("tags").split(/[,，]/).map(t => t.trim()).filter(Boolean),
       hasVideo: !!(document.getElementById(`asc-hasvideo-${id}`) || {}).checked, videoUrl: v("videourl")
     });
