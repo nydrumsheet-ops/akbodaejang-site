@@ -874,6 +874,8 @@ function filterScores(p) {
     );
   }
   if (p.instrument) list = list.filter(s => s.instrument === p.instrument);
+  const genres = selectedGenres(p); // 2026-11-22: 장르(여러 개 고르기)
+  if (genres.length) list = list.filter(s => genres.includes(s.genre || GENRE_OTHER));
   // 2026-10-20 변경: 난이도 필터는 체크박스 다중 선택으로 바뀌어, 선택된 5단계 값과 직접 비교한다.
   const diffs = selectedDifficulties(p);
   if (diffs.length) list = list.filter(s => diffs.includes(s.difficulty));
@@ -898,11 +900,17 @@ function filterScores(p) {
   return list;
 }
 
+document.addEventListener("click", (e) => { // 2026-11-22: 상세 페이지 장르 태그 → 그 장르 악보 목록
+  const g = e.target.closest && e.target.closest("[data-go-genre]");
+  if (g && typeof goBuyer === "function") goBuyer("list", { genres: [g.dataset.goGenre] });
+});
+function selectedGenres(p) { return (Array.isArray(p.genres) ? p.genres : []).filter(g => GENRES.includes(g)); }
 /* 2026-10-30: 지금 걸려 있는 필터를 [지울 키, 화면 이름] 목록으로 */
 function activeFilterChips(p) {
   const out = [];
   if (p.q) out.push(["q", `검색: ${p.q}`]); // 2026-11-21: 상세 필터 안에서도 검색어를 넣고 뺄 수 있게
   if (p.instrument) out.push(["instrument", p.instrument]);
+  selectedGenres(p).forEach(g => out.push([`genre:${g}`, g]));
   selectedDifficulties(p).forEach(d => out.push([`diff:${d}`, d]));
   if (p.pages) { const r = LIST_PAGE_RANGES.find(x => x[0] === p.pages); if (r) out.push(["pages", r[1]]); }
   if (p.video) out.push(["video", "연주영상"]);
@@ -942,6 +950,7 @@ function renderListPage(el, p) {
   if (p.q) title = `"${esc(p.q)}" 검색 결과`;
   else if (p.instrument && p.video) title = `${esc(p.instrument)} 연주영상 악보`;
   else if (p.instrument) title = `${esc(p.instrument)} 악보`;
+  else if (selectedGenres(p).length === 1 && !p.video && p.sort !== "latest") title = `${esc(selectedGenres(p)[0])} 악보`;
   else if (p.video) title = "연주 영상이 있는 악보";
   else if (p.sort === "latest") title = "신규 악보";
 
@@ -978,6 +987,12 @@ function renderListPage(el, p) {
           <span class="filter-label">악기</span>
           <div class="chip-row">
             ${["", ...INSTRUMENTS].map(i => `<button class="chip ${(p.instrument || "") === i ? "active" : ""}" data-f-inst="${esc(i)}">${i ? esc(i) : "전체"}</button>`).join("")}
+          </div>
+        </div>
+        <div class="filter-line" style="align-items:flex-start;">
+          <span class="filter-label" style="padding-top:7px;">장르</span>
+          <div class="toggle-row">
+            ${GENRES.map(g => `<label class="toggle"><input type="checkbox" data-f-genre value="${esc(g)}" ${selectedGenres(p).includes(g) ? "checked" : ""}> ${esc(g)}</label>`).join("")}
           </div>
         </div>
         <div class="filter-line" style="align-items:flex-start;">
@@ -1060,6 +1075,10 @@ function renderListPage(el, p) {
     if (willOpen && typeof updateAllScrollFades === "function") updateAllScrollFades();
   });
   el.querySelectorAll("[data-f-inst]").forEach(b => b.addEventListener("click", () => update({ instrument: b.dataset.fInst })));
+  el.querySelectorAll("[data-f-genre]").forEach(cb => cb.addEventListener("change", () => {
+    const cur = selectedGenres(p);
+    update({ genres: cb.checked ? [...cur, cb.value] : cur.filter(g => g !== cb.value) });
+  }));
   el.querySelectorAll("[data-f-diff]").forEach(cb => cb.addEventListener("change", () => {
     const cur = selectedDifficulties(p);
     const next = cb.checked ? [...cur, cb.value] : cur.filter(d => d !== cb.value);
@@ -1075,12 +1094,13 @@ function renderListPage(el, p) {
     const patch = k === "price" ? { minPrice: "", maxPrice: "" }
       : k === "difficulties" ? { difficulties: [], difficulty: "" }
       : k.startsWith("diff:") ? { difficulties: selectedDifficulties(p).filter(d => d !== k.slice(5)), difficulty: "" }
+      : k.startsWith("genre:") ? { genres: selectedGenres(p).filter(g => g !== k.slice(6)) }
       : { [k]: k === "video" || k === "sale" ? false : "" };
     update(patch);
   }));
   document.getElementById("f-reset")?.addEventListener("click", () => {
     LIST_FILTER_OPEN = true; // 2026-11-21: 지운 뒤에도 필터 창이 접히지 않게
-    update({ q: "", instrument: "", difficulties: [], difficulty: "", pages: "", video: false, sale: false, minPrice: "", maxPrice: "" });
+    update({ q: "", instrument: "", genres: [], difficulties: [], difficulty: "", pages: "", video: false, sale: false, minPrice: "", maxPrice: "" });
   });
   // 2026-11-21: 상세 필터 안 검색 — 버튼이나 Enter로 적용 (헤더 검색창과 같은 검색어를 쓴다)
   const applyFilterQ = () => {
@@ -1247,6 +1267,7 @@ function renderDetailPage(el, p) {
       <div class="detail-buy">
         <div class="tags">
           <span class="tag">${esc(s.instrument)}</span>
+          <button type="button" class="tag tag-genre" data-go-genre="${esc(s.genre || GENRE_OTHER)}" title="${esc(s.genre || GENRE_OTHER)} 악보 더 보기">${esc(s.genre || GENRE_OTHER)}</button>
           <span class="tag tag-diff" style="${diffTagStyle(s.difficulty)}">${esc(s.difficulty)}</span>
         </div>
         <h1 class="detail-title">${esc(s.title)}</h1>
