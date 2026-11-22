@@ -2809,16 +2809,29 @@ function renderHeaderAuth() {
   } else {
     bar.innerHTML = `
       ${ntBellHTML(user)}
+      <button id="header-my-btn" class="icon-btn" aria-label="마이페이지">
+        <span class="icon-btn-glyph"><i class="ico ico-user"></i></span><span class="icon-btn-label">${esc(user.name)}님</span>
+      </button>
+      <!-- 2026-11-22: 보유 포인트를 헤더에서 바로 보이게 (누르면 포인트·충전) -->
+      <button id="header-points-btn" class="hdr-points" aria-label="보유 포인트 ${formatPoint(user.points)}, 포인트·충전으로 가기" title="포인트 충전">
+        <svg class="hdr-coin" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9.2"/><path d="M10 16.5V8h2.9a2.6 2.6 0 0 1 0 5.2H10"/></svg><span class="hdr-points-num">${formatPoint(user.points)}</span>
+      </button>
+      <button id="header-wish-btn" class="icon-btn hdr-wish" aria-label="찜한 악보 ${user.wishlist.length}개">
+        <span class="icon-btn-glyph"><i class="ico ico-heart"></i></span>
+      </button>
       ${cartBtn}
       ${user.role === "buyer" ? artistLink : ""}
-      <button id="header-my-btn" class="icon-btn" aria-label="마이페이지">
-        <span class="icon-btn-glyph"><i class="ico ico-user"></i></span><span class="icon-btn-label">${esc(user.name)}님 · ${formatPoint(user.points)}</span>
-      </button>
       ${user.isAdmin ? `<span class="adm-menu-wrap"><button id="header-admin-btn" class="auth-btn" aria-haspopup="menu" aria-expanded="false" aria-controls="adm-menu">관리자<span class="adm-label-long"> 페이지</span><svg class="adm-caret" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg></button><div class="adm-menu" id="adm-menu" role="menu" hidden></div></span>` : ""}
       <button id="logout-btn" class="auth-btn">로그아웃</button> <!-- 2026-11-21: 로그아웃은 맨 끝으로 (관리자 메뉴 뒤) -->
     `;
     document.getElementById("header-my-btn")?.addEventListener("click", () => {
       if (typeof goBuyer === "function") goBuyer("mypage");
+    });
+    document.getElementById("header-points-btn")?.addEventListener("click", () => {
+      if (typeof goBuyer === "function") goBuyer("mypage", { tab: "points" });
+    });
+    document.getElementById("header-wish-btn")?.addEventListener("click", () => {
+      if (typeof goBuyer === "function") goBuyer("mypage", { tab: "wish" });
     });
   }
   document.getElementById("header-artist-link")?.addEventListener("click", () => {
