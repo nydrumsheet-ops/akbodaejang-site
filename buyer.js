@@ -14,6 +14,56 @@
 
 let BUYER_ROUTE = { page: "home", params: {} };
 let HOME_POP = { period: 7, instrument: "" };
+/* 2026-11-22: 홈 인기 검색어 — 서버(popular_searches)에서 받아 3분 동안 기억 */
+let HOME_PS = { period: "week", daily: false, cache: {} };
+const PS_PERIODS = [["day", "일간", "오늘 기준"], ["week", "주간", "최근 7일 기준"], ["month", "월간", "최근 30일 기준"]];
+async function renderPopSearch() {
+  const sec = document.getElementById("ps-section");
+  if (!sec) return;
+  const period = HOME_PS.period;
+  const hit = HOME_PS.cache[period];
+  let data = hit && Date.now() - hit.at < 180000 ? hit.data : null;
+  if (!data) {
+    const sb = getSb();
+    if (!sb) { sec.hidden = true; return; }
+    try {
+      const { data: d, error } = await sb.rpc("popular_searches", { p_period: period });
+      if (error) throw error;
+      data = d || { daily: false, rows: [] };
+      HOME_PS.cache[period] = { at: Date.now(), data };
+    } catch (e) { sec.hidden = true; return; } // 서버 준비 전이면 블록을 숨긴다
+  }
+  if (!document.getElementById("ps-section")) return; // 그 사이 다른 화면으로 갔으면 그만
+  HOME_PS.daily = !!data.daily;
+  if (!HOME_PS.daily && HOME_PS.period === "day") { HOME_PS.period = "week"; renderPopSearch(); return; }
+  sec.hidden = false;
+  const periods = PS_PERIODS.filter(p => p[0] !== "day" || HOME_PS.daily);
+  const tabs = document.getElementById("ps-tabs");
+  if (tabs) {
+    tabs.innerHTML = periods.map(([k, label]) => `<button type="button" class="chip ${k === HOME_PS.period ? "active" : ""}" role="tab" aria-selected="${k === HOME_PS.period}" data-ps-period="${k}">${label}</button>`).join("");
+    tabs.querySelectorAll("[data-ps-period]").forEach(b => b.addEventListener("click", () => { HOME_PS.period = b.dataset.psPeriod; renderPopSearch(); }));
+  }
+  const basis = document.getElementById("ps-basis");
+  if (basis) basis.textContent = (PS_PERIODS.find(p => p[0] === HOME_PS.period) || PS_PERIODS[1])[2];
+  const list = document.getElementById("ps-list");
+  if (!list) return;
+  const rows = Array.isArray(data.rows) ? data.rows : [];
+  if (!rows.length) { list.innerHTML = `<li class="ps-empty">집계 중이에요. 검색이 쌓이면 여기에 순위가 보여요.</li>`; return; }
+  const chg = (r) => {
+    if (r.prev == null) return `<span class="ps-chg new" aria-label="새로 올라옴">NEW</span>`;
+    const d = r.prev - r.rank;
+    if (d > 0) return `<span class="ps-chg up" aria-label="${d}계단 오름">▲${d}</span>`;
+    if (d < 0) return `<span class="ps-chg down" aria-label="${-d}계단 내림">▼${-d}</span>`;
+    return `<span class="ps-chg same" aria-label="변동 없음">–</span>`;
+  };
+  list.innerHTML = rows.map(r => `<li><button type="button" class="ps-item" data-ps-term="${esc(r.term)}"><span class="ps-rank${r.rank <= 3 ? " top" : ""}">${r.rank}</span><span class="ps-term">${esc(r.term)}</span>${chg(r)}</button></li>`).join("");
+  list.querySelectorAll("[data-ps-term]").forEach(b => b.addEventListener("click", () => {
+    const q = b.dataset.psTerm;
+    const head = document.getElementById("header-search");
+    if (head) head.value = q;
+    goBuyer("list", { q }); // 순위를 눌러 들어온 검색은 다시 세지 않는다(순위가 스스로 굳어지지 않게)
+  }));
+}
 let HERO_TIMER = null;
 let REVIEW_DRAFT = { rating: 0 };
 let SUPPORT_TAB = "faq";
@@ -538,6 +588,13 @@ function renderHomePage(el) {
 
     </div>
 
+    <!-- 2026-11-22: 인기 검색어 (주간·월간, 일간은 관리자가 켤 때만) -->
+    <div class="section ps-section" id="ps-section">
+      <div class="section-head"><h2>인기 검색어</h2><span class="ps-basis" id="ps-basis"></span></div>
+      <div class="chip-row ps-tabs" id="ps-tabs" role="tablist" aria-label="인기 검색어 기간"></div>
+      <ol class="ps-list" id="ps-list"><li class="ps-empty">불러오는 중…</li></ol>
+    </div>
+
     <div class="section">
       <div class="section-head">
         <h2>인기 악보</h2>
@@ -631,6 +688,7 @@ function renderHomePage(el) {
 
   bindCards(el);
   renderPopRow();
+  renderPopSearch();
   setupHero();
 
   el.querySelectorAll("[data-pop-period]").forEach(b => b.addEventListener("click", () => {
@@ -1029,6 +1087,7 @@ function renderListPage(el, p) {
     const q = (document.getElementById("f-q")?.value || "").trim();
     const head = document.getElementById("header-search");
     if (head) head.value = q;
+    if (q && typeof logSearch === "function") logSearch(q, searchResultCount(q)); // 2026-11-22: 인기 검색어 기록
     LIST_FILTER_OPEN = true;
     update({ q });
   };
