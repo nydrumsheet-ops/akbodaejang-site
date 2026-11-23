@@ -2042,7 +2042,7 @@ function renderRequestsPage(el) {
       <div class="panel req-form-panel" style="display:flex;flex-direction:column;gap:8px;">
         <h2 style="margin:0 0 4px;font-size:16px;">새 곡 신청하기</h2>
         <input class="field" id="rq-title" placeholder="곡 제목" value="${esc(prefill)}">
-        <input class="field" id="rq-artist" placeholder="가수 또는 작곡가 (아는 것만 입력)">
+        <input class="field" id="rq-artist" placeholder="가수 또는 작곡가">
         <select class="field" id="rq-inst">${INSTRUMENTS.map(i => `<option value="${esc(i)}">${esc(i)}</option>`).join("")}</select>
         <button class="btn btn-primary" id="rq-submit">신청하기</button>
         <p class="muted" style="margin:0;font-size:12px;">같은 곡·악기를 이미 누가 신청했다면 그 신청에 함께 이름이 올라가요.</p>
