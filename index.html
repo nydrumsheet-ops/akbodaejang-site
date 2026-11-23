@@ -1774,7 +1774,51 @@ button.tag-genre{border:0;cursor:pointer;font-family:inherit}
 html[data-theme="dark"] .theme-toggle .ic-sun{display:block}
 html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
 @media (max-width:760px){.theme-toggle{width:34px;height:34px}}
+/* 2026-11-23: 휴대폰은 마우스 올림(hover) 효과를 아래 스크립트가 지우므로, 장바구니 버튼은 누르는 순간에만 주황으로 반응 */
+.cart-btn:active{background:var(--accent-tint);border-color:var(--accent)}
+.cart-btn:active svg{stroke:var(--accent)}
 </style>
+<script>
+/* 2026-11-23: 휴대폰·태블릿(마우스 없는 기기)에서 마우스 올림(:hover) 효과 지우기
+   손가락으로 누른 버튼은 브라우저가 "마우스가 올라가 있다"고 여겨 hover 효과가 다른 곳을 누를 때까지 남는다
+   (예: 악보 카드 장바구니 버튼을 누르면 주황 테두리가 계속 켜져 있던 문제). 그래서 마우스 없는 기기에서는
+   CSS의 :hover 선택자를 모두 빼 버린다. 누르는 순간의 반응은 :active 로 따로 준다.
+   새로 만드는 CSS에 :hover 를 써도 자동으로 적용되므로 따로 @media (hover:hover) 로 감쌀 필요 없다.
+   다크모드가 나중에 만드는 CSS(#akb-dark)도 만든 직후 같은 처리를 한다(window.akbStripHover). */
+(function () {
+  var touchOnly = window.matchMedia && window.matchMedia("(hover: none)").matches;
+  function splitSel(t) { // 괄호 안의 쉼표(:where(a, b))는 나누지 않는다
+    var out = [], depth = 0, cur = "";
+    for (var i = 0; i < t.length; i++) {
+      var c = t[i];
+      if (c === "(") depth++; else if (c === ")") depth--;
+      if (c === "," && depth === 0) { out.push(cur); cur = ""; } else cur += c;
+    }
+    out.push(cur);
+    return out;
+  }
+  function strip(list) {
+    if (!list) return;
+    for (var i = list.cssRules.length - 1; i >= 0; i--) {
+      var r = list.cssRules[i];
+      if (r.type === 1) {
+        if (r.selectorText.indexOf(":hover") < 0) continue;
+        var keep = splitSel(r.selectorText).filter(function (x) { return x.indexOf(":hover") < 0; });
+        var body = r.style.cssText;
+        list.deleteRule(i);
+        if (keep.length && body) { try { list.insertRule(keep.join(",") + "{" + body + "}", i); } catch (e) { /* 넣지 못하면 그냥 빠진 채로 둔다 */ } }
+      } else if (r.cssRules) {
+        strip(r);
+      }
+    }
+  }
+  function stripSheet(sh) { try { strip(sh); } catch (e) { /* 다른 사이트 CSS(글꼴 등)는 읽을 수 없음 */ } }
+  window.akbStripHover = function (sh) { if (touchOnly && sh) stripSheet(sh); };
+  if (!touchOnly) return;
+  for (var i = 0; i < document.styleSheets.length; i++) stripSheet(document.styleSheets[i]);
+  document.documentElement.classList.add("no-hover");
+})();
+</script>
 <script>
 /* 2026-11-22: 다크모드
    - 기본은 시간대 자동(19시~7시 어둡게). 헤더의 달/해 버튼으로 직접 바꾸면 그 선택을 기억하고,
@@ -1934,6 +1978,7 @@ html[data-theme="dark"] .theme-toggle .ic-moon{display:none}
     var el = document.createElement("style"); el.id = "akb-dark";
     el.textContent = out.join("\n") + "\n" + DARK_EXTRA;
     document.head.appendChild(el);
+    if (window.akbStripHover) window.akbStripHover(el.sheet); // 2026-11-23: 휴대폰이면 다크모드 CSS의 :hover 도 지운다
     window.__akbDarkMs = Math.round(performance.now() - t0);
   }
   // 자동 변환으로 부족한 부분 손보기
