@@ -2279,7 +2279,9 @@ function openReportModal(scoreId) {
     const { data, error } = await sb.rpc("report_score", { p_score_id: s.id, p_reason: reason, p_url: url, p_detail: detail });
     btn.disabled = false; btn.textContent = "신고하기";
     if (error) {
-      err.textContent = /report_score|does not exist|schema cache|Could not find/i.test(error.message)
+      err.textContent = /permission denied|JWT/i.test(error.message)
+        ? "로그인이 만료됐어요. 로그아웃한 뒤 다시 로그인해 주세요."
+        : /report_score|does not exist|schema cache|Could not find/i.test(error.message)
         ? "신고 기능을 준비 중이에요. 고객센터 1:1 문의로 알려주세요." : "신고를 보내지 못했어요: " + error.message;
       return;
     }
