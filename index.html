@@ -403,6 +403,7 @@ a{color:var(--link)}
 .asc-st-old{background:#FFF1D6;color:#8a6420}
 .asc-actions{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
 .asc-msg,.asc-edit{grid-column:1 / -1}
+.asc-ph{visibility:hidden;pointer-events:none;display:inline-flex;align-items:center}
 .asc-row.open{background:#FBF9F6}
 /* 2026-11-21: 모바일 — 한 곡이 7줄로 늘어서던 것을 2줄로: [제목 · 버튼] / [악기·난이도 가격 판매 상태] */
 @media (max-width:760px){.asc-head{display:none}
@@ -412,7 +413,16 @@ a{color:var(--link)}
 .asc-actions{order:1;flex:none;flex-direction:row;align-items:center}
 .asc-cell{order:2;flex:none;font-size:13px;color:var(--muted)}
 .asc-meta br{display:none}.asc-meta .asc-sub{display:inline;font-size:13px}.asc-meta .asc-sub::before{content:" · "}
+/* 2026-11-23: 모바일 아래 줄(악기·난이도 / 가격 / 판매 수 / 상태)을 칸 너비로 고정 — 글자 길이에 따라 "판매 중" 표시가 왔다 갔다 하던 문제 */
+.asc-row>.asc-cell{flex:0 0 auto}
+.asc-row>.asc-cell.asc-meta{flex:1 1 0;min-width:80px}
+.asc-row>.asc-cell.asc-price{width:58px;text-align:right}
+.asc-row>.asc-cell.asc-sold{width:34px;text-align:right}
+.asc-row>.asc-cell.asc-stc{width:84px}
 .asc-msg,.asc-edit{order:3;flex-basis:100%}}
+@media (max-width:400px){
+.asc-row .asc-main{flex-basis:100%}
+.asc-row .asc-actions{justify-content:flex-start}}
 /* 2026-10-30: 관리자 "도구" 탭 — 끝난 작업용 기능 모음 */
 .adm-tools-head{margin-bottom:12px}
 .adm-tools-head p{margin:0 0 10px;font-size:13px;color:var(--muted)}
