@@ -1085,6 +1085,41 @@ textarea.field{height:auto;padding:12px;resize:vertical;min-height:88px;font-fam
 .buy-row .btn:focus-visible,.seller-box #d-follow:focus-visible{outline:2px solid #ff9855;outline-offset:2px}
 .detail-grid .buy-note{font-size:13px;color:var(--text-muted);margin-top:16px;line-height:1.6}
 .buy-note{font-size:13px;color:var(--muted);margin-top:10px;line-height:1.55}
+/* 2026-11-22: 권리 침해 신고 — 상세 페이지 아래 작은 글자 링크 + 신고 창 */
+.report-row{display:flex;justify-content:flex-end;margin-top:8px}
+.report-link{border:none;background:none;padding:2px 0;font-size:12px;color:var(--muted);text-decoration:underline;text-underline-offset:2px;cursor:pointer}
+.report-link:hover{color:var(--text)}
+.report-box{max-width:460px;max-height:calc(100dvh - 32px);overflow-y:auto}
+.report-title{margin:0 0 4px;font-size:19px;font-weight:700}
+.report-target{margin:0 0 16px;font-size:13px;color:var(--text-muted)}
+.report-target span{color:var(--muted)}
+.report-field{display:block;margin:0 0 14px}
+.report-label{display:block;font-size:13px;font-weight:600;margin:0 0 6px}
+.report-label em{font-style:normal;font-weight:400;color:var(--muted)}
+.report-radio{display:flex;align-items:center;gap:8px;font-size:14px;padding:5px 0;cursor:pointer}
+.report-radio input{width:16px;height:16px;accent-color:#F7890F}
+.report-help{font-size:12px;color:var(--muted);line-height:1.55;margin:0 0 8px}
+.report-err{min-height:18px;font-size:13px;color:var(--danger);margin:0 0 8px}
+.report-actions{display:flex;justify-content:flex-end;gap:8px}
+/* 판매자 센터: 권리 침해 신고 안내 칸 */
+.rp-seller{border:1px solid color-mix(in oklch,var(--danger) 35%,var(--border));background:color-mix(in oklch,var(--danger) 6%,var(--card));border-radius:12px;padding:16px;margin-bottom:16px}
+.rp-seller h2{margin:0 0 4px;font-size:16px}
+.rp-seller>p{margin:0 0 12px;font-size:13px;color:var(--text-muted);line-height:1.55}
+.rp-item{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px;margin-top:10px;font-size:13px;line-height:1.55}
+.rp-item-head{display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;margin-bottom:6px}
+.rp-badge{display:inline-block;padding:2px 8px;border-radius:6px;font-size:12px;font-weight:600;background:var(--surface-muted,#f1eeea);color:var(--text)}
+.rp-badge.wait{background:#fff1e0;color:#9a4d00}
+.rp-badge.bad{background:color-mix(in oklch,var(--danger) 14%,var(--card));color:var(--danger)}
+.rp-badge.ok{background:#e6f4ea;color:#17633a}
+.rp-kv{color:var(--text-muted)}
+.rp-kv b{color:var(--text);font-weight:600}
+.rp-item textarea{margin-top:8px}
+.rp-item .rp-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:8px}
+.rp-item .rp-actions{align-items:center}.rp-item .rp-actions .sm-msg{flex:1;font-size:12px}
+.rights-agree{display:flex;align-items:flex-start;gap:8px;font-size:13px;line-height:1.55;padding:10px 12px;border:1px solid var(--border);border-radius:10px;background:var(--surface-page);cursor:pointer}
+.rights-agree input{width:16px;height:16px;margin-top:2px;flex-shrink:0;accent-color:#F7890F}
+.rights-agree em{font-style:normal;color:var(--muted)}
+
 /* 상세페이지 구매영역 보유 포인트 안내 전용 (2026-10-19 추가, 기존 .buy-note와는 별개) */
 .buy-points{margin-top:14px;display:flex;flex-direction:column;gap:4px}
 .buy-points-row{display:flex;align-items:baseline;gap:8px;flex-wrap:wrap;row-gap:2px}
