@@ -1571,8 +1571,9 @@ function renderCartPage(el) {
                 <input type="checkbox" class="cart-check" data-cart-pick="${s.id}" aria-label="${esc(s.title)} 구매할 악보로 선택" ${unavailable ? "disabled" : (CART_UNSEL.has(s.id) ? "" : "checked")}>
                 <span class="cart-inst">${esc(s.instrument)}</span>
                 <div class="row-main">
+                  <!-- 2026-11-23: 난이도는 뺐다(휴대폰에서 "매우 / 쉬움"으로 끊기고, 장바구니에선 구매 판단에 덜 필요해서). 판매자 이름만 남김 -->
                   <div class="row-title" data-score-id="${s.id}">${esc(s.title)}</div>
-                  <div class="row-sub">${esc(sellerName(s.sellerId))} · ${esc(s.difficulty)}${unavailable ? ` · <span style="color:var(--danger);">${s.status !== "승인" ? "판매 중지" : "이미 구매함"}</span>` : ""}</div>
+                  <div class="row-sub">${esc(sellerName(s.sellerId))}${unavailable ? ` · <span style="color:var(--danger);">${s.status !== "승인" ? "판매 중지" : "이미 구매함"}</span>` : ""}</div>
                 </div>
               </div>
               <div class="row-actions" style="align-items:center;">
