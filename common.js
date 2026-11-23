@@ -135,7 +135,7 @@ const POLICY = {
   }
 };
 
-const INSTRUMENTS = ["드럼", "기타", "피아노", "베이스", "바이올린", "보컬"];
+const INSTRUMENTS = ["드럼", "기타", "피아노", "베이스", "관·현악기", "보컬"];
 /* 2026-11-22: 장르 (악보 하나에 1개, 서버 scores.genre 와 같은 목록 — 장르_2026-11-22.sql) */
 const GENRES = ["가요", "트로트", "팝", "J-POP", "OST", "록/메탈", "재즈", "클래식", "뉴에이지", "CCM", "그 외"];
 const GENRE_OTHER = "그 외";
