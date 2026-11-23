@@ -1151,12 +1151,15 @@ async function purchaseScore(buyerId, scoreId) {
   return { ok: true, purchaseId: data.purchaseId };
 }
 
-/* 장바구니 전체 구매: 합계 포인트가 모자라면 한 건도 사지 않는다.
-   항목마다 purchaseScore() 를 순서대로 기다렸다가(await) 처리한다. */
-async function purchaseCart(buyerId) {
+/* 장바구니 구매: 고른 악보(onlyIds, 없으면 전체)의 합계 포인트가 모자라면 한 건도 사지 않는다.
+   항목마다 purchaseScore() 를 순서대로 기다렸다가(await) 처리한다.
+   2026-11-23: 장바구니에서 체크한 악보만 살 수 있게(onlyIds) — 산 악보만 장바구니에서 빠지고 나머지는 남는다. */
+async function purchaseCart(buyerId, onlyIds) {
   const buyer = STATE.users[buyerId];
   if (!buyer) return { ok: false, message: "사용자를 찾을 수 없습니다." };
+  const pick = Array.isArray(onlyIds) ? new Set(onlyIds) : null;
   const items = (buyer.cart || [])
+    .filter(id => !pick || pick.has(id))
     .map(id => STATE.scores[id])
     .filter(s => s && s.status === "승인" && !hasPurchased(buyerId, s.id) && s.sellerId !== buyerId);
   if (items.length === 0) return { ok: false, message: "장바구니에 구매할 악보가 없습니다." };
@@ -1171,7 +1174,8 @@ async function purchaseCart(buyerId) {
   }
   const freshBuyer = STATE.users[buyerId];
   if (freshBuyer) {
-    freshBuyer.cart = [];
+    // 고른 것만 샀다면 산 악보(와 이미 갖고 있는 악보)만 빼고 나머지는 장바구니에 남긴다
+    freshBuyer.cart = pick ? (freshBuyer.cart || []).filter(id => !pick.has(id) && !hasPurchased(buyerId, id)) : [];
     save();
   }
   return { ok: true, count, total };
