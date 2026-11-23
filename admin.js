@@ -2878,17 +2878,18 @@ function adminScoreRowHTML(s) {
         <span class="asc-sub">${esc(s.artist)} · <span class="asc-seller">${esc(sellerName(s.sellerId))}</span></span>
       </div>
       <span class="asc-cell asc-meta">${esc(s.instrument)}<br><span class="asc-sub">${esc(s.difficulty)}</span></span>
-      <span class="asc-cell">${formatPoint(s.price)}</span>
-      <span class="asc-cell">${sold}건</span>
-      <span class="asc-cell"><span class="asc-st asc-st-${stCls}">${esc(label)}</span></span>
+      <span class="asc-cell asc-price">${formatPoint(s.price)}</span>
+      <span class="asc-cell asc-sold">${sold}건</span>
+      <span class="asc-cell asc-stc"><span class="asc-st asc-st-${stCls}">${esc(label)}</span></span>
       <span class="asc-actions">
         <button type="button" class="sm-btn" data-asc-edit="${s.id}" ${dis}>${ADMIN_SC_EDIT === s.id ? "닫기" : "수정"}</button>
+        ${/* 2026-11-23: 버튼이 없는 칸도 같은 자리를 비워 둬서(asc-ph) 모든 줄의 버튼 위치가 같게 — 모바일에서 구매된 악보(삭제 없음)만 버튼이 밀리던 문제 */""}
         ${canToggle ? (s.status === "승인"
           ? `<button type="button" class="sm-btn" data-asc-sale="${s.id}" data-on="0" ${dis}>판매 중지</button>`
-          : `<button type="button" class="sm-btn sm-btn-dark" data-asc-sale="${s.id}" data-on="1" ${dis}>다시 판매</button>`) : ""}
+          : `<button type="button" class="sm-btn sm-btn-dark" data-asc-sale="${s.id}" data-on="1" ${dis}>다시 판매</button>`) : `<span class="sm-btn asc-ph" aria-hidden="true">판매 중지</span>`}
         ${canDel ? (ADMIN_SC_DEL === s.id
           ? `<button type="button" class="sm-btn sm-btn-danger" data-asc-del-yes="${s.id}" ${dis}>정말 삭제</button><button type="button" class="sm-btn" data-asc-del-no="${s.id}" ${dis}>취소</button>`
-          : `<button type="button" class="sm-link" data-asc-del="${s.id}" ${dis}>삭제</button>`) : ""}
+          : `<button type="button" class="sm-link" data-asc-del="${s.id}" ${dis}>삭제</button>`) : `<span class="sm-link asc-ph" aria-hidden="true">삭제</span>`}
       </span>
       <div class="sm-msg asc-msg" id="asc-msg-${s.id}" hidden></div>
       ${ADMIN_SC_EDIT === s.id ? adminScoreEditHTML(s) : ""}
