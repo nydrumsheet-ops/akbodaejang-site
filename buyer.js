@@ -108,7 +108,7 @@ const FAQ_LIST = [
 ];
 
 const INSTRUMENT_ICON = {
-  "드럼": "♪", "기타": "♪", "피아노": "♪", "베이스": "♪", "바이올린": "♪", "보컬": "♪"
+  "드럼": "♪", "기타": "♪", "피아노": "♪", "베이스": "♪", "관·현악기": "♪", "보컬": "♪"
 };
 
 /* ---------- 일러스트 (직접 그린 SVG — 외부 이미지 없이 어디서든 보임) ---------- */
@@ -589,7 +589,7 @@ function renderHomePage(el) {
     <div class="inst-band">
       <div class="inst-head"><h2>어떤 악기와 함께하시나요?</h2></div>
       <div class="inst-grid">
-        ${["피아노", "드럼", "기타", "베이스", "바이올린", "보컬"].map(i => `<button class="inst-card" data-go="list:instrument:${esc(i)}"><b>${esc(i)}</b></button>`).join("")}
+        ${["피아노", "드럼", "기타", "베이스", "관·현악기", "보컬"].map(i => `<button class="inst-card" data-go="list:instrument:${esc(i)}"><b>${esc(i)}</b></button>`).join("")}
       </div>
 
     <!-- 2026-10-30: 홈 난이도 — 저장된 5단계를 그대로 다섯 칸으로(겹침·빠짐 없음), 칸마다 짧은 소개 문구 + 단계마다 길어지는 주황 그라데이션 막대 -->
