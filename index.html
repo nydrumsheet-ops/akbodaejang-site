@@ -155,6 +155,9 @@ color-scheme:dark;
 [data-direction="score"]{--focus-ring:0 0 0 3px var(--accent-ring)}
 
 *,*::before,*::after{box-sizing:border-box}
+/* 2026-11-23: 휴대폰에서 메뉴·버튼을 누를 때 번쩍이던 기본 파란 상자 → 연한 회색 (모든 화면 공통) */
+*{-webkit-tap-highlight-color:rgba(0,0,0,.06)}
+html[data-theme="dark"] *{-webkit-tap-highlight-color:rgba(255,255,255,.08)}
 html{-webkit-text-size-adjust:100%}
 body{margin:0;background:var(--surface-page);color:var(--text-primary);font:var(--type-body);-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:anywhere}
 [data-direction]{background:var(--surface-page);color:var(--text-primary)}
