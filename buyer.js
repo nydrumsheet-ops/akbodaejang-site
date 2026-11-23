@@ -1166,7 +1166,10 @@ function renderDetailPage(el, p) {
   const s = STATE.scores[p.id];
   const user = getCurrentUser();
   // 2026-10-30: 판매 중지된 악보도 산 회원과 등록한 아티스트 본인은 상세를 볼 수 있다(그 외에는 안내만)
-  const canSeeStopped = s && s.status === "판매중지" && user && (user.id === s.sellerId || hasPurchased(user.id, s.id));
+  // 2026-11-22: 권리 침해 신고로 검토 중("신고검토")인 악보도 판매 중지와 같게, "권리침해"(도용 확정)는 등록한 본인만 본다
+  const canSeeStopped = s && user && (
+    ((s.status === "판매중지" || s.status === "신고검토") && (user.id === s.sellerId || hasPurchased(user.id, s.id)))
+    || (s.status === "권리침해" && user.id === s.sellerId));
   if (!s || (s.status !== "승인" && !canSeeStopped)) {
     el.innerHTML = `<div class="empty"><p>판매 중인 악보가 아니에요.</p><button class="btn" data-go="home">홈으로</button></div>`;
     bindCards(el);
@@ -1204,11 +1207,15 @@ function renderDetailPage(el, p) {
 
   let buyArea;
   if (own) {
-    buyArea = s.status === "판매중지"
+    buyArea = s.status === "신고검토"
+      ? `<div class="panel" style="margin-top:14px;background:#ffffff;">권리 침해 신고가 들어와 확인하는 동안 판매가 멈춘 악보예요. 판매자 센터 › 내 악보 관리에서 소명을 남겨 주세요.</div>`
+      : s.status === "권리침해"
+      ? `<div class="panel" style="margin-top:14px;background:#ffffff;">권리 침해로 확정되어 더 이상 판매할 수 없는 악보예요.</div>`
+      : s.status === "판매중지"
       ? `<div class="panel" style="margin-top:14px;background:#ffffff;">판매 중지한 악보예요. 다른 회원에게는 보이지 않아요. 판매자 센터 › 내 악보 관리에서 다시 판매할 수 있어요.</div>`
       : `<div class="panel" style="margin-top:14px;background:#ffffff;">내가 등록한 악보예요. 판매 현황은 판매자 센터에서 볼 수 있어요.</div>`;
   } else if (bought) {
-    buyArea = `${s.status === "판매중지" ? `<p class="muted" style="margin:14px 0 0;font-size:13px;">지금은 판매가 중지된 악보예요. 이미 구매하셨으니 내 악보함에서 그대로 받을 수 있어요.</p>` : ""}
+    buyArea = `${s.status === "판매중지" || s.status === "신고검토" ? `<p class="muted" style="margin:14px 0 0;font-size:13px;">지금은 판매가 중지된 악보예요. 이미 구매하셨으니 내 악보함에서 그대로 받을 수 있어요.</p>` : ""}
       <div class="buy-row" style="grid-template-columns:1fr;">
         <button class="btn btn-primary" id="d-library"><span class="ico ico-check"></span> 구매 완료 · 내 악보함에서 받기</button>
       </div>`;
@@ -1293,6 +1300,7 @@ function renderDetailPage(el, p) {
         <div class="price-big">${priceHtml(s)}</div>
         ${buyArea}
         <p class="buy-note">구매 후 ${POLICY.refund.windowDays}일 이내, 파일을 열지 않았다면 포인트로 전액 환불돼요. 구매한 악보는 마이페이지 › 내 악보함에서 같은 기간(${POLICY.refund.windowDays}일) 안에 다시 받을 수 있어요.</p>
+        ${own || s.status === "권리침해" ? "" : `<div class="report-row"><button type="button" class="report-link" id="d-report">권리 침해 신고</button></div>`}
       </div>
     </div>
 
@@ -1405,6 +1413,7 @@ function renderDetailPage(el, p) {
     renderBuyer();
   }));
   document.getElementById("d-library")?.addEventListener("click", () => goBuyer("mypage", { tab: "library" }));
+  document.getElementById("d-report")?.addEventListener("click", () => requireLogin(() => openReportModal(s.id)));
 
   document.querySelectorAll("#star-pick [data-star]").forEach(b => b.addEventListener("click", () => {
     REVIEW_DRAFT.rating = Number(b.dataset.star);
@@ -2213,4 +2222,69 @@ function renderSupportQna(body, user) {
     SUPPORT_QNA_OPEN = SUPPORT_QNA_OPEN === id ? null : id;
     renderBuyer();
   }));
+}
+
+/* ============================================================
+   권리 침해 신고 (2026-11-22) — 로그인 회원만. 서버 함수 report_score 가 검사·저장한다.
+   신고한 사람은 판매자에게 보이지 않고, 관리자가 확인한 뒤 판매 중지·소명 요청을 한다.
+   ============================================================ */
+const REPORT_REASONS = ["다른 사이트 악보를 그대로 올림", "내가 만든 악보를 도용함", "기타 권리 침해"];
+function openReportModal(scoreId) {
+  const s = STATE.scores[scoreId];
+  if (!s) return;
+  let ov = document.getElementById("report-modal");
+  if (!ov) {
+    ov = document.createElement("div");
+    ov.id = "report-modal"; ov.className = "modal-overlay";
+    document.body.appendChild(ov);
+    ov.addEventListener("click", (e) => { if (e.target === ov || e.target.closest("[data-report-close]")) ov.classList.remove("open"); });
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape") ov.classList.remove("open"); });
+  }
+  ov.innerHTML = `<div class="modal-box report-box" role="dialog" aria-modal="true" aria-labelledby="report-title">
+    <button type="button" class="modal-close" data-report-close aria-label="닫기">✕</button>
+    <h2 id="report-title" class="report-title">권리 침해 신고</h2>
+    <p class="report-target">${esc(s.title)} · ${esc(s.artist)} <span>(${esc(sellerName(s.sellerId))})</span></p>
+    <div class="report-field">
+      <span class="report-label">신고 사유</span>
+      ${REPORT_REASONS.map((r, i) => `<label class="report-radio"><input type="radio" name="rp-reason" value="${esc(r)}" ${i === 0 ? "checked" : ""}> ${esc(r)}</label>`).join("")}
+    </div>
+    <label class="report-field">
+      <span class="report-label">원본 주소 <em>(있으면 적어주세요)</em></span>
+      <input type="url" id="rp-url" class="field" placeholder="https://" maxlength="500">
+    </label>
+    <label class="report-field">
+      <span class="report-label">내용 <em>(10자 이상)</em></span>
+      <textarea id="rp-detail" class="field" rows="4" maxlength="1000" placeholder="어떤 점이 같은지, 원작자가 누구인지 등을 적어주세요."></textarea>
+    </label>
+    <p class="report-help">신고하신 분의 정보는 판매자에게 알리지 않아요. 관리자가 확인한 뒤 필요하면 판매를 멈추고 판매자에게 소명을 받아요. 사실과 다른 신고를 반복하면 이용이 제한될 수 있어요.</p>
+    <p class="report-err" id="rp-err" role="alert"></p>
+    <div class="report-actions">
+      <button type="button" class="btn" data-report-close>취소</button>
+      <button type="button" class="btn btn-primary" id="rp-send">신고하기</button>
+    </div>
+  </div>`;
+  ov.classList.add("open");
+  const err = ov.querySelector("#rp-err");
+  ov.querySelector("#rp-send").addEventListener("click", async (e) => {
+    const btn = e.currentTarget;
+    const reason = ov.querySelector('input[name="rp-reason"]:checked')?.value || "";
+    const url = ov.querySelector("#rp-url").value.trim();
+    const detail = ov.querySelector("#rp-detail").value.trim();
+    err.textContent = "";
+    if (detail.length < 10) { err.textContent = "내용을 10자 이상 적어주세요."; return; }
+    if (url && !/^https?:\/\//i.test(url)) { err.textContent = "원본 주소는 http:// 또는 https:// 로 시작하는 주소를 적어주세요."; return; }
+    const sb = getSb();
+    if (!sb) { err.textContent = "서버에 연결되지 않았어요. 잠시 뒤 다시 시도해 주세요."; return; }
+    btn.disabled = true; btn.textContent = "보내는 중…";
+    const { data, error } = await sb.rpc("report_score", { p_score_id: s.id, p_reason: reason, p_url: url, p_detail: detail });
+    btn.disabled = false; btn.textContent = "신고하기";
+    if (error) {
+      err.textContent = /report_score|does not exist|schema cache|Could not find/i.test(error.message)
+        ? "신고 기능을 준비 중이에요. 고객센터 1:1 문의로 알려주세요." : "신고를 보내지 못했어요: " + error.message;
+      return;
+    }
+    if (!data || !data.ok) { err.textContent = (data && data.message) || "신고를 보내지 못했어요."; return; }
+    ov.classList.remove("open");
+    toast("신고가 접수됐어요. 확인 후 조치할게요.");
+  });
 }
