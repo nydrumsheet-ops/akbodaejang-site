@@ -300,6 +300,21 @@ const DIFF_INTRO = {
   "어려움": "빠른 곡·복잡한 리듬에 도전",
   "매우 어려움": "원곡 그대로, 고난도 테크닉"
 };
+/* 2026-11-23: 홈 난이도 카드 소개 문구를 "뜻이 끊기지 않는 덩어리"로 나눠 둔다. 덩어리 안에서는 줄이 안 바뀌고,
+   덩어리 사이에서만 바뀐다(좁은 휴대폰 카드에서 "초보"만 홀로 다음 줄로 떨어지던 문제). 넓은 화면에선 한 줄로 이어진다. */
+const DIFF_INTRO_PHRASES = {
+  "매우 쉬움": ["이제 막", "배우기 시작한 초보"],
+  "쉬움": ["기본기가 조금씩", "손에 익은 단계"],
+  "보통": ["한 곡을 끝까지", "무리 없이 치는 단계"],
+  "어려움": ["빠른 곡·", "복잡한 리듬에 도전"],
+  "매우 어려움": ["원곡 그대로,", "고난도 테크닉"]
+};
+function diffIntroHTML(d) {
+  const parts = DIFF_INTRO_PHRASES[d];
+  if (!parts) return esc(DIFF_INTRO[d] || "");
+  // "빠른 곡·"처럼 가운뎃점으로 끝나는 덩어리는 다음 덩어리와 띄어 쓰지 않는다
+  return parts.map((p, i) => `<span class="nw">${esc(p)}</span>${i < parts.length - 1 && !p.endsWith("·") ? " " : ""}`).join("");
+}
 /* 2026-10-30: 난이도를 보여주거나 고르는 곳(홈·등록·후기)에서 쓰는 쉬운 순서 */
 const DIFF_ORDER_5 = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"];
 
@@ -579,10 +594,14 @@ function renderHomePage(el) {
 
     <!-- 2026-10-30: 홈 난이도 — 저장된 5단계를 그대로 다섯 칸으로(겹침·빠짐 없음), 칸마다 짧은 소개 문구 + 단계마다 길어지는 주황 그라데이션 막대 -->
     <div class="lvl-band">
-      <div class="lvl-head"><h2>지금의 나에게, 알맞은 난이도</h2><span class="lvl-sub">쉬운 곡부터 한 단계씩</span></div>
-      <div class="lvl-steps">
-        ${DIFF_ORDER_5.map((d, n) => `<button class="lvl-step" data-go="list:difficulties:${esc(d)}"><span class="lvl-meter" aria-hidden="true"><i style="width:${(n + 1) * 20}%;"></i></span><b>${esc(d)}</b><span class="lvl-step-desc">${esc(DIFF_INTRO[d] || "")}</span></button>`).join("")}
+      <div class="lvl-head"><h2>지금의 나에게, <span class="nw">알맞은 난이도</span></h2><span class="lvl-sub">쉬운 곡부터 한 단계씩</span></div>
+      <div class="lvl-car"><!-- 2026-11-23: 휴대폰에서 좌·우 화살표로 카드 넘기기 (넓은 화면은 5칸이 다 보여서 화살표 숨김) -->
+      <button type="button" class="lvl-arrow lvl-prev" id="lvl-prev" aria-label="이전 난이도"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 5l-7 7 7 7"/></svg></button>
+      <div class="lvl-steps" id="lvl-steps">
+        ${DIFF_ORDER_5.map((d, n) => `<button class="lvl-step" data-go="list:difficulties:${esc(d)}"><span class="lvl-meter" aria-hidden="true"><i style="width:${(n + 1) * 20}%;"></i></span><b>${esc(d)}</b><span class="lvl-step-desc">${diffIntroHTML(d)}</span></button>`).join("")}
         <!-- 2026-11-21: 난이도별 "N곡" 표시 삭제 — 곡 수가 늘면 의미가 옅고, 오픈 초기엔 적은 숫자가 오히려 비어 보임 -->
+      </div>
+      <button type="button" class="lvl-arrow lvl-next" id="lvl-next" aria-label="다음 난이도"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 5l7 7-7 7"/></svg></button>
       </div>
     </div>
 
@@ -690,6 +709,7 @@ function renderHomePage(el) {
   renderPopRow();
   renderPopSearch();
   setupHero();
+  setupLvlCarousel();
 
   el.querySelectorAll("[data-pop-period]").forEach(b => b.addEventListener("click", () => {
     HOME_POP.period = Number(b.dataset.popPeriod);
@@ -787,6 +807,24 @@ function renderNoticesPage(el, p) {
   el.querySelectorAll("[data-ntc]").forEach(b => b.addEventListener("click", () => {
     goBuyer("notices", openId === b.dataset.ntc ? {} : { id: b.dataset.ntc }, { keepScroll: true });
   }));
+}
+
+/* 2026-11-23: 홈 난이도 카드 — 좌·우 화살표로 카드 한 장씩 넘기기. 끝에 닿으면 그쪽 화살표를 흐리게 + 누를 수 없게 */
+function setupLvlCarousel() {
+  const box = document.getElementById("lvl-steps");
+  const prev = document.getElementById("lvl-prev"), next = document.getElementById("lvl-next");
+  if (!box || !prev || !next) return;
+  const step = () => { const c = box.querySelector(".lvl-step"); return c ? c.getBoundingClientRect().width + (parseFloat(getComputedStyle(box).columnGap) || 0) : 160; };
+  const sync = () => {
+    const max = box.scrollWidth - box.clientWidth;
+    prev.disabled = box.scrollLeft <= 2;
+    next.disabled = box.scrollLeft >= max - 2;
+  };
+  prev.addEventListener("click", () => box.scrollBy({ left: -step(), behavior: "smooth" }));
+  next.addEventListener("click", () => box.scrollBy({ left: step(), behavior: "smooth" }));
+  box.addEventListener("scroll", () => requestAnimationFrame(sync), { passive: true });
+  window.addEventListener("resize", sync, { passive: true });
+  sync();
 }
 
 function setupHero() {
