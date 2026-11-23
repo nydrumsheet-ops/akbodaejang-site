@@ -163,7 +163,7 @@ function difficultyGroup(d) {
 }
 /* 카테고리(매우 쉬움/보통/어려움) 안에서 보여줄 세부 단계 목록. 매우 쉬움 카테고리는 세부 단계가 없다. */
 const DIFFICULTY_SUBTIERS = { "매우 쉬움": [], "보통": ["쉬움", "보통"], "어려움": ["매우 어려움", "어려움"] };
-const SCORE_STATUS = ["등록", "심사중", "승인", "반려", "판매중지"]; // 2026-10-19: 악보 등록 심사는 폐지됐지만, admin.js Phase 2 정리 전까지 상수는 남겨둔다 / 2026-10-30: "판매중지" 추가(판매자가 직접 내린 악보)
+const SCORE_STATUS = ["등록", "심사중", "승인", "반려", "판매중지", "신고검토", "권리침해"]; // 2026-10-19: 악보 등록 심사는 폐지됐지만, admin.js Phase 2 정리 전까지 상수는 남겨둔다 / 2026-10-30: "판매중지" 추가(판매자가 직접 내린 악보) / 2026-11-22: "신고검토"(권리 침해 신고로 관리자가 판매를 멈추고 소명을 받는 중), "권리침해"(도용 확정 — 판매 불가, 서버 함수로만 바뀜)
 const WITHDRAW_STATUS = ["요청", "지급완료"];
 const REQUEST_STATUS = ["접수", "채보중", "완료"];
 const INQUIRY_STATUS = ["답변대기", "답변완료"];
@@ -1363,6 +1363,23 @@ function hasBankInfo(user) {
 }
 
 /* 예전 방식으로 신청만 해둔("요청" 상태) 출금도 함께 지급한다 */
+/* 2026-11-22: 권리 침해 신고 검토 중인 판매자(지급 보류). loaded 가 false 면 "전체 지급 완료"를 막는다. */
+const PAYOUT_HOLD = { sellers: new Set(), loaded: false };
+async function refreshPayoutHold() {
+  const sb = getSb();
+  if (!sb) return false;
+  const { data, error } = await sb.rpc("admin_reports", { p_filter: "검토중" });
+  if (error) {
+    // 신고 기능이 아직 서버에 없으면(SQL 실행 전) 보류할 판매자도 없다
+    if (/admin_reports|does not exist|schema cache|Could not find/i.test(error.message)) { PAYOUT_HOLD.sellers = new Set(); PAYOUT_HOLD.loaded = true; return true; }
+    return false;
+  }
+  PAYOUT_HOLD.sellers = new Set(data.held_sellers || []);
+  PAYOUT_HOLD.counts = data.counts || null;
+  PAYOUT_HOLD.loaded = true;
+  return true;
+}
+
 function getPayoutBatch() {
   const items = [];
   const excluded = [];
@@ -1370,9 +1387,14 @@ function getPayoutBatch() {
     if (!u.sellerInfo) continue;
     const pending = Object.values(STATE.withdrawals).filter(w => w.sellerId === u.id && w.status === "요청");
     const pendingSum = pending.reduce((s, w) => s + w.amount, 0);
-    const balance = Math.max(0, u.sellerInfo.settleBalance);
-    const total = pendingSum + balance;
+    const raw = Math.round(u.sellerInfo.settleBalance || 0);
+    const balance = Math.max(0, raw);
+    // 2026-11-22: 권리 침해 환불로 적립금이 마이너스면 그만큼 먼저 메운 뒤에 지급한다
+    const total = pendingSum + raw;
+    if (raw < 0) { excluded.push({ seller: u, total: raw, reason: `적립금 마이너스(권리 침해 환불 차감) — ${formatWon(-raw)} 메운 뒤 지급` }); continue; }
     if (total <= 0) continue;
+    // 2026-11-22: 권리 침해 신고를 검토 중인 판매자는 이번 지급에서 보류 (관리자 화면이 admin_reports 로 채움)
+    if (PAYOUT_HOLD.sellers.has(u.id)) { excluded.push({ seller: u, total, reason: "권리 침해 신고 검토 중 — 지급 보류" }); continue; }
     if (total < POLICY.settlement.minWithdraw) {
       excluded.push({ seller: u, total, reason: `${formatWon(POLICY.settlement.minWithdraw - total)} 더 모이면 지급` });
       continue;
@@ -1402,6 +1424,7 @@ function payoutBatchCSV(batch) {
 }
 
 function completePayoutBatch() {
+  if (!PAYOUT_HOLD.loaded) return { ok: false, message: "지급 보류 대상(권리 침해 신고)을 아직 확인하지 못했어요. 잠시 뒤 다시 눌러주세요." };
   const batch = getPayoutBatch();
   if (batch.items.length === 0) return { ok: false, message: "이번 달 지급 대상이 없습니다." };
   const at = nowISO();
@@ -4143,7 +4166,9 @@ ${art("제10조 (청약철회와 환불)", ol([
 ]))}
 ${art("제11조 (아티스트(판매자)의 의무와 정산)", ol([
   `아티스트는 자신이 직접 채보·편곡하였거나 판매할 정당한 권리를 가진 악보만 등록해야 하며, 저작권 등 제3자의 권리를 침해한 경우 그 책임은 아티스트에게 있습니다.`,
-  `회사는 권리 침해 신고가 들어오거나 침해가 의심되는 악보의 판매를 중지하고 아티스트에게 소명을 요청할 수 있습니다.`,
+  `회사는 권리 침해 신고가 들어오거나 침해가 의심되는 악보의 판매를 중지하고 아티스트에게 소명을 요청할 수 있습니다. 소명 기간 동안 그 아티스트의 적립금 지급은 보류됩니다.`,
+  `다른 사이트의 악보를 그대로 올리는 등 권리 침해가 확인되면, 회사는 그 악보의 판매를 영구히 중지하고 그 악보를 구매한 회원 전원에게 결제한 포인트를 전액 환불합니다. 환불액 중 아티스트에게 적립됐던 금액은 아티스트의 적립금에서 차감하며, 적립금이 부족하면 부족한 금액은 이후 적립금에서 먼저 차감합니다.`,
+  `권리 침해가 확인될 때마다 경고 1회가 쌓입니다. 경고 2회부터는 판매 권한이 정지되어 새 악보를 등록하거나 판매할 수 없고, 경고 3회부터는 회원 자격을 상실시킬 수 있습니다.`,
   `판매 수수료는 판매 금액의 ${fee}%이며, 나머지 ${100 - fee}%가 아티스트의 적립금이 됩니다. 환불된 거래는 적립금에서 빠집니다.`,
   `적립금은 ${minW}원 이상부터 출금을 신청할 수 있고, 회사는 매월 ${payDay}일에 지급합니다. 세금 신고에 필요한 정보는 아티스트가 정확히 제출해야 합니다.`
 ]))}
