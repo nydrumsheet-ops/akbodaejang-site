@@ -32,6 +32,9 @@ let SB_STOP = false;
 let SB_DEFAULT_INST = "";
 let SB_DEFAULT_PRICE = "";
 let SB_DEFAULT_GENRE = ""; // 2026-11-22: 장르 한 번에 적용
+let SB_RIGHTS = false;      // 2026-11-22: 일괄 등록 "직접 채보·판매 권리" 확인 체크
+// 2026-11-22: 권리 침해 신고 — 경고 횟수·판매 권한 정지 여부와 내 악보에 온 신고(서버 seller_report_overview)
+let SELLER_SANCTION = { strikes: 0, suspended: false, reports: [], loaded: false };
 const SB_MAX_FILES = 100;  // 한 번에 고를 수 있는 최대 파일 수
 const SB_DIFFICULTY_ORDER = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"]; // 화면에 보여줄 순서(값은 SCORE_DIFFICULTIES 와 같음)
 
@@ -57,6 +60,7 @@ function renderSeller() {
     <div class="seller-tabs" role="tablist">
       ${SELLER_TABS.map(([k, l]) => `<button type="button" role="tab" class="seller-tab ${SELLER_TAB === k ? "active" : ""}" data-seller-tab="${k}" aria-selected="${SELLER_TAB === k}">${l}${k === "inquiries" && unansweredInq ? ` <b>${unansweredInq}</b>` : ""}</button>`).join("")}
     </div>
+    <div id="seller-report-box"></div>
     <div data-seller-sec="profile" style="background:var(--card);border:1px solid var(--border);border-radius:12px;padding:20px 16px;margin-bottom:16px;">
       <h2 style="margin:0 0 4px;font-size:17px;">아티스트 프로필</h2>
       <p style="margin:0 0 16px;font-size:13px;color:var(--muted);">악보 목록·상세페이지·아티스트 페이지에 구매자가 보는 이름이에요. 닉네임과 달라도 괜찮아요.<br><b>한글·영문·숫자만 2~12자 (띄어쓰기·특수문자 불가)</b>, 다른 회원이 쓰는 이름은 쓸 수 없어요.</p>
@@ -182,6 +186,11 @@ function renderSeller() {
           <input type="file" id="sf-thumbnail" accept="image/*" class="file-input"
             style="width:100%;margin-top:4px;padding:8px 0;font-size:13px;">
           <div id="sf-thumbnail-preview" style="margin-top:8px;"></div>
+        </label>
+
+        <label class="rights-agree">
+          <input type="checkbox" id="sf-rights">
+          <span>직접 채보·편곡했거나 판매할 권리가 있는 악보예요. 다른 사이트의 악보를 그대로 올리지 않았어요. <em>(권리 침해가 확인되면 판매가 중지되고 구매자에게 환불돼요)</em></span>
         </label>
 
         <button id="sf-submit"
@@ -362,6 +371,8 @@ function renderSeller() {
   renderSellerInquiries(user.id);
   renderSellerTrend();
   renderSellerStats(user.id);
+  renderSellerReportBox(user.id);
+  loadSellerReports(user.id);
 }
 
 /* ============================================================
@@ -563,6 +574,10 @@ function bulkRunBarHTML() {
       </div>`;
   }
   return `
+    <label class="rights-agree" style="margin:0 0 10px;">
+      <input type="checkbox" id="sb-rights" ${SB_RIGHTS ? "checked" : ""}>
+      <span>모두 직접 채보·편곡했거나 판매할 권리가 있는 악보예요. 다른 사이트의 악보를 그대로 올리지 않았어요.</span>
+    </label>
     <div style="display:flex;gap:8px;align-items:center;">
       <span style="flex:1;font-size:12px;color:var(--muted);">${SB_ROWS.length}개 파일 · 완료 ${done}곡</span>
       <button id="sb-run-btn" class="btn btn-primary admin-dark-btn" style="border-radius:12px;min-width:180px;" ${targets.length ? "" : "disabled"}>선택한 ${targets.length}곡 등록하기</button>
@@ -878,6 +893,16 @@ async function runBulkRegister(sellerId) {
   if (SB_RUNNING) return;
   const targets = bulkTargets();
   if (!targets.length) return;
+  if (SELLER_SANCTION.suspended) {
+    SB_MSG = { text: "판매 권한이 정지된 계정이라 악보를 등록할 수 없어요. 고객센터 1:1 문의로 연락해 주세요.", isError: true };
+    rerenderBulkPanel(sellerId);
+    return;
+  }
+  if (!SB_RIGHTS) {
+    SB_MSG = { text: "등록 버튼 위의 \"직접 채보·판매 권리\" 확인에 체크해주세요.", isError: true };
+    rerenderBulkPanel(sellerId);
+    return;
+  }
   const bad = targets.filter(r => bulkRowProblem(r));
   if (bad.length) {
     // 고칠 곡만 보이게 필터를 바꾸고, 휴대폰에서도 바로 고칠 수 있게 펼쳐 둔다
@@ -1143,6 +1168,14 @@ async function handleSubmitScore(sellerId) {
     showSellerMsg(msgEl, "악보 파일을 선택해주세요.", true);
     return;
   }
+  if (!document.getElementById("sf-rights")?.checked) {
+    showSellerMsg(msgEl, "직접 채보했거나 판매할 권리가 있는 악보인지 확인하고 체크해주세요.", true);
+    return;
+  }
+  if (SELLER_SANCTION.suspended) {
+    showSellerMsg(msgEl, "판매 권한이 정지된 계정이라 악보를 등록할 수 없어요. 고객센터 1:1 문의로 연락해 주세요.", true);
+    return;
+  }
 
   if (submitBtn) submitBtn.disabled = true;
   showSellerMsg(msgEl, "파일 업로드 중입니다. 잠시만 기다려주세요...", false);
@@ -1239,10 +1272,12 @@ const SCORE_STATUS_COLOR = {
   "심사중": "#8a6420",
   "승인": "#17633a", // (2026-11-21 대비 보강: #1f7a45 → #17633a) 2026-11-21: "판매 중"이 탁한 주황갈색이라 잘 안 보인다는 의견 — 진행 중/완료 상태는 초록으로
   "반려": "var(--danger)",
-  "판매중지": "#756b61"
+  "판매중지": "#756b61",
+  "신고검토": "#9a4d00",   // 2026-11-22: 권리 침해 신고 확인 중
+  "권리침해": "var(--danger)"
 };
 // 화면에 보이는 상태 이름 (2026-10-30: 심사가 없어져 "승인" 대신 "판매 중"으로 보여준다)
-const SCORE_STATUS_LABEL = { "승인": "판매 중", "판매중지": "판매 중지" };
+const SCORE_STATUS_LABEL = { "승인": "판매 중", "판매중지": "판매 중지", "신고검토": "신고 확인 중(판매 멈춤)", "권리침해": "권리 침해 확정(판매 불가)" };
 
 function renderMyScores(sellerId) {
   const wrap = document.getElementById("seller-my-scores");
@@ -1263,7 +1298,7 @@ function renderMyScores(sellerId) {
   const q = String(SELLER_MYSCORES_Q || "").trim().toLowerCase();
   const myScores = allMine.filter(s => {
     if (SELLER_MYSCORES_FILTER === "sale" && s.status !== "승인") return false;
-    if (SELLER_MYSCORES_FILTER === "stopped" && s.status !== "판매중지") return false;
+    if (SELLER_MYSCORES_FILTER === "stopped" && !["판매중지", "신고검토", "권리침해"].includes(s.status)) return false;
     if (SELLER_MYSCORES_FILTER === "discount" && !(s.status === "승인" && activeDiscount(s))) return false;
     if (!q) return true;
     return [s.title, s.artist, ...(s.tags || [])].some(t => String(t || "").toLowerCase().includes(q));
@@ -1451,6 +1486,7 @@ function wireScoreManage(wrap, sellerId) {
   wrap.querySelectorAll("[data-sm-sale]").forEach(b => b.addEventListener("click", async () => {
     const id = b.dataset.smSale;
     const onSale = b.dataset.on === "1";
+    if (onSale && SELLER_SANCTION.suspended) { smShowMsg(id, "판매 권한이 정지된 계정이라 다시 판매할 수 없어요. 고객센터 1:1 문의로 연락해 주세요.", true); return; }
     SELLER_SCORE_BUSY = id;
     renderMyScores(sellerId);
     const res = await setScoreOnSale(sellerId, id, onSale);
@@ -1991,4 +2027,70 @@ function renderSellerStats(userId) {
   el.querySelectorAll(".st-hit").forEach(h => { h.addEventListener("mouseenter", () => show(h)); h.addEventListener("click", () => show(h)); });
   chart?.addEventListener("mouseleave", () => { if (tip) tip.hidden = true; el.querySelectorAll(".st-hit.on").forEach(x => x.classList.remove("on")); });
   if (typeof adsRenderSellerCards === "function") adsRenderSellerCards(el, userId, days); // 2026-11-21 광고 기반: 목록 노출·클릭 / 개선 팁 / 광고 오픈 예정 카드 (ads.js)
+}
+
+/* ============================================================
+   권리 침해 신고 — 판매자 쪽 (2026-11-22)
+   관리자가 "판매 중지·소명 요청"을 한 신고만 보인다(신고한 사람은 보이지 않음).
+   기한 안에 소명을 남기면 관리자가 보고 "도용 확정" 또는 "기각"을 한다.
+   ============================================================ */
+document.addEventListener("change", (e) => { if (e.target && e.target.id === "sb-rights") SB_RIGHTS = e.target.checked; });
+
+async function loadSellerReports(sellerId) {
+  const sb = getSb();
+  if (!sb) return;
+  const { data, error } = await sb.rpc("seller_report_overview");
+  if (error || !data) return; // SQL 실행 전이거나 일시 오류 — 칸을 비워 둔다
+  SELLER_SANCTION = { strikes: data.strikes || 0, suspended: !!data.suspended, reports: data.reports || [], loaded: true };
+  renderSellerReportBox(sellerId);
+}
+
+function renderSellerReportBox(sellerId) {
+  const box = document.getElementById("seller-report-box");
+  if (!box) return;
+  const S = SELLER_SANCTION;
+  const open = S.reports.filter(r => r.status === "검토중");
+  if (!S.suspended && !S.strikes && !S.reports.length) { box.innerHTML = ""; return; }
+  const day = (t) => t ? formatDate(t) : "";
+  const item = (r) => {
+    const badge = r.status === "검토중"
+      ? (r.seller_response ? `<span class="rp-badge wait">소명 제출함 · 관리자 확인 중</span>` : `<span class="rp-badge bad">소명 필요</span>`)
+      : r.status === "도용확정" ? `<span class="rp-badge bad">권리 침해 확정</span>` : `<span class="rp-badge ok">문제 없음(기각)</span>`;
+    const result = r.status === "도용확정"
+      ? `<div class="rp-kv" style="margin-top:6px;">판매가 영구 중지됐어요.${r.refund_count ? ` 구매자 ${r.refund_count}명에게 ${formatPoint(r.refund_points || 0)}를 환불하고, 그만큼의 판매 적립금을 차감했어요.` : ""}</div>`
+      : r.status === "기각" ? `<div class="rp-kv" style="margin-top:6px;">확인 결과 문제가 없어 판매 상태를 원래대로 되돌렸어요.</div>` : "";
+    const form = r.status === "검토중" ? `
+      <textarea class="field" rows="3" maxlength="2000" data-rp-text="${r.id}" placeholder="직접 채보했다는 근거를 적어주세요. 예: 작업 파일(Guitar Pro·MuseScore 등) 보유, 작업 과정, 원작자 허락 여부">${esc(r.seller_response || "")}</textarea>
+      <div class="rp-actions"><span class="sm-msg" id="rp-msg-${r.id}" hidden></span><button type="button" class="btn btn-small btn-primary" data-rp-send="${r.id}">${r.seller_response ? "소명 고쳐서 다시 보내기" : "소명 보내기"}</button></div>` : "";
+    return `<div class="rp-item">
+      <div class="rp-item-head">${badge}<b>${esc(r.title || r.score_id)}</b><span class="rp-kv">${esc(r.artist || "")}</span></div>
+      <div class="rp-kv">사유: <b>${esc(r.reason)}</b>${r.source_url ? ` · 원본 주소: <a href="${esc(r.source_url)}" target="_blank" rel="noopener nofollow">${esc(r.source_url)}</a>` : ""}</div>
+      <div class="rp-kv">신고 내용: ${esc(r.detail)}</div>
+      ${r.admin_note ? `<div class="rp-kv">관리자 메모: <b>${esc(r.admin_note)}</b></div>` : ""}
+      ${r.status === "검토중" && r.respond_by ? `<div class="rp-kv">소명 기한: <b>${day(r.respond_by)}</b>까지</div>` : ""}
+      ${result}${form}
+    </div>`;
+  };
+  box.innerHTML = `<div class="rp-seller">
+    <h2>권리 침해 신고</h2>
+    ${S.suspended
+      ? `<p><b style="color:var(--danger);">판매 권한이 정지됐어요 (경고 ${S.strikes}회).</b> 새 악보 등록과 판매가 막혀 있어요. 고객센터 1:1 문의로 연락해 주세요.</p>`
+      : S.strikes ? `<p>경고 <b>${S.strikes}회</b>가 있어요. 경고 2회가 되면 판매 권한이 정지돼요.</p>` : ""}
+    ${open.length ? `<p>내 악보에 권리 침해 신고가 들어와 <b>확인하는 동안 판매를 멈췄고, 정산 지급도 잠시 보류</b>돼요. 기한까지 소명을 남겨 주세요. 소명이 없으면 신고 내용대로 처리될 수 있어요.</p>` : ""}
+    ${S.reports.map(item).join("")}
+  </div>`;
+  box.querySelectorAll("[data-rp-send]").forEach(b => b.addEventListener("click", async () => {
+    const id = Number(b.dataset.rpSend);
+    const text = box.querySelector(`[data-rp-text="${id}"]`).value.trim();
+    const msg = document.getElementById(`rp-msg-${id}`);
+    const show = (t, bad) => { msg.hidden = false; msg.textContent = t; msg.style.color = bad ? "var(--danger)" : ""; };
+    if (text.length < 10) { show("소명 내용을 10자 이상 적어주세요.", true); return; }
+    const sb = getSb(); if (!sb) { show("서버에 연결되지 않았어요.", true); return; }
+    b.disabled = true;
+    const { data, error } = await sb.rpc("seller_report_respond", { p_id: id, p_text: text });
+    b.disabled = false;
+    if (error || !data || !data.ok) { show((data && data.message) || (error && error.message) || "보내지 못했어요.", true); return; }
+    toast("소명을 보냈어요. 관리자가 확인한 뒤 결과를 알려드려요.");
+    loadSellerReports(sellerId);
+  }));
 }
