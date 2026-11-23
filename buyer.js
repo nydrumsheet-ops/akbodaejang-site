@@ -1540,6 +1540,8 @@ function renderArtistPage(el, p) {
    장바구니
    ============================================================ */
 
+/* 2026-11-23: 장바구니에서 체크를 푼 악보(이번에 사지 않을 것). 기본은 전부 체크 — 포인트가 모자라면 일부만 골라 살 수 있다. */
+const CART_UNSEL = new Set();
 function renderCartPage(el) {
   const user = getCurrentUser();
   if (!user) {
@@ -1549,24 +1551,28 @@ function renderCartPage(el) {
   }
   const items = user.cart.map(id => STATE.scores[id]).filter(Boolean);
   const valid = items.filter(s => s.status === "승인" && !hasPurchased(user.id, s.id));
-  const total = valid.reduce((sum, s) => sum + effectivePrice(s), 0);
+  for (const id of [...CART_UNSEL]) if (!valid.some(s => s.id === id)) CART_UNSEL.delete(id);
+  const picked = valid.filter(s => !CART_UNSEL.has(s.id));
+  const total = picked.reduce((sum, s) => sum + effectivePrice(s), 0);
   const after = user.points - total;
 
   el.innerHTML = `
     <div class="breadcrumb"><button data-go="home">홈</button> › 장바구니</div>
     <h1 class="page-title">장바구니</h1>
-    <p class="muted" style="margin:0 0 16px;">담은 악보를 한 번에 구매할 수 있어요.</p>
+    <p class="muted" style="margin:0 0 16px;">살 악보를 체크해서 한 번에 구매할 수 있어요.</p>
     <div class="two-col cart-layout">
       <div class="panel">
+        ${valid.length > 1 ? `<label class="cart-all"><input type="checkbox" id="cart-all" ${picked.length === valid.length ? "checked" : ""}> 전체 선택 <span>(${picked.length}/${valid.length})</span></label>` : ""}
         ${items.length ? items.map(s => {
           const unavailable = s.status !== "승인" || hasPurchased(user.id, s.id);
           return `
-            <div class="row-item">
+            <div class="row-item cart-row">
               <div style="display:flex;gap:12px;align-items:center;min-width:0;">
-                <span class="mini-art" style="background:${themeOf(s.instrument).tint};">${instArt(s.instrument)}</span>
+                <input type="checkbox" class="cart-check" data-cart-pick="${s.id}" aria-label="${esc(s.title)} 구매할 악보로 선택" ${unavailable ? "disabled" : (CART_UNSEL.has(s.id) ? "" : "checked")}>
+                <span class="cart-inst">${esc(s.instrument)}</span>
                 <div class="row-main">
                   <div class="row-title" data-score-id="${s.id}">${esc(s.title)}</div>
-                  <div class="row-sub">${esc(sellerName(s.sellerId))} · ${esc(s.instrument)} · ${esc(s.difficulty)}${unavailable ? ` · <span style="color:var(--danger);">${s.status !== "승인" ? "판매 중지" : "이미 구매함"}</span>` : ""}</div>
+                  <div class="row-sub">${esc(sellerName(s.sellerId))} · ${esc(s.difficulty)}${unavailable ? ` · <span style="color:var(--danger);">${s.status !== "승인" ? "판매 중지" : "이미 구매함"}</span>` : ""}</div>
                 </div>
               </div>
               <div class="row-actions" style="align-items:center;">
@@ -1577,19 +1583,27 @@ function renderCartPage(el) {
         }).join("") : `<div class="empty" style="border:none;"><p style="margin:0 0 10px;">장바구니가 비어 있어요.</p><button class="btn btn-small" data-go="home">악보 둘러보기</button></div>`}
       </div>
       <div class="panel cart-summary">
-        <div class="sum-line"><span>구매할 악보</span><span>${valid.length}개</span></div>
+        <div class="sum-line"><span>구매할 악보</span><span>${picked.length}개${picked.length !== valid.length ? ` <small style="opacity:.7;">/ ${valid.length}개 중</small>` : ""}</span></div>
         <div class="sum-line"><span>보유 포인트</span><span>${formatPoint(user.points)}</span></div>
         <div class="sum-line total"><span>합계</span><span>${formatPoint(total)}</span></div>
         <div class="sum-line" style="color:${after < 0 ? "var(--danger)" : "var(--muted)"};"><span>결제 후 잔액</span><span>${formatPoint(after)}</span></div>
         ${after < 0
-          ? `<button class="btn btn-accent btn-pay" style="width:100%;margin-top:12px;" id="cart-charge">${formatPoint(-after)} 부족 · 충전하기</button>`
-          : `<button class="btn btn-primary btn-pay" style="width:100%;margin-top:12px;" id="cart-buy" ${valid.length ? "" : "disabled"}>전체 구매</button>`}
-        <p class="buy-note">합계 포인트가 모자라면 한 건도 결제되지 않아요.</p>
+          ? `<button class="btn btn-accent btn-pay" style="width:100%;margin-top:12px;" id="cart-charge">${formatPoint(-after)} 부족 · 충전하기</button>
+             <p class="buy-note">지금 포인트로 살 수 있는 악보만 체크를 남기면 그 악보만 바로 구매할 수 있어요.</p>`
+          : `<button class="btn btn-primary btn-pay" style="width:100%;margin-top:12px;" id="cart-buy" ${picked.length ? "" : "disabled"}>${!picked.length ? "구매할 악보를 체크해 주세요" : picked.length === valid.length ? "전체 구매" : `선택한 ${picked.length}개 구매`}</button>`}
       </div>
     </div>
   `;
 
   bindCards(el);
+  el.querySelectorAll("[data-cart-pick]").forEach(c => c.addEventListener("change", () => {
+    if (c.checked) CART_UNSEL.delete(c.dataset.cartPick); else CART_UNSEL.add(c.dataset.cartPick);
+    renderBuyer();
+  }));
+  document.getElementById("cart-all")?.addEventListener("change", (e) => {
+    if (e.target.checked) CART_UNSEL.clear(); else valid.forEach(s => CART_UNSEL.add(s.id));
+    renderBuyer();
+  });
   el.querySelectorAll("[data-remove]").forEach(b => b.addEventListener("click", () => {
     removeFromCart(user.id, b.dataset.remove);
     renderBuyer();
@@ -1604,7 +1618,7 @@ function renderCartPage(el) {
       const sc = STATE.scores[id];
       return sc && hasPurchased(user.id, id);
     }).length;
-    const res = await purchaseCart(user.id);
+    const res = await purchaseCart(user.id, picked.map(s => s.id));
     if (!res.ok) { toast(res.message, true); renderBuyer(); return; }
     const doneMsg = `${res.count}개 악보 구매 완료 (${formatPoint(res.total)})`;
     toast(excludedAlready > 0 ? `${doneMsg} · 이미 구매하신 ${excludedAlready}건은 제외했습니다` : doneMsg);
