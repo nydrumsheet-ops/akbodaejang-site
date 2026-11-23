@@ -1589,8 +1589,8 @@ function renderCartPage(el) {
         <div class="sum-line total"><span>합계</span><span>${formatPoint(total)}</span></div>
         <div class="sum-line" style="color:${after < 0 ? "var(--danger)" : "var(--muted)"};"><span>결제 후 잔액</span><span>${formatPoint(after)}</span></div>
         ${after < 0
-          ? `<button class="btn btn-accent btn-pay" style="width:100%;margin-top:12px;" id="cart-charge">${formatPoint(-after)} 부족 · 충전하기</button>
-             <p class="buy-note">포인트가 부족하면 살 악보만 체크하세요.</p>`
+          ? `<button class="btn btn-accent btn-pay" style="width:100%;margin-top:12px;" id="cart-charge">${formatPoint(-after)} 부족 · 충전하기</button>`
+             /* 2026-11-23: "포인트가 부족하면 살 악보만 체크하세요" 안내는 뺐다 — 페이지 설명("살 악보를 체크해서 한 번에 구매할 수 있어요")과 겹쳐서 */
           : `<button class="btn btn-primary btn-pay" style="width:100%;margin-top:12px;" id="cart-buy" ${picked.length ? "" : "disabled"}>${!picked.length ? "구매할 악보를 체크해 주세요" : picked.length === valid.length ? "전체 구매" : `선택한 ${picked.length}개 구매`}</button>`}
       </div>
     </div>
