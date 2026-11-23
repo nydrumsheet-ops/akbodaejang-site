@@ -44,6 +44,7 @@ function renderAdmin() {
   const tabs = [
     ["metrics", "운영지표", ""],
     ["artistapps", "아티스트 신청 관리", pendingArtistApps],
+    ["reports", "권리 침해 신고", PAYOUT_HOLD.counts ? (PAYOUT_HOLD.counts["접수"] || 0) + (PAYOUT_HOLD.counts["검토중"] || 0) : ""], // 2026-11-22
     ["payout", "정산 지급", payout.items.length],
     ["requests", "신청곡", openRequests],
     ["inquiries", "문의 관리", openInquiries],
@@ -100,6 +101,15 @@ function renderAdmin() {
 
   const body = document.getElementById("admin-tab-body");
 
+  // 2026-11-22: 권리 침해 신고 수·지급 보류 판매자를 서버에서 받아 온다(1분에 한 번). 받아 오면 한 번 다시 그린다.
+  if (!ADMIN_REPORT_FETCHING && (!PAYOUT_HOLD.loaded || Date.now() - ADMIN_REPORT_AT > 60000)) {
+    ADMIN_REPORT_FETCHING = true;
+    refreshPayoutHold().then(ok => {
+      ADMIN_REPORT_FETCHING = false;
+      if (ok) { ADMIN_REPORT_AT = Date.now(); if (typeof CURRENT_VIEW === "undefined" || CURRENT_VIEW === "admin") renderAdmin(); }
+    });
+  }
+
   if (ADMIN_TAB === "tools") {
     body.innerHTML = `
       <div class="adm-tools-head">
@@ -138,6 +148,8 @@ function renderAdmin() {
     else body.innerHTML = `<div style="${ADMIN_PANEL}">광고 설정 파일(ads.js)을 불러오지 못했어요.</div>`;
   } else if (ADMIN_TAB === "artistapps") {
     renderAdminArtistApps(body);
+  } else if (ADMIN_TAB === "reports") {
+    renderAdminReports(body);
   } else if (ADMIN_TAB === "payout") {
     body.innerHTML = `
       <div style="${ADMIN_PANEL}">
@@ -2759,7 +2771,7 @@ let ADMIN_SC_DEL = null;
 let ADMIN_SC_BUSY = null;
 const ADMIN_SC_PAGE_SIZE = 20;
 const ADMIN_SC_DIFF = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"];
-const ADMIN_SC_LABEL = { "승인": "판매 중", "판매중지": "판매 중지", "심사중": "예전 심사중", "등록": "예전 심사중", "반려": "반려" };
+const ADMIN_SC_LABEL = { "승인": "판매 중", "판매중지": "판매 중지", "심사중": "예전 심사중", "등록": "예전 심사중", "반려": "반려", "신고검토": "신고 확인 중", "권리침해": "권리 침해" };
 
 function renderAdminScores(body) {
   const statusChips = [["all", "전체"], ["sale", "판매 중"], ["stopped", "판매 중지"], ["review", "예전 심사중"]];
@@ -2812,7 +2824,7 @@ function renderAdminScoreList() {
   const { key, dir } = ADMIN_SC_SORT;
   if (key !== "created") {
     const diffOrder = ["매우 쉬움", "쉬움", "보통", "어려움", "매우 어려움"];
-    const stOrder = { "승인": 0, "판매중지": 1, "심사중": 2, "등록": 2, "반려": 3 };
+    const stOrder = { "승인": 0, "판매중지": 1, "신고검토": 1, "심사중": 2, "등록": 2, "반려": 3, "권리침해": 3 };
     const val = {
       title: s => String(s.title || ""),
       inst: s => `${INSTRUMENTS.indexOf(s.instrument)}`.padStart(2, "0") + diffOrder.indexOf(s.difficulty),
@@ -3278,4 +3290,114 @@ async function renderAdminErrors(box) {
       <td style="text-align:center;vertical-align:top;">${r.hits}</td>
       <td style="text-align:center;vertical-align:top;white-space:nowrap;">${who(r.user_id)}</td>
     </tr>`).join("")}</tbody></table></div>`;
+}
+
+/* ============================================================
+   관리자 › 권리 침해 신고 (2026-11-22)
+   접수 → [판매 중지·소명 요청] → 검토중(판매자 소명) → [도용 확정] 또는 [기각]
+   도용 확정: 구매자 전원 포인트 환불 + 판매자 적립금 차감 + 악보 판매 불가 + 경고 1회 (2회부터 판매 권한 정지)
+   모든 처리는 서버 함수(admin_report_*)가 한다.
+   ============================================================ */
+let ADMIN_REPORT_FILTER = "";        // "" = 처리할 신고(접수+검토중) | "접수" | "검토중" | "완료"
+let ADMIN_REPORT_FETCHING = false;
+let ADMIN_REPORT_AT = 0;
+async function renderAdminReports(box) {
+  const F = [["", "처리할 신고"], ["접수", "새 신고"], ["검토중", "소명 받는 중"], ["완료", "처리 끝"]];
+  const c = PAYOUT_HOLD.counts || {};
+  const cnt = { "": (c["접수"] || 0) + (c["검토중"] || 0), "접수": c["접수"] || 0, "검토중": c["검토중"] || 0, "완료": c["완료"] || 0 };
+  box.innerHTML = `
+    <div style="${ADMIN_PANEL}">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 4px;">
+        <h2 style="margin:0;font-size:17px;flex:1;">권리 침해 신고</h2>
+        <button type="button" class="btn btn-small" id="adm-rp-reload">새로고침</button>
+      </div>
+      <p style="margin:0 0 12px;font-size:13px;color:var(--muted);line-height:1.6;">
+        ① 새 신고를 보고 근거가 있으면 <b>판매 중지·소명 요청</b>(판매가 멈추고, 판매자 정산 지급이 보류돼요) →
+        ② 판매자 소명을 본 뒤 <b>도용 확정</b>(구매자 전원 포인트 환불, 판매자 적립금 차감, 경고 1회) 또는 <b>기각</b>(원래 판매 상태로).
+        경고 2회면 판매 권한이 자동으로 정지되고, 3회면 "해지 검토"로 표시돼요. 신고한 사람은 판매자에게 보이지 않아요.
+      </p>
+      <div class="chip-row" style="margin-bottom:12px;">${F.map(([k, l]) => `<button type="button" class="chip ${ADMIN_REPORT_FILTER === k ? "active" : ""}" data-adm-rp-filter="${k}">${l}${cnt[k] ? ` <b style="margin-left:4px;">${cnt[k]}</b>` : ""}</button>`).join("")}</div>
+      <div id="adm-rp-list" style="font-size:13px;">불러오는 중…</div>
+    </div>`;
+  box.querySelectorAll("[data-adm-rp-filter]").forEach(b => b.addEventListener("click", () => { ADMIN_REPORT_FILTER = b.dataset.admRpFilter; renderAdminReports(box); }));
+  document.getElementById("adm-rp-reload")?.addEventListener("click", () => { ADMIN_REPORT_AT = 0; renderAdmin(); });
+  const list = document.getElementById("adm-rp-list");
+  const sb = getSb();
+  if (!sb) { list.textContent = "서버에 연결되지 않았어요."; return; }
+  const { data, error } = await sb.rpc("admin_reports", { p_filter: ADMIN_REPORT_FILTER });
+  if (!list.isConnected) return;
+  if (error) {
+    list.innerHTML = /admin_reports|does not exist|schema cache|Could not find/i.test(error.message)
+      ? `권리 침해 신고 기능이 아직 서버에 없어요. Supabase 에서 <b>권리침해신고_2026-11-22.sql</b> 을 한 번 실행해야 해요.`
+      : `불러오지 못했어요: ${esc(error.message)}`;
+    return;
+  }
+  const rows = data.rows || [];
+  if (!rows.length) { list.innerHTML = `<div class="empty" style="padding:24px 0;">${ADMIN_REPORT_FILTER === "완료" ? "처리한 신고가 없어요." : "처리할 신고가 없어요."}</div>`; return; }
+  const dt = (t) => { if (!t) return ""; const d = new Date(t); return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+  const badge = (st) => {
+    const m = { "접수": ["새 신고", "wait"], "검토중": ["소명 받는 중", "wait"], "도용확정": ["도용 확정", "bad"], "기각": ["기각", "ok"] }[st] || [st, ""];
+    return `<span class="rp-badge ${m[1]}">${m[0]}</span>`;
+  };
+  const sanction = (r) => r.suspended ? `<b style="color:var(--danger);">판매 정지 · 경고 ${r.strikes}회${r.strikes >= 3 ? " · 해지 검토" : ""}</b>`
+    : r.strikes ? `경고 ${r.strikes}회` : "경고 없음";
+  list.innerHTML = rows.map(r => `
+    <div class="rp-item" data-rp-row="${r.id}">
+      <div class="rp-item-head">${badge(r.status)}<b>${esc(r.title || r.score_id)}</b><span class="rp-kv">${esc(r.artist || "")} · 악보 상태: ${esc(ADMIN_SC_LABEL[r.score_status] || r.score_status || "삭제됨")}</span></div>
+      <div class="rp-kv">판매자: <b>${esc(r.seller_name)}</b> (${sanction(r)}) · 신고자: <b>${esc(r.reporter_name)}</b>${r.reporter_email ? ` ${esc(r.reporter_email)}` : ""} · 접수 ${dt(r.created_at)}${r.same_score_open > 1 ? ` · <b>같은 악보 신고 ${r.same_score_open}건</b>` : ""}</div>
+      <div class="rp-kv">사유: <b>${esc(r.reason)}</b>${r.source_url ? ` · 원본: <a href="${esc(r.source_url)}" target="_blank" rel="noopener nofollow">${esc(r.source_url)}</a>` : " · 원본 주소 없음"}</div>
+      <div class="rp-kv" style="white-space:pre-wrap;">신고 내용: ${esc(r.detail)}</div>
+      ${r.status === "검토중" || r.seller_response ? `<div class="rp-kv" style="white-space:pre-wrap;">판매자 소명: ${r.seller_response ? `<b>${esc(r.seller_response)}</b> <span>(${dt(r.seller_responded_at)})</span>` : `<i>아직 없음</i>`}${r.status === "검토중" && r.respond_by ? ` · 기한 ${dt(r.respond_by)}` : ""}</div>` : ""}
+      ${r.admin_note && (r.status === "도용확정" || r.status === "기각") ? `<div class="rp-kv">처리 메모: <b>${esc(r.admin_note)}</b></div>` : ""}
+      ${r.status === "도용확정" ? `<div class="rp-kv">처리 ${dt(r.resolved_at)} · 환불 ${r.refund_count || 0}건 ${formatPoint(r.refund_points || 0)}</div>` : r.status === "기각" ? `<div class="rp-kv">처리 ${dt(r.resolved_at)}</div>` : ""}
+      ${r.status === "접수" || r.status === "검토중" ? `
+        <textarea class="field" rows="2" maxlength="500" data-rp-note="${r.id}" placeholder="처리 메모 (판매자에게도 보여요, 선택)">${esc(r.status === "검토중" ? (r.admin_note || "") : "")}</textarea>
+        <div class="rp-actions" style="flex-wrap:wrap;">
+          ${r.status === "접수"
+            ? `<button type="button" class="btn btn-small" data-rp-act="reject" data-id="${r.id}">기각</button>
+               <button type="button" class="btn btn-small btn-primary" data-rp-act="review" data-id="${r.id}">판매 중지·소명 요청 (7일)</button>`
+            : `<button type="button" class="btn btn-small" data-rp-act="reject" data-id="${r.id}">기각 (판매 되돌림)</button>
+               <button type="button" class="btn btn-small btn-primary" data-rp-act="confirm" data-id="${r.id}" data-n="${r.paid_count}" data-p="${r.paid_points}" data-name="${esc(r.seller_name)}" data-strikes="${r.strikes}">도용 확정 — ${r.paid_count}건 ${formatPoint(r.paid_points)} 환불</button>`}
+        </div>` : ""}
+      <div class="rp-actions"><button type="button" class="sm-link" data-rp-sanction="${esc(r.seller_id)}" data-strikes="${r.strikes}" data-susp="${r.suspended ? 1 : 0}" data-name="${esc(r.seller_name)}">판매자 경고·정지 조정</button></div>
+    </div>`).join("");
+
+  const after = async (msg) => {
+    toast(msg);
+    ADMIN_REPORT_AT = 0;
+    await load();          // 환불·적립금·악보 상태가 서버에서 바뀌었으니 화면 데이터를 새로 받는다
+    renderAdmin();
+  };
+  list.querySelectorAll("[data-rp-act]").forEach(b => b.addEventListener("click", async () => {
+    const id = Number(b.dataset.id), act = b.dataset.rpAct;
+    const note = list.querySelector(`[data-rp-note="${id}"]`)?.value || "";
+    if (act === "confirm") {
+      const next = Number(b.dataset.strikes) + 1;
+      if (!confirm(`도용으로 확정할까요? 되돌릴 수 없어요.\n\n· 구매자 ${b.dataset.n}건에 ${formatPoint(Number(b.dataset.p))} 전액 환불\n· 판매자(${b.dataset.name}) 적립금에서 판매자 몫 차감\n· 이 악보 판매 영구 중지\n· 판매자 경고 ${next}회${next >= 2 ? " → 판매 권한 정지" : ""}`)) return;
+    }
+    if (act === "reject" && !confirm("이 신고를 기각할까요?")) return;
+    list.querySelectorAll("[data-rp-act]").forEach(x => x.disabled = true);
+    const fn = { review: "admin_report_review", reject: "admin_report_reject", confirm: "admin_report_confirm" }[act];
+    const args = act === "review" ? { p_id: id, p_note: note, p_days: 7 } : { p_id: id, p_note: note };
+    const { data: res, error: e2 } = await sb.rpc(fn, args);
+    if (e2 || !res || !res.ok) {
+      list.querySelectorAll("[data-rp-act]").forEach(x => x.disabled = false);
+      toast((res && res.message) || (e2 && e2.message) || "처리하지 못했어요.", true);
+      return;
+    }
+    after(act === "review" ? "판매를 멈추고 판매자에게 소명을 요청했어요. 이 판매자의 정산 지급은 보류돼요."
+      : act === "reject" ? "기각했어요."
+      : `도용으로 확정했어요. ${res.refunded}건 ${formatPoint(res.points)} 환불, 판매자 경고 ${res.strikes}회${res.suspended ? " (판매 권한 정지)" : ""}.`);
+  }));
+  list.querySelectorAll("[data-rp-sanction]").forEach(b => b.addEventListener("click", async () => {
+    const cur = Number(b.dataset.strikes), susp = b.dataset.susp === "1";
+    const v = prompt(`${b.dataset.name} 판매자의 경고 횟수를 적어주세요 (지금 ${cur}회).\n판매 권한 정지는 다음 확인 창에서 정해요.`, String(cur));
+    if (v === null) return;
+    const n = Math.max(0, Math.floor(Number(v)));
+    if (!Number.isFinite(n)) { toast("숫자로 적어주세요.", true); return; }
+    const suspend = confirm(`판매 권한을 정지할까요?\n\n확인 = 정지 (새 등록·판매 불가, 판매 중인 악보는 모두 판매 중지)\n취소 = 정지하지 않음${susp ? " (정지 해제)" : ""}`);
+    const { data: res, error: e3 } = await sb.rpc("admin_set_sanction", { p_user: b.dataset.rpSanction, p_strikes: n, p_suspended: suspend, p_note: "" });
+    if (e3 || !res || !res.ok) { toast((res && res.message) || (e3 && e3.message) || "바꾸지 못했어요.", true); return; }
+    after(`경고 ${n}회${suspend ? ", 판매 권한 정지" : ", 정지 아님"}으로 바꿨어요.`);
+  }));
 }
